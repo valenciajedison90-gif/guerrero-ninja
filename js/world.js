@@ -216,19 +216,14 @@ export class World {
         lantern.position.copy(pos);
 
         const stoneMat = new THREE.MeshStandardMaterial({ color: 0x71717a, roughness: 0.9 });
-        const glowMat = new THREE.MeshStandardMaterial({
-            color: 0xfef08a,
-            emissive: 0xf59e0b,
-            emissiveIntensity: 0.85
-        });
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
         // Poste de piedra
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 2.2, 8), stoneMat);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 2.2, 6), stoneMat);
         pole.position.y = 1.1;
-        pole.castShadow = true;
         lantern.add(pole);
 
-        // Caja luminosa
+        // Caja luminosa (brilla sin calcular luces dinámicas costosas)
         const lightBox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), glowMat);
         lightBox.position.y = 2.4;
         lantern.add(lightBox);
@@ -238,11 +233,6 @@ export class World {
         cap.position.y = 2.85;
         cap.rotation.y = Math.PI / 4;
         lantern.add(cap);
-
-        // Luz cálida
-        const pointLight = new THREE.PointLight(0xf59e0b, 0.6, 6);
-        pointLight.position.y = 2.4;
-        lantern.add(pointLight);
 
         this.scene.add(lantern);
     }

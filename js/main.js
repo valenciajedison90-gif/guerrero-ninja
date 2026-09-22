@@ -1,14 +1,14 @@
 // js/main.js - Bucle Principal del Juego, Combate, Lógica de Tienda y Enlace de Sistemas
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=3.1';
-import { storage } from './storage.js?v=3.1';
-import { WEAPONS } from './weapons.js?v=3.1';
-import { ParticleSystem } from './particles.js?v=3.1';
-import { World } from './world.js?v=3.1';
-import { Player } from './player.js?v=3.1';
-import { EnemyManager } from './enemies.js?v=3.1';
-import { MultiplayerManager } from './multiplayer.js?v=3.1';
-import { TouchControlsManager } from './touch.js?v=3.1';
+import { sounds } from './sound.js?v=4.0';
+import { storage } from './storage.js?v=4.0';
+import { WEAPONS } from './weapons.js?v=4.0';
+import { ParticleSystem } from './particles.js?v=4.0';
+import { World } from './world.js?v=4.0';
+import { Player } from './player.js?v=4.0';
+import { EnemyManager } from './enemies.js?v=4.0';
+import { MultiplayerManager } from './multiplayer.js?v=4.0';
+import { TouchControlsManager } from './touch.js?v=4.0';
 
 class Game {
     constructor() {
@@ -45,50 +45,64 @@ class Game {
     }
 
     setupRenderer() {
+        this.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 900);
+
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: true,
-            powerPreference: 'high-performance'
+            antialias: !this.isMobile,
+            powerPreference: 'default',
+            precision: this.isMobile ? 'mediump' : 'highp'
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Clave de rendimiento móvil: pixelRatio a 1.0 en celulares evita saturar la GPU y calentar el teléfono
+        this.renderer.setPixelRatio(this.isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
+
+        // Sombras pesadas en tiempo real desactivadas en celulares para garantizar 60 FPS estables
+        this.renderer.shadowMap.enabled = !this.isMobile;
+        if (!this.isMobile) {
+            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        }
 
         this.scene = new THREE.Scene();
-        // Cielo azul animado estilo Roblox
         this.scene.background = new THREE.Color(0x7dd3fc);
         this.scene.fog = new THREE.FogExp2(0x7dd3fc, 0.015);
 
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 160);
         this.camera.position.set(0, 4, 8);
     }
 
     setupSceneAndLights() {
-        // Luz ambiental suave
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        // En móviles, aumentamos la luz ambiental para un aspecto vibrante sin sobrecargar el procesador
+        const ambientIntensity = this.isMobile ? 0.95 : 0.7;
+        const ambientLight = new THREE.AmbientLight(0xffffff, ambientIntensity);
         this.scene.add(ambientLight);
 
-        // Luz de sol brillante con sombras
-        const sunLight = new THREE.DirectionalLight(0xfffbeb, 1.3);
+        // Luz de sol brillante
+        const sunLight = new THREE.DirectionalLight(0xfffbeb, this.isMobile ? 1.0 : 1.3);
         sunLight.position.set(25, 40, 20);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 120;
 
-        const d = 40;
-        sunLight.shadow.camera.left = -d;
-        sunLight.shadow.camera.right = d;
-        sunLight.shadow.camera.top = d;
-        sunLight.shadow.camera.bottom = -d;
-        sunLight.shadow.bias = -0.0005;
+        if (!this.isMobile) {
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 120;
+
+            const d = 36;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            sunLight.shadow.bias = -0.0005;
+        } else {
+            sunLight.castShadow = false;
+        }
 
         this.scene.add(sunLight);
 
         // Luz hemisférica (cielo azul / suelo verde suave)
-        const hemiLight = new THREE.HemisphereLight(0xbae6fd, 0x86efac, 0.4);
+        const hemiLight = new THREE.HemisphereLight(0xbae6fd, 0x86efac, 0.45);
         this.scene.add(hemiLight);
     }
 
@@ -607,6 +621,7 @@ class Game {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(this.isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
     }
 
     animate() {

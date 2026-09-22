@@ -10,36 +10,38 @@ export class ParticleSystem {
         this.projectiles = []; // Shurikens arrojados
         this.floatingTexts = [];
 
-        // Geometría y materiales reutilizables
+        // Geometría y materiales reutilizables (evita GC y sobrecalentamiento móvil)
         this.sparkGeom = new THREE.BoxGeometry(0.08, 0.08, 0.08);
-        this.smokeGeom = new THREE.DodecahedronGeometry(0.25, 1);
-        this.coinGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 14);
+        this.smokeGeom = new THREE.DodecahedronGeometry(0.25, 0);
+        this.coinGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 10);
         this.coinMat = new THREE.MeshStandardMaterial({
             color: 0xffd700,
-            metalness: 0.85,
-            roughness: 0.2,
+            metalness: 0.8,
+            roughness: 0.3,
             emissive: 0xd97706,
-            emissiveIntensity: 0.4
+            emissiveIntensity: 0.3
         });
+
+        // Materiales estáticos compartidos para cero asignaciones por frame
+        this.materials = {
+            wood: new THREE.MeshBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.9 }),
+            fire: new THREE.MeshBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.9 }),
+            thunder: new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 }),
+            gold: new THREE.MeshBasicMaterial({ color: 0xffe600, transparent: true, opacity: 0.9 }),
+            critSpark: new THREE.MeshBasicMaterial({ color: 0xffea00, transparent: true, opacity: 1 }),
+            hitSpark: new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 1 }),
+            smoke: new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.65 })
+        };
     }
 
     createSlashEffect(position, direction, element = 'wood') {
-        const count = 14;
-        let color = 0xf5f5f5;
-        if (element === 'fire') color = 0xff5500;
-        else if (element === 'thunder') color = 0x00f0ff;
-        else if (element === 'gold') color = 0xffe600;
+        const count = 7;
+        const mat = this.materials[element] || this.materials.wood;
 
         for (let i = 0; i < count; i++) {
-            const mat = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.95
-            });
             const mesh = new THREE.Mesh(this.sparkGeom, mat);
             mesh.position.copy(position);
 
-            // Dispersión en abanico
             const angle = (i / count - 0.5) * Math.PI * 0.7;
             const spreadDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
             const speed = 2.5 + Math.random() * 3.5;
@@ -47,8 +49,8 @@ export class ParticleSystem {
             this.particles.push({
                 mesh: mesh,
                 velocity: spreadDir.multiplyScalar(speed).add(new THREE.Vector3(0, (Math.random() - 0.3) * 1.5, 0)),
-                life: 0.25 + Math.random() * 0.15,
-                maxLife: 0.4,
+                life: 0.22 + Math.random() * 0.12,
+                maxLife: 0.35,
                 gravity: 0,
                 shrink: true
             });
@@ -57,29 +59,24 @@ export class ParticleSystem {
     }
 
     createHitSparks(position, isCrit = false) {
-        const count = isCrit ? 22 : 12;
-        const color = isCrit ? 0xffea00 : 0xffaa00;
+        const count = isCrit ? 10 : 6;
+        const mat = isCrit ? this.materials.critSpark : this.materials.hitSpark;
 
         for (let i = 0; i < count; i++) {
-            const mat = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 1
-            });
             const mesh = new THREE.Mesh(this.sparkGeom, mat);
             mesh.position.copy(position);
 
             const vel = new THREE.Vector3(
-                (Math.random() - 0.5) * 5,
-                Math.random() * 4 + 1.5,
-                (Math.random() - 0.5) * 5
+                (Math.random() - 0.5) * 4.5,
+                Math.random() * 3.5 + 1.2,
+                (Math.random() - 0.5) * 4.5
             );
 
             this.particles.push({
                 mesh: mesh,
                 velocity: vel,
-                life: 0.35 + Math.random() * 0.2,
-                maxLife: 0.55,
+                life: 0.3 + Math.random() * 0.15,
+                maxLife: 0.45,
                 gravity: -9.8,
                 shrink: true
             });
@@ -88,32 +85,28 @@ export class ParticleSystem {
     }
 
     createSmokePoof(position, scale = 1.0) {
-        const count = 10;
+        const count = 5;
+        const mat = this.materials.smoke;
+
         for (let i = 0; i < count; i++) {
-            const mat = new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                roughness: 0.9,
-                transparent: true,
-                opacity: 0.8
-            });
             const mesh = new THREE.Mesh(this.smokeGeom, mat);
             mesh.position.copy(position);
             mesh.scale.setScalar(scale * (0.6 + Math.random() * 0.6));
 
             const angle = Math.random() * Math.PI * 2;
-            const horizontalSpeed = Math.random() * 2.5 * scale;
+            const horizontalSpeed = Math.random() * 2.2 * scale;
             const vel = new THREE.Vector3(
                 Math.cos(angle) * horizontalSpeed,
-                Math.random() * 2.2 * scale + 0.5,
+                Math.random() * 1.8 * scale + 0.4,
                 Math.sin(angle) * horizontalSpeed
             );
 
             this.particles.push({
                 mesh: mesh,
                 velocity: vel,
-                life: 0.5 + Math.random() * 0.3,
-                maxLife: 0.8,
-                gravity: 0.5, // El humo sube suavemente
+                life: 0.4 + Math.random() * 0.25,
+                maxLife: 0.65,
+                gravity: 0.5,
                 grow: true
             });
             this.scene.add(mesh);
