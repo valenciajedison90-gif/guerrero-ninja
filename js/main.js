@@ -1,14 +1,14 @@
 // js/main.js - Bucle Principal del Juego, Combate, Lógica de Tienda y Enlace de Sistemas
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=4.0';
-import { storage } from './storage.js?v=4.0';
-import { WEAPONS } from './weapons.js?v=4.0';
-import { ParticleSystem } from './particles.js?v=4.0';
-import { World } from './world.js?v=4.0';
-import { Player } from './player.js?v=4.0';
-import { EnemyManager } from './enemies.js?v=4.0';
-import { MultiplayerManager } from './multiplayer.js?v=4.0';
-import { TouchControlsManager } from './touch.js?v=4.0';
+import { sounds } from './sound.js?v=6.0';
+import { storage } from './storage.js?v=6.0';
+import { WEAPONS } from './weapons.js?v=6.0';
+import { ParticleSystem } from './particles.js?v=6.0';
+import { World, MAPS_CONFIG } from './world.js?v=6.0';
+import { Player } from './player.js?v=6.0';
+import { EnemyManager } from './enemies.js?v=6.0';
+import { MultiplayerManager } from './multiplayer.js?v=6.0';
+import { TouchControlsManager } from './touch.js?v=6.0';
 
 class Game {
     constructor() {
@@ -234,6 +234,16 @@ class Game {
         // Botón Tienda
         document.getElementById('btn-open-shop').addEventListener('click', () => this.toggleShop());
         document.getElementById('btn-close-shop').addEventListener('click', () => this.closeShop());
+
+        // Botón Mapas
+        const btnMaps = document.getElementById('btn-open-maps');
+        if (btnMaps) btnMaps.addEventListener('click', () => this.toggleMaps());
+        const btnCloseMaps = document.getElementById('btn-close-maps');
+        if (btnCloseMaps) btnCloseMaps.addEventListener('click', () => this.closeMaps());
+
+        // Configurar selector de mapas y PWA móvil
+        this.setupMapSelector();
+        this.setupPWAInstall();
 
         // Botón Jefe
         document.getElementById('btn-spawn-boss').addEventListener('click', () => {
@@ -593,6 +603,152 @@ class Game {
         document.getElementById('shop-modal').classList.remove('open');
     }
 
+    toggleMaps() {
+        const modal = document.getElementById('maps-modal');
+        if (!modal) return;
+        if (modal.classList.contains('open')) {
+            this.closeMaps();
+        } else {
+            modal.classList.add('open');
+        }
+    }
+
+    closeMaps() {
+        const modal = document.getElementById('maps-modal');
+        if (modal) modal.classList.remove('open');
+    }
+
+    setupMapSelector() {
+        const cards = document.querySelectorAll('.map-card');
+        cards.forEach(card => {
+            const mapId = card.getAttribute('data-map');
+            const selectBtn = card.querySelector('.btn-select-map');
+
+            const handleSelect = () => {
+                if (this.world.currentMapId === mapId) return;
+                this.switchMap(mapId);
+            };
+
+            if (selectBtn) {
+                selectBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleSelect();
+                });
+            }
+            card.addEventListener('click', handleSelect);
+        });
+    }
+
+    switchMap(mapId) {
+        if (!MAPS_CONFIG[mapId]) return;
+        this.world.setMap(mapId);
+
+        // Reposicionar al ninja en el centro de la nueva arena
+        this.player.mesh.position.set(0, 1.2, 0);
+        this.player.velocity.set(0, 0, 0);
+
+        // Actualizar tarjetas de selección en la UI
+        const cards = document.querySelectorAll('.map-card');
+        cards.forEach(c => {
+            const cMap = c.getAttribute('data-map');
+            const btn = c.querySelector('.btn-select-map');
+            if (cMap === mapId) {
+                c.classList.add('active');
+                if (btn) btn.textContent = '✓ MAPA ACTUAL';
+            } else {
+                c.classList.remove('active');
+                if (btn) {
+                    const icon = cMap === 'volcano' ? '🌋' : (cMap === 'snow' ? '❄️' : '🌸');
+                    btn.textContent = `VIAJAR AHORA ${icon}`;
+                }
+            }
+        });
+
+        sounds.playSlash('heavy');
+        this.showBanner('¡NUEVO CAMPO DE BATALLA! 🗺️', MAPS_CONFIG[mapId].name);
+        this.closeMaps();
+    }
+
+    setupPWAInstall() {
+        // Registrar Service Worker para juego offline y ejecución standalone 60 FPS
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('PWA ServiceWorker activo:', reg.scope))
+                    .catch(err => console.log('Error PWA ServiceWorker:', err));
+            });
+        }
+
+        const installBtn = document.getElementById('btn-pwa-install-action');
+        const laterBtn = document.getElementById('btn-pwa-close-action');
+        const iosGuide = document.getElementById('pwa-ios-guide');
+
+        let deferredPrompt = null;
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase()) && !window.MSStream;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            window.deferredPwaPrompt = e;
+
+            // Sugerir instalación si es primera visita en móvil o tablet
+            const hasSeenPrompt = localStorage.getItem('ninja_pwa_prompt_v6');
+            if (!hasSeenPrompt && (this.isMobile || window.innerWidth <= 900)) {
+                setTimeout(() => {
+                    this.openPwaModal();
+                }, 1600);
+            }
+        });
+
+        // Caso especial iOS Safari (mostrar instrucciones visuales)
+        if (isIOS && !isStandalone) {
+            const hasSeenPrompt = localStorage.getItem('ninja_pwa_prompt_v6');
+            if (!hasSeenPrompt) {
+                setTimeout(() => {
+                    if (iosGuide) iosGuide.style.display = 'block';
+                    this.openPwaModal();
+                }, 2000);
+            }
+        }
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        localStorage.setItem('ninja_pwa_prompt_v6', 'true');
+                        this.closePwaModal();
+                    }
+                    deferredPrompt = null;
+                } else if (isIOS) {
+                    if (iosGuide) iosGuide.style.display = 'block';
+                } else {
+                    alert('Para instalar: abre el menú (⋮) de tu navegador en el celular y selecciona "Agregar a pantalla principal"');
+                    this.closePwaModal();
+                }
+            });
+        }
+
+        if (laterBtn) {
+            laterBtn.addEventListener('click', () => {
+                localStorage.setItem('ninja_pwa_prompt_v6', 'true');
+                this.closePwaModal();
+            });
+        }
+    }
+
+    openPwaModal() {
+        const m = document.getElementById('pwa-install-modal');
+        if (m) m.classList.add('open');
+    }
+
+    closePwaModal() {
+        const m = document.getElementById('pwa-install-modal');
+        if (m) m.classList.remove('open');
+    }
+
     updateHUD() {
         // Vida
         const healthPercent = Math.max(0, (this.player.health / this.player.maxHealth) * 100);
@@ -631,6 +787,9 @@ class Game {
 
         // 1. Actualizar jugador (física, animaciones, controles)
         this.player.update(delta);
+
+        // Actualizar animaciones ambientales del mundo (lava fluida, agua, ventisca)
+        this.world.update(delta);
 
         // 2. Comprobar trampolines del mundo para jugador y enemigos
         this.world.checkTrampolines(this.player);

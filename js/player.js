@@ -54,10 +54,10 @@ export class Player {
 
         this.suitColor = 0x1e293b;
 
-        // Construir modelo de bloques estilo Roblox
+        // Construir modelo humanoide realista y anatómico
         this.mesh = new THREE.Group();
         this.mesh.name = 'player';
-        this.buildRobloxNinjaModel();
+        this.buildRealisticNinjaModel();
         this.scene.add(this.mesh);
 
         // Arma activa
@@ -93,158 +93,251 @@ export class Player {
         };
     }
 
-    buildRobloxNinjaModel() {
-        // Materiales
+    buildRealisticNinjaModel() {
+        // Materiales con iluminación PBR suave
         this.suitMat = new THREE.MeshStandardMaterial({
-            color: this.suitColor, // Color personalizable
-            roughness: 0.6
+            color: this.suitColor,
+            roughness: 0.5,
+            metalness: 0.15
         });
         const suitMat = this.suitMat;
-        const redClothMat = new THREE.MeshStandardMaterial({
-            color: 0xd92323, // Rojo ninja brillante
-            roughness: 0.5
+        const clothAccentMat = new THREE.MeshStandardMaterial({
+            color: 0xd92323, // Rojo carmesí ninja
+            roughness: 0.45
         });
         const skinMat = new THREE.MeshStandardMaterial({
-            color: 0xf6d8ae, // Piel anime
-            roughness: 0.4
+            color: 0xfbd0a1, // Piel anime cálida
+            roughness: 0.35
         });
-        const metalMat = new THREE.MeshStandardMaterial({
-            color: 0xd4d4d8,
-            metalness: 0.8,
+        const armorMat = new THREE.MeshStandardMaterial({
+            color: 0x334155,
+            metalness: 0.6,
+            roughness: 0.3
+        });
+        const metalGoldMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b,
+            metalness: 0.85,
             roughness: 0.2
         });
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+        const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+        const eyeHighlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-        // 1. Torso (Cuerpo de bloque Roblox)
-        const torsoGeom = new THREE.BoxGeometry(0.85, 1.1, 0.45);
-        this.torso = new THREE.Mesh(torsoGeom, suitMat);
+        // 1. Torso Humanoide Anatómico (V-Taper atlético)
+        this.torso = new THREE.Group();
         this.torso.position.y = 1.35;
-        this.torso.castShadow = true;
-        this.torso.receiveShadow = true;
         this.mesh.add(this.torso);
 
-        // Cinturón rojo de ninja (Obi)
-        const beltGeom = new THREE.BoxGeometry(0.88, 0.2, 0.48);
-        const belt = new THREE.Mesh(beltGeom, redClothMat);
-        belt.position.y = -0.35;
+        // Pecho superior / Pectorales (Cilindro cónico redondeado)
+        const chestGeom = new THREE.CylinderGeometry(0.42, 0.34, 0.55, 16);
+        const chest = new THREE.Mesh(chestGeom, suitMat);
+        chest.position.y = 0.15;
+        chest.castShadow = true;
+        chest.receiveShadow = true;
+        this.torso.add(chest);
+
+        // Abdomen / Cintura atlética
+        const absGeom = new THREE.CylinderGeometry(0.34, 0.30, 0.45, 16);
+        const abs = new THREE.Mesh(absGeom, suitMat);
+        abs.position.y = -0.22;
+        abs.castShadow = true;
+        this.torso.add(abs);
+
+        // Faja / Cinturón tradicional Shinobi (Obi)
+        const beltGeom = new THREE.CylinderGeometry(0.35, 0.35, 0.16, 16);
+        const belt = new THREE.Mesh(beltGeom, clothAccentMat);
+        belt.position.y = -0.32;
         this.torso.add(belt);
 
-        // Hebilla de oro / emblema ninja
-        const buckleGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 8);
-        const buckle = new THREE.Mesh(buckleGeom, new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 }));
+        // Emblema ninja dorado en el cinturón
+        const buckle = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.09, 0.09, 0.04, 12),
+            metalGoldMat
+        );
         buckle.rotation.x = Math.PI / 2;
-        buckle.position.set(0, -0.35, 0.25);
+        buckle.position.set(0, -0.32, 0.33);
         this.torso.add(buckle);
 
-        // 2. Cabeza (Cubo Roblox)
-        const headGeom = new THREE.BoxGeometry(0.65, 0.65, 0.65);
-        this.head = new THREE.Mesh(headGeom, skinMat);
-        this.head.position.y = 0.9;
-        this.head.castShadow = true;
+        // 2. Cabeza y Cuello (Rostro humanoide con capucha shinobi)
+        const neckGeom = new THREE.CylinderGeometry(0.14, 0.16, 0.22, 12);
+        const neck = new THREE.Mesh(neckGeom, skinMat);
+        neck.position.y = 0.48;
+        this.torso.add(neck);
+
+        this.head = new THREE.Group();
+        this.head.position.y = 0.72;
         this.torso.add(this.head);
 
-        // Máscara ninja en la parte inferior de la cara
-        const maskGeom = new THREE.BoxGeometry(0.66, 0.32, 0.66);
+        // Cráneo / Capucha redondeada
+        const hoodGeom = new THREE.SphereGeometry(0.35, 16, 16);
+        hoodGeom.scale(1.0, 1.15, 1.05);
+        const hood = new THREE.Mesh(hoodGeom, suitMat);
+        hood.castShadow = true;
+        this.head.add(hood);
+
+        // Rostro visible (piel alrededor de los ojos)
+        const faceVisorGeom = new THREE.SphereGeometry(0.33, 14, 14, 0, Math.PI * 2, Math.PI * 0.28, Math.PI * 0.22);
+        faceVisorGeom.scale(1.02, 1.14, 1.06);
+        const faceVisor = new THREE.Mesh(faceVisorGeom, skinMat);
+        this.head.add(faceVisor);
+
+        // Máscara ninja en la parte inferior del rostro
+        const maskGeom = new THREE.CylinderGeometry(0.32, 0.24, 0.32, 14);
+        maskGeom.scale(1.0, 1.0, 0.85);
         const mask = new THREE.Mesh(maskGeom, suitMat);
-        mask.position.y = -0.15;
+        mask.position.set(0, -0.12, 0.08);
         this.head.add(mask);
 
-        // Ojos grandes estilo anime/Roblox
-        const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.02), eyeMat);
-        eyeL.position.set(-0.16, 0.1, 0.33);
-        const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.02), eyeMat);
-        eyeR.position.set(0.16, 0.1, 0.33);
-        this.head.add(eyeL);
-        this.head.add(eyeR);
+        // Ojos estilo anime definidos
+        [-0.11, 0.11].forEach((eyeX) => {
+            const eyeGroup = new THREE.Group();
+            eyeGroup.position.set(eyeX, 0.05, 0.33);
 
-        // Bandana roja en la frente
-        const headbandGeom = new THREE.BoxGeometry(0.67, 0.16, 0.67);
-        const headband = new THREE.Mesh(headbandGeom, redClothMat);
-        headband.position.y = 0.22;
-        this.head.add(headband);
+            // Globo ocular blanco
+            const whiteMesh = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), eyeHighlightMat);
+            whiteMesh.scale.set(1.1, 0.7, 0.3);
+            eyeGroup.add(whiteMesh);
 
-        // Placa metálica de la aldea
-        const plateGeom = new THREE.BoxGeometry(0.24, 0.1, 0.02);
-        const plate = new THREE.Mesh(plateGeom, metalMat);
-        plate.position.set(0, 0.22, 0.34);
+            // Pupila oscura
+            const pupil = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), eyePupilMat);
+            pupil.rotation.x = Math.PI / 2;
+            pupil.position.z = 0.02;
+            eyeGroup.add(pupil);
+
+            this.head.add(eyeGroup);
+        });
+
+        // Protector de frente ninja metálico curvado (Hitai-ate)
+        const plateGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.14, 16, 1, true, -Math.PI * 0.32, Math.PI * 0.64);
+        const plate = new THREE.Mesh(plateGeom, armorMat);
+        plate.position.y = 0.16;
         this.head.add(plate);
 
-        // Cintas traseras de la bandana que ondean
-        this.bandanaTail1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.03), redClothMat);
-        this.bandanaTail1.position.set(-0.1, 0.05, -0.36);
-        this.bandanaTail1.rotation.x = 0.3;
+        // Bandana roja envolvente
+        const bandWrapGeom = new THREE.CylinderGeometry(0.365, 0.365, 0.16, 16, 1, true, -Math.PI * 0.55, Math.PI * 1.1);
+        const bandWrap = new THREE.Mesh(bandWrapGeom, clothAccentMat);
+        bandWrap.position.y = 0.16;
+        this.head.add(bandWrap);
+
+        // Emblema de la aldea en el centro del protector
+        const emblem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), metalGoldMat);
+        emblem.rotation.x = Math.PI / 2;
+        emblem.position.set(0, 0.16, 0.38);
+        this.head.add(emblem);
+
+        // Cintas de la bandana ondeando al viento
+        this.bandanaTail1 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.09, 0.65, 0.02),
+            clothAccentMat
+        );
+        this.bandanaTail1.position.set(-0.08, 0.08, -0.38);
+        this.bandanaTail1.rotation.x = 0.35;
         this.head.add(this.bandanaTail1);
 
-        this.bandanaTail2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.03), redClothMat);
-        this.bandanaTail2.position.set(0.1, 0.1, -0.36);
-        this.bandanaTail2.rotation.x = 0.4;
+        this.bandanaTail2 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.09, 0.55, 0.02),
+            clothAccentMat
+        );
+        this.bandanaTail2.position.set(0.08, 0.12, -0.38);
+        this.bandanaTail2.rotation.x = 0.45;
         this.head.add(this.bandanaTail2);
 
-        // 3. Brazo Izquierdo (Pivote de hombro)
+        // 3. Brazo Izquierdo Humanoide Articulado
         this.leftArmPivot = new THREE.Group();
-        this.leftArmPivot.position.set(-0.62, 0.45, 0);
+        this.leftArmPivot.position.set(-0.48, 0.35, 0);
         this.torso.add(this.leftArmPivot);
 
-        const armGeom = new THREE.BoxGeometry(0.38, 1.0, 0.38);
-        this.leftArm = new THREE.Mesh(armGeom, suitMat);
-        this.leftArm.position.y = -0.45;
-        this.leftArm.castShadow = true;
-        this.leftArmPivot.add(this.leftArm);
+        // Hombro / Deltoides curvado
+        const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), armorMat);
+        this.leftArmPivot.add(lShoulder);
 
-        // Manopla / guante
-        const gloveL = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.25, 0.39), redClothMat);
-        gloveL.position.y = -0.38;
-        this.leftArm.add(gloveL);
+        // Brazo superior (Bícep)
+        const lUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.42, 12), suitMat);
+        lUpperArm.position.y = -0.22;
+        lUpperArm.castShadow = true;
+        this.leftArmPivot.add(lUpperArm);
 
-        // 4. Brazo Derecho (Pivote de hombro con montaje de arma)
+        // Antebrazo con guantelete ninja (Kote)
+        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.44, 12), clothAccentMat);
+        lForearm.position.y = -0.55;
+        lForearm.castShadow = true;
+        this.leftArmPivot.add(lForearm);
+
+        // Mano izquierda cerrada
+        const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), skinMat);
+        lHand.position.y = -0.78;
+        this.leftArmPivot.add(lHand);
+
+        // 4. Brazo Derecho Humanoide con agarre de arma
         this.rightArmPivot = new THREE.Group();
-        this.rightArmPivot.position.set(0.62, 0.45, 0);
+        this.rightArmPivot.position.set(0.48, 0.35, 0);
         this.torso.add(this.rightArmPivot);
 
-        this.rightArm = new THREE.Mesh(armGeom, suitMat);
-        this.rightArm.position.y = -0.45;
-        this.rightArm.castShadow = true;
-        this.rightArmPivot.add(this.rightArm);
+        const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), armorMat);
+        this.rightArmPivot.add(rShoulder);
 
-        const gloveR = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.25, 0.39), redClothMat);
-        gloveR.position.y = -0.38;
-        this.rightArm.add(gloveR);
+        const rUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.42, 12), suitMat);
+        rUpperArm.position.y = -0.22;
+        rUpperArm.castShadow = true;
+        this.rightArmPivot.add(rUpperArm);
 
-        // Punto de montaje en la mano derecha para armas
+        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.44, 12), clothAccentMat);
+        rForearm.position.y = -0.55;
+        rForearm.castShadow = true;
+        this.rightArmPivot.add(rForearm);
+
+        // Mano derecha
+        const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), skinMat);
+        rHand.position.y = -0.78;
+        this.rightArmPivot.add(rHand);
+
+        // Punto de anclaje de arma en la mano derecha
         this.weaponHolder = new THREE.Group();
-        this.weaponHolder.position.set(0, -0.45, 0.18);
+        this.weaponHolder.position.set(0, -0.78, 0.08);
         this.weaponHolder.rotation.x = Math.PI / 2;
-        this.rightArm.add(this.weaponHolder);
+        this.rightArmPivot.add(this.weaponHolder);
 
-        // 5. Piernas (Pivotes de caderas)
-        const legGeom = new THREE.BoxGeometry(0.4, 0.9, 0.4);
-
+        // 5. Piernas Humanoides Anatómicas
+        // Pierna Izquierda
         this.leftLegPivot = new THREE.Group();
-        this.leftLegPivot.position.set(-0.23, -0.55, 0);
+        this.leftLegPivot.position.set(-0.20, -0.45, 0);
         this.torso.add(this.leftLegPivot);
 
-        this.leftLeg = new THREE.Mesh(legGeom, suitMat);
-        this.leftLeg.position.y = -0.4;
-        this.leftLeg.castShadow = true;
-        this.leftLegPivot.add(this.leftLeg);
+        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.48, 12), suitMat);
+        lThigh.position.y = -0.24;
+        lThigh.castShadow = true;
+        this.leftLegPivot.add(lThigh);
 
+        // Pantorrilla con polaina ninja (Kyahan)
+        const lCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.48, 12), clothAccentMat);
+        lCalf.position.y = -0.66;
+        lCalf.castShadow = true;
+        this.leftLegPivot.add(lCalf);
+
+        // Zapato Tabi anatómico curvado
+        const lFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        lFoot.scale.set(0.9, 0.6, 1.4);
+        lFoot.position.set(0, -0.88, 0.04);
+        this.leftLegPivot.add(lFoot);
+
+        // Pierna Derecha
         this.rightLegPivot = new THREE.Group();
-        this.rightLegPivot.position.set(0.23, -0.55, 0);
+        this.rightLegPivot.position.set(0.20, -0.45, 0);
         this.torso.add(this.rightLegPivot);
 
-        this.rightLeg = new THREE.Mesh(legGeom, suitMat);
-        this.rightLeg.position.y = -0.4;
-        this.rightLeg.castShadow = true;
-        this.rightLegPivot.add(this.rightLeg);
+        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.48, 12), suitMat);
+        rThigh.position.y = -0.24;
+        rThigh.castShadow = true;
+        this.rightLegPivot.add(rThigh);
 
-        // Vendas blancas en los pies (tabi)
-        const tabiMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9 });
-        const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.22, 0.41), tabiMat);
-        shoeL.position.y = -0.35;
-        this.leftLeg.add(shoeL);
-        const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.22, 0.41), tabiMat);
-        shoeR.position.y = -0.35;
-        this.rightLeg.add(shoeR);
+        const rCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.48, 12), clothAccentMat);
+        rCalf.position.y = -0.66;
+        rCalf.castShadow = true;
+        this.rightLegPivot.add(rCalf);
+
+        const rFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        rFoot.scale.set(0.9, 0.6, 1.4);
+        rFoot.position.set(0, -0.88, 0.04);
+        this.rightLegPivot.add(rFoot);
     }
 
     equipWeapon(weaponId) {
@@ -404,10 +497,12 @@ export class Player {
         sounds.playHit(false);
 
         // Destello rojo en el personaje
-        this.torso.material.color.setHex(0xff3333);
-        setTimeout(() => {
-            this.torso.material.color.setHex(0x1e293b);
-        }, 120);
+        if (this.suitMat) {
+            this.suitMat.color.setHex(0xff3333);
+            setTimeout(() => {
+                if (this.suitMat) this.suitMat.color.setHex(this.suitColor);
+            }, 120);
+        }
 
         if (this.health <= 0) {
             this.respawn();

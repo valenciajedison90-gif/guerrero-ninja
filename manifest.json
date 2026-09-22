@@ -1,0 +1,29 @@
+{
+  "name": "Guerrero Ninja 3D - Aventura de Espadas y Combate",
+  "short_name": "Guerrero Ninja",
+  "description": "Videojuego 3D de acción ninja, espadas mágicas, acrobacias y batallas multijugador.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

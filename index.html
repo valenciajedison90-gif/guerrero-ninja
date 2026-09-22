@@ -7,7 +7,13 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Guerrero Ninja 3D - Aventura de Espadas y Combate</title>
-    <link rel="stylesheet" href="css/style.css?v=5.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Guerrero Ninja">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="css/style.css?v=6.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -65,6 +71,10 @@
                     <span>🌐</span> SALAS
                 </button>
 
+                <button class="btn-hud btn-maps" id="btn-open-maps" title="Cambiar de Mapa / Bioma">
+                    <span>🗺️</span> MAPAS
+                </button>
+
                 <button class="btn-hud btn-shop-main" id="btn-open-shop">
                     <span>⛩️</span> TIENDA [T]
                 </button>
@@ -83,9 +93,13 @@
             </div>
         </div>
 
-        <!-- Centro: Combo flotante -->
+        <!-- Centro: Combo flotante y Notificaciones -->
         <div class="center-hud">
             <div class="combo-text" id="combo-display">¡COMBO x2!</div>
+            <div class="banner-overlay" id="banner-notification">
+                <div class="banner-title" id="banner-title">¡BIENVENIDO!</div>
+                <div class="banner-subtitle" id="banner-subtitle">¡Prepárate para combatir!</div>
+            </div>
         </div>
 
         <!-- Barra Inferior: Hotbar para cambiar armas en batalla -->
@@ -292,7 +306,88 @@
         </div>
     </div>
 
+    <!-- Modal de Selección de Mapas / Biomas 3D Orgánicos -->
+    <div class="modal-overlay" id="maps-modal">
+        <div class="maps-window">
+            <div class="maps-header">
+                <div class="maps-title-group">
+                    <span style="font-size: 32px;">🗺️</span>
+                    <div>
+                        <div class="maps-title">SELECCIÓN DE MAPAS Y BIOMAS</div>
+                        <div style="font-size: 13px; color: #94a3b8;">Viaja a campos de batalla legendarios con entornos vivos y orgánicos</div>
+                    </div>
+                </div>
+                <button class="shop-close-btn" id="btn-close-maps">✕</button>
+            </div>
+            <div class="maps-body">
+                <div class="maps-grid">
+                    <!-- Mapa 1: Santuario del Bosque -->
+                    <div class="map-card active" id="map-card-forest" data-map="forest">
+                        <div class="map-banner map-forest-banner">
+                            <span class="map-badge">🌸 ZEN</span>
+                            <span class="map-emoji">⛩️</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Santuario del Bosque Sagrado</div>
+                            <div class="map-desc">Colinas verdes zen, bambú, cerezos sakura, pagoda tradicional y estanque koi con agua cristalina.</div>
+                            <button class="btn-select-map" data-map="forest">✓ MAPA ACTUAL</button>
+                        </div>
+                    </div>
+
+                    <!-- Mapa 2: Volcán Carmesí -->
+                    <div class="map-card" id="map-card-volcano" data-map="volcano">
+                        <div class="map-banner map-volcano-banner">
+                            <span class="map-badge fire">🔥 FUEGO</span>
+                            <span class="map-emoji">🌋</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Templo del Volcán Carmesí</div>
+                            <div class="map-desc">Terreno de basalto oscuro, ríos de lava ardiente fluida, pilares de obsidiana y géiseres térmicos.</div>
+                            <button class="btn-select-map" data-map="volcano">VIAJAR AHORA 🌋</button>
+                        </div>
+                    </div>
+
+                    <!-- Mapa 3: Cumbres Heladas -->
+                    <div class="map-card" id="map-card-snow" data-map="snow">
+                        <div class="map-banner map-snow-banner">
+                            <span class="map-badge ice">❄️ HIELO</span>
+                            <span class="map-emoji">🏔️</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Cumbres Heladas del Dragón</div>
+                            <div class="map-desc">Montañas nevadas, agujas de cristal de hielo brillante, pinos nevados y ventisca suave.</div>
+                            <button class="btn-select-map" data-map="snow">VIAJAR AHORA ❄️</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Instalación en Celular PWA -->
+    <div class="modal-overlay" id="pwa-install-modal">
+        <div class="pwa-install-window">
+            <div class="pwa-badge">⚡ APP OFICIAL PARA CELULAR</div>
+            <div class="pwa-icon-glow">🥷</div>
+            <h2 class="pwa-title">¡Instala Guerrero Ninja en tu Celular!</h2>
+            <p class="pwa-desc">
+                Juega a pantalla completa sin barras del navegador, con controles táctiles Free Fire ultra-fluidos a 60 FPS.
+            </p>
+            
+            <div class="pwa-ios-instructions" id="pwa-ios-guide" style="display: none;">
+                <div class="ios-step"><span class="ios-num">1</span> Toca el botón <strong>Compartir</strong> <span class="ios-icon">⬆️</span> en la barra inferior de Safari.</div>
+                <div class="ios-step"><span class="ios-num">2</span> Desplázate y presiona <strong>"Agregar a pantalla de inicio"</strong> <span class="ios-icon">➕</span>.</div>
+                <div class="ios-step"><span class="ios-num">3</span> ¡Ábrelo desde tu pantalla de inicio y a combatir!</div>
+            </div>
+
+            <div class="pwa-actions">
+                <button class="btn-pwa-install" id="btn-pwa-install-action">⚡ INSTALAR EN MI CELULAR</button>
+                <button class="btn-pwa-later" id="btn-pwa-close-action">MÁS TARDE</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=5.0"></script>
+    <script type="module" src="js/main.js?v=6.0"></script>
 </body>
 </html>

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </radialGradient>
+    <linearGradient id="blade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="240" fill="url(#bg)" stroke="#ef4444" stroke-width="14"/>
+  <!-- Crossed Katanas -->
+  <path d="M120 120 L392 392 M140 100 L372 372" stroke="url(#blade)" stroke-width="12" stroke-linecap="round"/>
+  <path d="M392 120 L120 392 M372 100 L140 372" stroke="url(#blade)" stroke-width="12" stroke-linecap="round"/>
+  <!-- Ninja Hood -->
+  <circle cx="256" cy="250" r="140" fill="#0f172a" stroke="#38bdf8" stroke-width="6"/>
+  <!-- Forehead Protector -->
+  <rect x="160" y="160" width="192" height="42" rx="10" fill="#334155" stroke="#94a3b8" stroke-width="4"/>
+  <circle cx="256" cy="181" r="12" fill="#ef4444"/>
+  <!-- Eyes Visor -->
+  <rect x="170" y="220" width="172" height="50" rx="14" fill="#fde047" opacity="0.95"/>
+  <ellipse cx="215" cy="245" rx="14" ry="16" fill="#0f172a"/>
+  <ellipse cx="297" cy="245" rx="14" ry="16" fill="#0f172a"/>
+  <!-- Ninja Scarf Knot -->
+  <path d="M256 370 Q300 420 330 450 M256 370 Q270 430 250 460" stroke="#ef4444" stroke-width="16" stroke-linecap="round"/>
+</svg>
