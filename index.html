@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Guerrero Ninja 3D - Aventura de Espadas y Combate</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=3.1">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -68,6 +71,10 @@
 
                 <button class="btn-hud btn-boss-spawn" id="btn-spawn-boss" title="Invoca al Gran Jefe Samurái">
                     <span>👹</span> JEFE
+                </button>
+
+                <button class="btn-hud" id="btn-toggle-touch" title="Alternar Controles Celular">
+                    <span>📱</span>
                 </button>
 
                 <button class="btn-hud" id="btn-toggle-sound" title="Activar/Silenciar sonido">
@@ -191,6 +198,7 @@
                         <div class="lobby-title">DOJO NINJA - MODO DE JUEGO</div>
                         <div style="font-size: 13px; color: #94a3b8;">¡Personaliza tu guerrero y juega solo o con amigos!</div>
                     </div>
+                    <button class="btn-play-direct-mobile" id="btn-quick-start">⚔️ JUGAR YA</button>
                 </div>
                 <button class="shop-close-btn" id="btn-close-lobby" title="Cerrar ventana">✕</button>
             </div>
@@ -285,6 +293,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/main.js?v=3.1"></script>
 </body>
 </html>

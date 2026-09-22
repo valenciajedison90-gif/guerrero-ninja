@@ -78,9 +78,15 @@ export class TouchControlsManager {
                     }
 
                     this.joystickTouchId = touch.identifier;
-                    updateBaseCenter();
 
-                    // Si toca cerca de la esquina pero fuera del centro, podemos reposicionar suavemente
+                    // Centrar base del joystick directamente bajo el pulgar izquierdo
+                    if (this.joystickZone) {
+                        this.joystickZone.style.left = `${touch.clientX - 65}px`;
+                        this.joystickZone.style.top = `${touch.clientY - 65}px`;
+                        this.joystickZone.style.bottom = 'auto';
+                    }
+                    this.baseCenter = { x: touch.clientX, y: touch.clientY };
+
                     this.handleJoystickMove(touch.clientX, touch.clientY);
                     if (this.joystickBase) this.joystickBase.classList.add('active');
                     break;
@@ -111,6 +117,11 @@ export class TouchControlsManager {
                     }
                     if (this.joystickBase) {
                         this.joystickBase.classList.remove('active');
+                    }
+                    if (this.joystickZone) {
+                        this.joystickZone.style.left = '';
+                        this.joystickZone.style.top = '';
+                        this.joystickZone.style.bottom = '';
                     }
                     this.player.setTouchMovement(0, 0);
                     break;

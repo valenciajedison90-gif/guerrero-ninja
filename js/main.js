@@ -1,14 +1,14 @@
 // js/main.js - Bucle Principal del Juego, Combate, Lógica de Tienda y Enlace de Sistemas
 import * as THREE from 'three';
-import { sounds } from './sound.js';
-import { storage } from './storage.js';
-import { WEAPONS } from './weapons.js';
-import { ParticleSystem } from './particles.js';
-import { World } from './world.js';
-import { Player } from './player.js';
-import { EnemyManager } from './enemies.js';
-import { MultiplayerManager } from './multiplayer.js';
-import { TouchControlsManager } from './touch.js';
+import { sounds } from './sound.js?v=3.1';
+import { storage } from './storage.js?v=3.1';
+import { WEAPONS } from './weapons.js?v=3.1';
+import { ParticleSystem } from './particles.js?v=3.1';
+import { World } from './world.js?v=3.1';
+import { Player } from './player.js?v=3.1';
+import { EnemyManager } from './enemies.js?v=3.1';
+import { MultiplayerManager } from './multiplayer.js?v=3.1';
+import { TouchControlsManager } from './touch.js?v=3.1';
 
 class Game {
     constructor() {
@@ -229,10 +229,26 @@ class Game {
 
         // Botón Sonido
         const soundBtn = document.getElementById('btn-toggle-sound');
-        soundBtn.addEventListener('click', () => {
-            sounds.enabled = !sounds.enabled;
-            document.getElementById('sound-icon').textContent = sounds.enabled ? '🔊' : '🔇';
-        });
+        if (soundBtn) {
+            soundBtn.addEventListener('click', () => {
+                sounds.enabled = !sounds.enabled;
+                document.getElementById('sound-icon').textContent = sounds.enabled ? '🔊' : '🔇';
+            });
+        }
+
+        // Botón Alternar Controles Táctiles (Móviles / PC)
+        const touchBtn = document.getElementById('btn-toggle-touch');
+        if (touchBtn) {
+            touchBtn.addEventListener('click', () => {
+                const tc = document.getElementById('mobile-touch-controls');
+                if (tc) {
+                    const isVisible = window.getComputedStyle(tc).display !== 'none';
+                    tc.style.display = isVisible ? 'none' : 'block';
+                    document.body.classList.toggle('touch-enabled', !isVisible);
+                    document.body.classList.toggle('touch-active', !isVisible);
+                }
+            });
+        }
 
         // Rellenar cuadrícula de la tienda
         this.renderShopItems();
@@ -261,14 +277,22 @@ class Game {
             });
         }
 
+        // Función para cerrar lobby y comenzar inmediatamente a jugar
+        const startCombatNow = () => {
+            document.getElementById('multiplayer-modal').classList.remove('open');
+            this.showBanner('¡DOJO NINJA LISTO! 🥷', '¡Usa el joystick y los botones para combatir!');
+            document.body.classList.add('touch-enabled', 'touch-active');
+            const tc = document.getElementById('mobile-touch-controls');
+            if (tc) tc.style.display = 'block';
+        };
+
         // Botón Jugar Solo
         const btnSolo = document.getElementById('btn-start-solo');
-        if (btnSolo) {
-            btnSolo.addEventListener('click', () => {
-                document.getElementById('multiplayer-modal').classList.remove('open');
-                this.showBanner('¡MODO EN SOLITARIO!', '¡Entrena tus habilidades en el dojo!');
-            });
-        }
+        if (btnSolo) btnSolo.addEventListener('click', startCombatNow);
+
+        // Botón Jugar Ya (encabezado para celular)
+        const btnQuick = document.getElementById('btn-quick-start');
+        if (btnQuick) btnQuick.addEventListener('click', startCombatNow);
 
         // Botón Crear Sala
         const btnCreate = document.getElementById('btn-create-room');
