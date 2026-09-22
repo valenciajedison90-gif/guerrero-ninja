@@ -193,6 +193,29 @@ class SoundEngine {
         osc.stop(now + 0.21);
     }
 
+    playDash() {
+        if (!this.enabled || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(550, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+
+        gain.gain.setValueAtTime(this.volume * 0.45, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.18);
+        this.playNoise(0.16, 0.28);
+    }
+
     playTrampoline() {
         if (!this.enabled || !this.ctx) return;
         this.init();

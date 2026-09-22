@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Guerrero Ninja 3D - Aventura de Espadas y Combate</title>
     <link rel="stylesheet" href="css/style.css">
     
@@ -120,6 +120,45 @@
                 <span><span class="key-badge">1 - 5</span> Cambiar Arma</span>
                 <span><span class="key-badge">T</span> Tienda</span>
             </div>
+        </div>
+    </div>
+
+    <!-- Controles Táctiles para Celular Estilo Free Fire -->
+    <div id="mobile-touch-controls">
+        <!-- Zona Izquierda: Joystick Analógico Virtual -->
+        <div id="joystick-zone">
+            <div id="joystick-base">
+                <div id="joystick-knob"></div>
+            </div>
+        </div>
+
+        <!-- Zona Derecha: Cluster de Botones de Acción Estilo Free Fire -->
+        <div id="mobile-actions">
+            <!-- Botón Cambio Rápido de Arma -->
+            <button class="btn-touch-action btn-touch-switch" id="btn-touch-switch" title="Cambiar Arma">
+                <span class="touch-icon" id="touch-weapon-icon">🪵</span>
+                <span class="touch-label">ARMA</span>
+            </button>
+
+            <!-- Botón Impulso / Sprint Ninja -->
+            <button class="btn-touch-action btn-touch-dash" id="btn-touch-dash" title="Impulso Ninja">
+                <span class="touch-icon">⚡</span>
+                <span class="touch-label">DASH</span>
+            </button>
+
+            <!-- Botón Salto -->
+            <button class="btn-touch-action btn-touch-jump" id="btn-touch-jump" title="Saltar">
+                <span class="touch-icon">🥾</span>
+                <span class="touch-label">SALTO</span>
+            </button>
+
+            <!-- Botón de Disparo / Ataque Principal (Grande estilo Free Fire) -->
+            <button class="btn-touch-action btn-touch-attack" id="btn-touch-attack" title="Atacar">
+                <div class="attack-inner-ring">
+                    <span class="attack-icon">⚔️</span>
+                    <span class="attack-label">ATACAR</span>
+                </div>
+            </button>
         </div>
     </div>
 

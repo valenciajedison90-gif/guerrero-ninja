@@ -22,6 +22,10 @@ body, html {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
     font-family: 'Fredoka', 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
     background-color: #0f172a;
     color: #ffffff;
@@ -34,6 +38,7 @@ body, html {
     width: 100vw;
     height: 100vh;
     display: block;
+    touch-action: none;
     z-index: 1;
 }
 
@@ -1013,4 +1018,425 @@ body, html {
     margin: 10px auto;
     max-width: 480px;
 }
+
+/* =======================================================
+   CONTROLES TÁCTILES PARA CELULAR ESTILO FREE FIRE
+   ======================================================= */
+
+#mobile-touch-controls {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 40;
+    display: none;
+}
+
+/* Activar controles en pantallas táctiles o celulares */
+body.touch-enabled #mobile-touch-controls,
+body.touch-active #mobile-touch-controls {
+    display: block;
+}
+
+@media (hover: none) and (pointer: coarse), (max-width: 1024px) {
+    #mobile-touch-controls {
+        display: block;
+    }
+}
+
+/* 1. Pulgar Izquierdo: Joystick Analógico Virtual */
+#joystick-zone {
+    position: absolute;
+    bottom: 30px;
+    left: 30px;
+    width: 140px;
+    height: 140px;
+    pointer-events: none;
+}
+
+#joystick-base {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(15, 23, 42, 0.5) 0%, rgba(30, 41, 59, 0.7) 100%);
+    border: 3px solid rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 24px rgba(56, 189, 248, 0.3), inset 0 0 20px rgba(56, 189, 248, 0.2);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    pointer-events: auto;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#joystick-base::after {
+    content: '';
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+#joystick-base.active {
+    border-color: #38bdf8;
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.7), inset 0 0 25px rgba(56, 189, 248, 0.4);
+}
+
+#joystick-knob {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #38bdf8, #0284c7 70%, #0369a1 100%);
+    border: 3px solid #e0f2fe;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(56, 189, 248, 0.85);
+    position: absolute;
+    pointer-events: none;
+    will-change: transform;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.03s linear;
+}
+
+#joystick-knob::before {
+    content: '✥';
+    color: #ffffff;
+    font-size: 19px;
+    font-weight: 900;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* 2. Pulgar Derecho: Cluster de Botones de Acción Estilo Free Fire */
+#mobile-actions {
+    position: absolute;
+    bottom: 25px;
+    right: 25px;
+    width: 215px;
+    height: 215px;
+    pointer-events: none;
+}
+
+.btn-touch-action {
+    position: absolute;
+    pointer-events: auto;
+    border: none;
+    outline: none;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.1s ease;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.btn-touch-action:active,
+.btn-touch-action.pressed {
+    transform: scale(0.91);
+    filter: brightness(1.3);
+}
+
+/* A) Botón de Disparo / Ataque Principal (Grande y Destacado) */
+.btn-touch-attack {
+    bottom: 5px;
+    right: 5px;
+    width: 86px;
+    height: 86px;
+    background: radial-gradient(circle at 35% 35%, #f97316, #dc2626 70%, #991b1b 100%);
+    border: 3.5px solid #fef08a;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.65), 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 2px 8px rgba(255, 255, 255, 0.4);
+    animation: attackPulse 2.8s infinite ease-in-out;
+}
+
+@keyframes attackPulse {
+    0%, 100% { box-shadow: 0 0 22px rgba(239, 68, 68, 0.6), 0 6px 18px rgba(0,0,0,0.5); }
+    50% { box-shadow: 0 0 32px rgba(249, 115, 22, 0.85), 0 6px 20px rgba(0,0,0,0.6); }
+}
+
+.attack-inner-ring {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.attack-icon {
+    font-size: 32px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+}
+
+.attack-label {
+    font-size: 10px;
+    font-weight: 900;
+    color: #fef08a;
+    letter-spacing: 0.8px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    margin-top: -2px;
+}
+
+/* B) Botón de Salto */
+.btn-touch-jump {
+    bottom: 22px;
+    right: 104px;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle at 35% 35%, #38bdf8, #0284c7 70%, #0369a1 100%);
+    border: 3px solid #bae6fd;
+    box-shadow: 0 0 18px rgba(2, 132, 199, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.touch-icon {
+    font-size: 22px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.touch-label {
+    font-size: 9px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    margin-top: -1px;
+}
+
+/* C) Botón de Sprint / Impulso Ninja (Dash) */
+.btn-touch-dash {
+    bottom: 104px;
+    right: 18px;
+    width: 58px;
+    height: 58px;
+    background: radial-gradient(circle at 35% 35%, #facc15, #eab308 70%, #ca8a04 100%);
+    border: 3px solid #fef9c3;
+    box-shadow: 0 0 18px rgba(234, 179, 8, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.btn-touch-dash .touch-label {
+    color: #fef08a;
+}
+
+/* D) Botón de Cambio Rápido de Arma */
+.btn-touch-switch {
+    bottom: 104px;
+    right: 98px;
+    width: 56px;
+    height: 56px;
+    background: radial-gradient(circle at 35% 35%, #a855f7, #7e22ce 70%, #581c87 100%);
+    border: 3px solid #f3e8ff;
+    box-shadow: 0 0 18px rgba(168, 85, 247, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.btn-touch-switch .touch-label {
+    color: #f3e8ff;
+}
+
+/* =======================================================
+   OPTIMIZACIÓN RESPONSIVA PARA CELULARES Y TABLETS
+   ======================================================= */
+
+@media (max-width: 900px), (max-height: 520px) {
+    /* Ocultar ayuda de teclado en pantallas de teléfono */
+    .controls-hint {
+        display: none !important;
+    }
+
+    #hud-container {
+        padding: 8px 12px;
+    }
+
+    .top-hud {
+        align-items: center;
+    }
+
+    /* Reducir tarjeta de vida en pantalla pequeña */
+    .player-card {
+        padding: 6px 10px;
+        gap: 8px;
+        border-radius: 14px;
+        border-width: 2px;
+    }
+
+    .ninja-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+        border-radius: 10px;
+        border-width: 2px;
+    }
+
+    .player-name {
+        font-size: 13px;
+    }
+
+    .level-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+    }
+
+    .health-bar-container {
+        width: 110px;
+        height: 12px;
+    }
+
+    .health-text {
+        font-size: 9px;
+    }
+
+    .xp-bar-container {
+        width: 110px;
+        height: 6px;
+    }
+
+    /* Reducir botones superiores */
+    .top-right-group {
+        gap: 6px;
+    }
+
+    .coin-counter {
+        padding: 6px 10px;
+        border-radius: 12px;
+        border-width: 2px;
+        gap: 6px;
+    }
+
+    .coin-icon {
+        font-size: 18px;
+    }
+
+    .coin-amount {
+        font-size: 16px;
+        min-width: 35px;
+    }
+
+    .btn-hud {
+        padding: 7px 10px;
+        font-size: 12px;
+        border-radius: 12px;
+        border-width: 2px;
+        gap: 4px;
+    }
+
+    /* Escalar Hotbar inferior centrada para no estorbar joystick ni botones */
+    .bottom-hud {
+        bottom: 8px;
+    }
+
+    .hotbar-container {
+        padding: 4px 8px;
+        gap: 6px;
+        border-radius: 14px;
+        border-width: 2px;
+        transform: scale(0.82);
+        transform-origin: bottom center;
+        margin-bottom: 2px;
+    }
+
+    .hotbar-slot {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+    }
+
+    .slot-icon {
+        font-size: 18px;
+    }
+
+    .slot-name {
+        font-size: 8px;
+    }
+
+    .slot-number {
+        font-size: 8px;
+        width: 13px;
+        height: 13px;
+    }
+
+    /* Posición de joystick y botones para celulares */
+    #joystick-zone {
+        bottom: 20px;
+        left: 20px;
+        width: 120px;
+        height: 120px;
+    }
+
+    #joystick-base {
+        width: 115px;
+        height: 115px;
+    }
+
+    #joystick-knob {
+        width: 50px;
+        height: 50px;
+    }
+
+    #mobile-actions {
+        bottom: 15px;
+        right: 15px;
+        width: 190px;
+        height: 190px;
+    }
+
+    .btn-touch-attack {
+        width: 78px;
+        height: 78px;
+    }
+
+    .attack-icon {
+        font-size: 28px;
+    }
+
+    .btn-touch-jump {
+        right: 92px;
+        bottom: 18px;
+        width: 52px;
+        height: 52px;
+    }
+
+    .btn-touch-dash {
+        bottom: 92px;
+        right: 14px;
+        width: 50px;
+        height: 50px;
+    }
+
+    .btn-touch-switch {
+        bottom: 92px;
+        right: 86px;
+        width: 48px;
+        height: 48px;
+    }
+
+    /* Modales adaptados a pantallas horizontales de smartphone */
+    .shop-window, .lobby-window {
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 14px 18px;
+        width: 94vw;
+        border-radius: 18px;
+    }
+
+    .shop-body {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .modes-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+    }
+
+    .mode-card {
+        padding: 12px;
+    }
+}
+
 

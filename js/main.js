@@ -8,6 +8,7 @@ import { World } from './world.js';
 import { Player } from './player.js';
 import { EnemyManager } from './enemies.js';
 import { MultiplayerManager } from './multiplayer.js';
+import { TouchControlsManager } from './touch.js';
 
 class Game {
     constructor() {
@@ -24,6 +25,9 @@ class Game {
         this.player = new Player(this.scene, this.camera, this.renderer.domElement);
         this.enemyManager = new EnemyManager(this.scene, this.particles);
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
+
+        // Controles táctiles móviles estilo Free Fire
+        this.touchControls = new TouchControlsManager(this.player, this);
 
         // Conectar eventos de combate del jugador
         this.player.onAttackCallback = (weaponId, combo) => this.handlePlayerAttack(weaponId, combo);
@@ -424,12 +428,28 @@ class Game {
         });
     }
 
+    cycleWeaponSlot() {
+        const hotbar = storage.data.hotbar;
+        let nextSlot = (storage.data.currentSlot + 1) % hotbar.length;
+        let attempts = 0;
+        while (!hotbar[nextSlot] && attempts < hotbar.length) {
+            nextSlot = (nextSlot + 1) % hotbar.length;
+            attempts++;
+        }
+        if (hotbar[nextSlot]) {
+            this.selectWeaponSlot(nextSlot);
+        }
+    }
+
     selectWeaponSlot(index) {
         const weaponId = storage.data.hotbar[index];
         if (weaponId) {
             storage.setCurrentSlot(index);
             this.player.equipWeapon(weaponId);
             this.updateHotbarVisuals();
+            if (this.touchControls && WEAPONS[weaponId]) {
+                this.touchControls.updateWeaponIcon(WEAPONS[weaponId].icon);
+            }
             sounds.playSlash('wood');
         }
     }
@@ -552,6 +572,11 @@ class Game {
 
         // Actualizar visuales de la hotbar
         this.updateHotbarVisuals();
+
+        const activeWeaponId = storage.getActiveWeaponId();
+        if (this.touchControls && WEAPONS[activeWeaponId]) {
+            this.touchControls.updateWeaponIcon(WEAPONS[activeWeaponId].icon);
+        }
     }
 
     onWindowResize() {

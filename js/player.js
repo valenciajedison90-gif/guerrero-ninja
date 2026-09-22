@@ -43,6 +43,14 @@ export class Player {
             space: false
         };
 
+        // Movimiento táctil móvil (joystick virtual estilo Free Fire)
+        this.touchMoveVector = new THREE.Vector2(0, 0);
+
+        // Habilidad de impulso / dash ninja
+        this.dashCooldown = 0;
+        this.dashTimer = 0;
+        this.dashDirection = new THREE.Vector3();
+
         this.suitColor = 0x1e293b;
 
         // Construir modelo de bloques estilo Roblox
@@ -70,8 +78,9 @@ export class Player {
     getNetworkState() {
         let anim = 'idle';
         if (this.isAttacking) anim = 'attack';
+        else if (this.dashTimer > 0) anim = 'run';
         else if (!this.isGrounded) anim = 'jump';
-        else if (this.keys.w || this.keys.s || this.keys.a || this.keys.d) anim = 'run';
+        else if (this.keys.w || this.keys.s || this.keys.a || this.keys.d || this.touchMoveVector.lengthSq() > 0.01) anim = 'run';
         return {
             x: Number(this.mesh.position.x.toFixed(2)),
             y: Number(this.mesh.position.y.toFixed(2)),
@@ -316,6 +325,42 @@ export class Player {
         });
     }
 
+    setTouchMovement(x, y) {
+        this.touchMoveVector.set(x, y);
+    }
+
+    addCameraRotation(deltaX, deltaY) {
+        this.cameraYaw -= deltaX * 0.007;
+        this.cameraPitch += deltaY * 0.005;
+        this.cameraPitch = Math.max(-0.2, Math.min(1.1, this.cameraPitch));
+    }
+
+    jump() {
+        if (this.isGrounded) {
+            this.velocity.y = this.jumpForce;
+            this.isGrounded = false;
+            sounds.playJump();
+        }
+    }
+
+    dash() {
+        if (this.dashCooldown > 0) return;
+        this.dashCooldown = 1.2;
+        this.dashTimer = 0.22;
+        sounds.playDash();
+
+        // Si se está moviendo, el impulso sigue esa dirección; si no, hacia donde mira el ninja
+        if (this.moveDirection.lengthSq() > 0.001) {
+            this.dashDirection.copy(this.moveDirection).normalize();
+        } else {
+            this.dashDirection.set(
+                Math.sin(this.mesh.rotation.y),
+                0,
+                Math.cos(this.mesh.rotation.y)
+            ).normalize();
+        }
+    }
+
     triggerAttack() {
         if (this.attackCooldown > 0) return;
 
@@ -365,7 +410,7 @@ export class Player {
     }
 
     update(delta) {
-        // Enfriamiento de ataque
+        // Enfriamiento de ataque y dash
         if (this.attackCooldown > 0) {
             this.attackCooldown -= delta;
         }
@@ -374,6 +419,12 @@ export class Player {
             if (this.comboResetTimer <= 0) {
                 this.attackCombo = 0;
             }
+        }
+        if (this.dashCooldown > 0) {
+            this.dashCooldown -= delta;
+        }
+        if (this.dashTimer > 0) {
+            this.dashTimer -= delta;
         }
 
         // 1. Calcular dirección de movimiento en base a la rotación de cámara
@@ -386,9 +437,18 @@ export class Player {
         if (this.keys.d) this.moveDirection.add(right);
         if (this.keys.a) this.moveDirection.sub(right);
 
+        // Movimiento con joystick táctil móvil (analógico suave 360°)
+        if (this.touchMoveVector.lengthSq() > 0.001) {
+            this.moveDirection.addScaledVector(right, this.touchMoveVector.x);
+            this.moveDirection.addScaledVector(forward, this.touchMoveVector.y);
+        }
+
         const isMoving = this.moveDirection.lengthSq() > 0.001;
 
-        if (isMoving) {
+        if (this.dashTimer > 0) {
+            // Sprint supersónico por habilidad de Dash
+            this.mesh.position.addScaledVector(this.dashDirection, this.speed * 2.5 * delta);
+        } else if (isMoving) {
             this.moveDirection.normalize();
             this.mesh.position.addScaledVector(this.moveDirection, this.speed * delta);
 
@@ -402,9 +462,7 @@ export class Player {
 
         // 2. Salto y gravedad
         if (this.keys.space && this.isGrounded) {
-            this.velocity.y = this.jumpForce;
-            this.isGrounded = false;
-            sounds.playJump();
+            this.jump();
         }
 
         this.velocity.y += this.gravity * delta;
