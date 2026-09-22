@@ -422,6 +422,7 @@ class Game {
             chip.innerHTML = `<span class="player-chip-color" style="background: ${colorHex};"></span><span>${p.name} ${p.isHost ? '👑' : ''}</span>`;
             container.appendChild(chip);
         });
+    }
 
     selectWeaponSlot(index) {
         const weaponId = storage.data.hotbar[index];

@@ -279,7 +279,6 @@ export class MultiplayerManager {
         this.onPlayerJoined = null;
         this.onPlayerLeft = null;
         this.onError = null;
-    }
 
         this.usePeerJS = (window.location.protocol === 'https:' || window.location.hostname.includes('github.io'));
         this.peer = null;

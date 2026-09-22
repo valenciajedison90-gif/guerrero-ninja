@@ -12,12 +12,11 @@ echo Presiona una tecla para sincronizar y subir a GitHub...
 pause
 echo.
 echo [1/3] Preparando repositorio local...
-git init
 git config user.name "jjedi90"
 git config user.email "jvalealv@contratista.chec.com.co"
 git branch -M main
-git add .
-git commit -m "Publicacion inicial de Guerrero Ninja 3D con multijugador en GitHub Pages"
+git add -A
+git commit -m "Subida de Guerrero Ninja 3D para GitHub Pages" >nul 2>&1
 echo.
 echo [2/3] Verificando enlace remoto...
 git remote set-url origin https://github.com/valenciajedison90-gif/guerrero-ninja.git
@@ -28,14 +27,20 @@ git push -u origin main
 echo.
 if %ERRORLEVEL% equ 0 (
     echo ======================================================================
-    echo    TODO LISTO: Subido con exito a GitHub.
-    echo    Tu enlace para jugar en linea:
+    echo    TODO LISTO: Subido con exito a GitHub!
+    echo.
+    echo    Tu enlace para jugar en linea (en 1 minuto estara activo):
     echo    https://valenciajedison90-gif.github.io/guerrero-ninja/
     echo ======================================================================
 ) else (
-    echo [!] Si el repositorio no existe aun en tu cuenta, crealo aqui:
-    echo     https://github.com/new con el nombre "guerrero-ninja" (publico).
-    echo [!] Luego vuelve a ejecutar este archivo para subirlo.
+    echo ======================================================================
+    echo    [!] Si se abrio una ventana de tu navegador web:
+    echo        Haz clic en "Sign in with your browser" / "Authorize" para
+    echo        darle permiso a Git de subir los archivos a tu cuenta.
+    echo.
+    echo    [!] Luego vuelve a presionar una tecla en esta ventana o vuelve a
+    echo        ejecutar este archivo.
+    echo ======================================================================
 )
 echo.
 pause
