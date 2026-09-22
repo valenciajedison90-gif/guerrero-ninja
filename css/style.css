@@ -63,10 +63,11 @@ body, html {
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .player-card {
+    pointer-events: auto;
     background: var(--dark-bg);
     border: 3px solid #38bdf8;
     border-radius: 20px;
@@ -171,6 +172,7 @@ body, html {
 
 /* Contadores Superiores Derecha */
 .top-right-group {
+    pointer-events: auto;
     display: flex;
     align-items: center;
     gap: 15px;
@@ -274,10 +276,11 @@ body, html {
     align-items: center;
     gap: 12px;
     width: 100%;
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .hotbar-container {
+    pointer-events: auto;
     display: flex;
     gap: 12px;
     background: var(--dark-bg);

@@ -65,12 +65,12 @@ export class TouchControlsManager {
         window.addEventListener('resize', updateBaseCenter);
         setTimeout(updateBaseCenter, 200);
 
-        // Iniciar joystick al tocar la zona izquierda
+        // Iniciar joystick al tocar la zona izquierda inferior
         window.addEventListener('touchstart', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                // Solo si cae en la mitad izquierda de la pantalla y no hay joystick activo
-                if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.5) {
+                // Si cae en la zona izquierda y no hay joystick activo
+                if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.45 && touch.clientY > window.innerHeight * 0.2) {
                     // Evitar interferir con elementos de menú o modales abiertos
                     const target = document.elementFromPoint(touch.clientX, touch.clientY);
                     if (target && (target.closest('.modal-overlay') || target.closest('.btn-hud') || target.closest('.player-card'))) {
@@ -152,25 +152,28 @@ export class TouchControlsManager {
         }
 
         // Pasar vector normalizado al jugador (-1 a 1)
-        // En coordenadas 3D: dy negativo (hacia arriba en pantalla) = avanzar (+Y en Three.js forward)
+        // dy negativo (hacia arriba en pantalla) = avanzar (+Y en dirección frontal)
         const normX = clampedX / this.maxRadius;
         const normY = -clampedY / this.maxRadius;
         this.player.setTouchMovement(normX, normY);
     }
 
-    // 2. Control Panorámico de Cámara (Aim/Look en mitad derecha)
+    // 2. Control Panorámico de Cámara Estilo Free Fire (Aim / Mover vista con el dedo)
     setupCameraTouchEvents() {
         window.addEventListener('touchstart', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                // Si toca en la mitad derecha y no hay dedo asignado a la cámara
-                if (this.cameraTouchId === null && touch.clientX >= window.innerWidth * 0.45) {
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    // Comprobar si tocó un botón de acción táctil o del HUD
-                    if (target && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot'))) {
-                        continue;
-                    }
+                // Si ya es el joystick, ignorar
+                if (touch.identifier === this.joystickTouchId) continue;
 
+                // Comprobar si tocó un botón de acción táctil o del HUD
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot') || target.closest('.player-card') || target.closest('.coin-counter'))) {
+                    continue;
+                }
+
+                // Cualquier otro toque en la pantalla controla la cámara de forma inmediata
+                if (this.cameraTouchId === null) {
                     this.cameraTouchId = touch.identifier;
                     this.lastCameraPos = { x: touch.clientX, y: touch.clientY };
                     break;
@@ -183,11 +186,15 @@ export class TouchControlsManager {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === this.cameraTouchId) {
-                    const deltaX = touch.clientX - this.lastCameraPos.x;
-                    const deltaY = touch.clientY - this.lastCameraPos.y;
+                    const rawDeltaX = touch.clientX - this.lastCameraPos.x;
+                    const rawDeltaY = touch.clientY - this.lastCameraPos.y;
 
-                    // Rota la cámara 3ra persona con sensibilidad táctil calibrada
-                    this.player.addCameraRotation(deltaX * 1.3, deltaY * 1.3);
+                    // Limitar saltos extremos por lag de pantalla
+                    const deltaX = Math.max(-90, Math.min(90, rawDeltaX));
+                    const deltaY = Math.max(-90, Math.min(90, rawDeltaY));
+
+                    // Rota la cámara y orienta suavemente al personaje
+                    this.player.addCameraRotation(deltaX, deltaY);
 
                     this.lastCameraPos = { x: touch.clientX, y: touch.clientY };
                     e.preventDefault();

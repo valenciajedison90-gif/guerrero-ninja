@@ -9,12 +9,13 @@ export class Player {
         this.camera = camera;
         this.domElement = domElement;
 
-        // Estadísticas del jugador
+        // Estadísticas del jugador (Movilidad rápida y ágil estilo ninja)
         this.maxHealth = 100;
         this.health = 100;
-        this.speed = 9.5;
-        this.jumpForce = 12.0;
+        this.speed = 15.5;
+        this.jumpForce = 13.5;
         this.isGrounded = true;
+        this.jumpCount = 0;
         this.isAttacking = false;
         this.attackCombo = 0;
         this.attackTimer = 0;
@@ -330,22 +331,29 @@ export class Player {
     }
 
     addCameraRotation(deltaX, deltaY) {
-        this.cameraYaw -= deltaX * 0.007;
-        this.cameraPitch += deltaY * 0.005;
-        this.cameraPitch = Math.max(-0.2, Math.min(1.1, this.cameraPitch));
+        // Sensibilidad calibrada para pantalla táctil estilo Free Fire
+        this.cameraYaw -= deltaX * 0.013;
+        this.cameraPitch += deltaY * 0.007;
+        this.cameraPitch = Math.max(-0.15, Math.min(0.95, this.cameraPitch));
     }
 
     jump() {
         if (this.isGrounded) {
             this.velocity.y = this.jumpForce;
             this.isGrounded = false;
+            this.jumpCount = 1;
+            sounds.playJump();
+        } else if (this.jumpCount === 1) {
+            // Doble salto ninja acrobático
+            this.velocity.y = this.jumpForce * 0.95;
+            this.jumpCount = 2;
             sounds.playJump();
         }
     }
 
     dash() {
         if (this.dashCooldown > 0) return;
-        this.dashCooldown = 1.2;
+        this.dashCooldown = 0.9;
         this.dashTimer = 0.22;
         sounds.playDash();
 
@@ -363,6 +371,9 @@ export class Player {
 
     triggerAttack() {
         if (this.attackCooldown > 0) return;
+
+        // Alinear al ninja hacia donde apunta la cámara/mira (Estilo Free Fire)
+        this.mesh.rotation.y = this.cameraYaw + Math.PI;
 
         const weaponData = WEAPONS[this.currentWeaponId] || WEAPONS.bokken;
         this.isAttacking = true;
@@ -384,6 +395,7 @@ export class Player {
     bounceTrampoline(boostForce = 22.0) {
         this.velocity.y = boostForce;
         this.isGrounded = false;
+        this.jumpCount = 1; // Permite salto extra en el aire
         sounds.playTrampoline();
     }
 
@@ -447,17 +459,24 @@ export class Player {
 
         if (this.dashTimer > 0) {
             // Sprint supersónico por habilidad de Dash
-            this.mesh.position.addScaledVector(this.dashDirection, this.speed * 2.5 * delta);
+            this.mesh.position.addScaledVector(this.dashDirection, this.speed * 2.6 * delta);
         } else if (isMoving) {
             this.moveDirection.normalize();
             this.mesh.position.addScaledVector(this.moveDirection, this.speed * delta);
 
-            // Girar suavemente el ninja hacia la dirección de avance
+            // Girar reactivamente el ninja hacia la dirección de avance
             const targetRotation = Math.atan2(this.moveDirection.x, this.moveDirection.z);
             let diff = targetRotation - this.mesh.rotation.y;
             while (diff < -Math.PI) diff += Math.PI * 2;
             while (diff > Math.PI) diff -= Math.PI * 2;
-            this.mesh.rotation.y += diff * Math.min(1.0, delta * 15);
+            this.mesh.rotation.y += diff * Math.min(1.0, delta * 24);
+        } else {
+            // Cuando no se mueve, orientar suavemente al ninja hacia donde apunta la cámara (Estilo Free Fire)
+            const targetRotation = this.cameraYaw + Math.PI;
+            let diff = targetRotation - this.mesh.rotation.y;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            this.mesh.rotation.y += diff * Math.min(1.0, delta * 16);
         }
 
         // 2. Salto y gravedad
@@ -473,6 +492,7 @@ export class Player {
             this.mesh.position.y = 0;
             this.velocity.y = 0;
             this.isGrounded = true;
+            this.jumpCount = 0; // Reiniciar contador de saltos
         }
 
         // Límites del mapa para no caer al vacío
@@ -485,7 +505,7 @@ export class Player {
         }
 
         // 3. Animaciones procedurales estilo Roblox
-        const time = performance.now() * 0.009;
+        const time = performance.now() * 0.015;
 
         if (this.isAttacking) {
             this.attackTimer += delta * 8;
@@ -521,8 +541,8 @@ export class Player {
                 this.leftLegPivot.rotation.x = 0.5;
                 this.rightLegPivot.rotation.x = 0.3;
             } else if (isMoving) {
-                // Animación de correr (brazos y piernas oscilan)
-                const swing = Math.sin(time) * 0.75;
+                // Animación de correr (brazos y piernas oscilan dinámicamente)
+                const swing = Math.sin(time) * 0.85;
                 this.leftLegPivot.rotation.x = swing;
                 this.rightLegPivot.rotation.x = -swing;
                 this.leftArmPivot.rotation.x = -swing * 0.7;
@@ -550,8 +570,8 @@ export class Player {
         const camY = targetPos.y + Math.sin(this.cameraPitch) * this.cameraDistance + this.cameraHeight * 0.3;
         const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
 
-        // Movimiento de cámara suave (lerp)
-        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.15);
+        // Movimiento de cámara suave (lerp) sin retraso perceptible
+        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.28);
         this.camera.lookAt(targetPos);
     }
 }

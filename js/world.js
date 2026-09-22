@@ -324,6 +324,19 @@ export class World {
         }
     }
 
+    checkTrampolinesForEnemies(enemies) {
+        for (const t of this.trampolines) {
+            for (const enemy of enemies) {
+                if (enemy.type === 'dummy') continue;
+                const dist = Math.hypot(enemy.mesh.position.x - t.position.x, enemy.mesh.position.z - t.position.z);
+                if (dist < t.radius && enemy.mesh.position.y < 0.8 && enemy.velocity.y <= 0) {
+                    enemy.velocity.y = t.boostForce;
+                    enemy.isGrounded = false;
+                }
+            }
+        }
+    }
+
     checkFloatingCoins(playerPos, onCollect) {
         const time = performance.now() * 0.003;
         for (let i = this.floatingCoins.length - 1; i >= 0; i--) {

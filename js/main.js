@@ -632,8 +632,9 @@ class Game {
         // 1. Actualizar jugador (física, animaciones, controles)
         this.player.update(delta);
 
-        // 2. Comprobar trampolines del mundo
+        // 2. Comprobar trampolines del mundo para jugador y enemigos
         this.world.checkTrampolines(this.player);
+        this.world.checkTrampolinesForEnemies(this.enemyManager.enemies);
 
         // 3. Comprobar monedas flotantes en el aire (parkour)
         this.world.checkFloatingCoins(this.player.mesh.position, (coins) => {
