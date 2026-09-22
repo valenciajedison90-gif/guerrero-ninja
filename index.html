@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Guerrero Ninja 3D - Aventura de Espadas y Combate</title>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
+    <script src="lib/peerjs.min.js"></script>
+
+    <!-- Mapa de importación de Three.js local -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "./lib/three.module.js"
+      }
+    }
+    </script>
+</head>
+<body>
+    <!-- Canvas 3D de WebGL -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Interfaz de Usuario (HUD) para niños -->
+    <div id="hud-container">
+        <!-- Barra Superior -->
+        <div class="top-hud">
+            <!-- Tarjeta de Vida y Nivel del Ninja -->
+            <div class="player-card">
+                <div class="ninja-avatar">🥷</div>
+                <div class="stats-container">
+                    <div class="player-name-row">
+                        <span class="player-name">Ninja Guerrero</span>
+                        <span class="level-badge" id="player-level-badge">NVL 1</span>
+                    </div>
+                    <div class="health-bar-container">
+                        <div class="health-bar-fill" id="player-health-fill"></div>
+                        <span class="health-text" id="player-health-text">100 / 100</span>
+                    </div>
+                    <div class="xp-bar-container" title="Experiencia para subir de nivel">
+                        <div class="xp-bar-fill" id="player-xp-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contador de Monedas y Botones de Acción -->
+            <div class="top-right-group">
+                <div class="coin-counter">
+                    <span class="coin-icon">🪙</span>
+                    <span class="coin-amount" id="coin-count">60</span>
+                </div>
+
+                <!-- Badge de Sala Activa en el HUD -->
+                <div class="hud-room-badge" id="hud-room-badge" style="display: none;">
+                    <span class="pulse-dot"></span>
+                    <span>SALA: <strong id="hud-room-code">---</strong></span>
+                    <button class="btn-copy-mini" id="btn-copy-hud-code" title="Copiar código de sala">📋 Copiar</button>
+                </div>
+
+                <button class="btn-hud btn-multiplayer" id="btn-open-multiplayer">
+                    <span>🌐</span> SALAS
+                </button>
+
+                <button class="btn-hud btn-shop-main" id="btn-open-shop">
+                    <span>⛩️</span> TIENDA [T]
+                </button>
+
+                <button class="btn-hud btn-boss-spawn" id="btn-spawn-boss" title="Invoca al Gran Jefe Samurái">
+                    <span>👹</span> JEFE
+                </button>
+
+                <button class="btn-hud" id="btn-toggle-sound" title="Activar/Silenciar sonido">
+                    <span id="sound-icon">🔊</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Centro: Combo flotante -->
+        <div class="center-hud">
+            <div class="combo-text" id="combo-display">¡COMBO x2!</div>
+        </div>
+
+        <!-- Barra Inferior: Hotbar para cambiar armas en batalla -->
+        <div class="bottom-hud">
+            <div class="hotbar-container" id="hotbar-container">
+                <!-- Se generan dinámicamente las 5 ranuras -->
+                <div class="hotbar-slot active" data-slot="0">
+                    <span class="slot-number">1</span>
+                    <span class="slot-icon">🪵</span>
+                    <span class="slot-name">Bokken</span>
+                </div>
+                <div class="hotbar-slot" data-slot="1">
+                    <span class="slot-number">2</span>
+                    <span class="slot-icon">➕</span>
+                    <span class="slot-name">Vacío</span>
+                </div>
+                <div class="hotbar-slot" data-slot="2">
+                    <span class="slot-number">3</span>
+                    <span class="slot-icon">➕</span>
+                    <span class="slot-name">Vacío</span>
+                </div>
+                <div class="hotbar-slot" data-slot="3">
+                    <span class="slot-number">4</span>
+                    <span class="slot-icon">➕</span>
+                    <span class="slot-name">Vacío</span>
+                </div>
+                <div class="hotbar-slot" data-slot="4">
+                    <span class="slot-number">5</span>
+                    <span class="slot-icon">➕</span>
+                    <span class="slot-name">Vacío</span>
+                </div>
+            </div>
+
+            <!-- Guía de controles para niños -->
+            <div class="controls-hint">
+                <span><span class="key-badge">W A S D</span> Moverse</span>
+                <span><span class="key-badge">ESPACIO</span> Saltar</span>
+                <span><span class="key-badge">CLIC</span> Atacar</span>
+                <span><span class="key-badge">1 - 5</span> Cambiar Arma</span>
+                <span><span class="key-badge">T</span> Tienda</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de la Tienda de Armas -->
+    <div class="modal-overlay" id="shop-modal">
+        <div class="shop-window">
+            <div class="shop-header">
+                <div class="shop-title-group">
+                    <span style="font-size: 32px;">⛩️</span>
+                    <div>
+                        <div class="shop-title">TIENDA NINJA DEL SENSEI</div>
+                        <div style="font-size: 13px; color: #94a3b8;">¡Compra espadas legendarias y shurikens con tus monedas!</div>
+                    </div>
+                </div>
+                <button class="shop-close-btn" id="btn-close-shop">✕</button>
+            </div>
+            <div class="shop-body" id="shop-items-grid">
+                <!-- Se rellena automáticamente con las armas desde weapons.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Selección de Modo y Salas Multijugador -->
+    <div class="modal-overlay open" id="multiplayer-modal">
+        <div class="lobby-window">
+            <div class="lobby-header">
+                <div class="lobby-title-group">
+                    <span style="font-size: 38px;">🥷</span>
+                    <div>
+                        <div class="lobby-title">DOJO NINJA - MODO DE JUEGO</div>
+                        <div style="font-size: 13px; color: #94a3b8;">¡Personaliza tu guerrero y juega solo o con amigos!</div>
+                    </div>
+                </div>
+                <button class="shop-close-btn" id="btn-close-lobby" title="Cerrar ventana">✕</button>
+            </div>
+
+            <!-- Paso 1: Personalización del Ninja -->
+            <div class="lobby-section">
+                <div class="section-label">1. Elige tu Nombre Ninja y Color de Traje:</div>
+                <div class="ninja-customizer-row">
+                    <div class="name-input-box">
+                        <label>Nombre:</label>
+                        <input type="text" id="input-ninja-name" maxlength="14" value="Ninja Pro" placeholder="Tu nombre...">
+                    </div>
+                    <div class="color-palette-box">
+                        <label>Color de Traje:</label>
+                        <div class="color-palette" id="color-palette">
+                            <button class="color-dot active" data-color="0x1e293b" style="background: #1e293b;" title="Carbón Oscuro"></button>
+                            <button class="color-dot" data-color="0xd92323" style="background: #d92323;" title="Rojo Fuego"></button>
+                            <button class="color-dot" data-color="0x15803d" style="background: #15803d;" title="Verde Jade"></button>
+                            <button class="color-dot" data-color="0xf59e0b" style="background: #f59e0b;" title="Dorado Dragón"></button>
+                            <button class="color-dot" data-color="0x7e22ce" style="background: #7e22ce;" title="Púrpura Sombra"></button>
+                            <button class="color-dot" data-color="0x0284c7" style="background: #0284c7;" title="Azul Celestial"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paso 2: Elección de Modo -->
+            <div class="lobby-section" id="lobby-modes-view">
+                <div class="section-label">2. ¿Cómo quieres jugar?</div>
+                <div class="modes-grid">
+                    <div class="mode-card" id="card-mode-solo">
+                        <div class="mode-icon">🎮</div>
+                        <div class="mode-name">Entrenamiento Solo</div>
+                        <div class="mode-desc">Juega en tu propio dojo contra muñecos y ninjas enemigos.</div>
+                        <button class="btn-mode btn-mode-solo" id="btn-start-solo">¡JUGAR SOLO!</button>
+                    </div>
+
+                    <div class="mode-card highlight" id="card-mode-create">
+                        <div class="mode-icon">🏠</div>
+                        <div class="mode-name">Crear Sala Privada</div>
+                        <div class="mode-desc">Crea una sala y comparte el código con tus amigos para jugar juntos.</div>
+                        <button class="btn-mode btn-mode-create" id="btn-create-room">CREAR SALA</button>
+                    </div>
+
+                    <div class="mode-card" id="card-mode-join">
+                        <div class="mode-icon">🔑</div>
+                        <div class="mode-name">Unirse a una Sala</div>
+                        <div class="mode-desc">Introduce el código que te dio tu amigo para entrar a su batalla.</div>
+                        <button class="btn-mode btn-mode-join" id="btn-goto-join">UNIRSE CON CÓDIGO</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subvista: Sala Creada (Código para compartir) -->
+            <div class="lobby-section" id="lobby-created-view" style="display: none;">
+                <div class="room-success-banner">
+                    <div class="success-icon">🎉</div>
+                    <div class="success-title">¡Tu Sala Privada está lista!</div>
+                    <div class="success-desc">Comparte este código con tus amigos para que se unan a tu dojo:</div>
+                </div>
+
+                <div class="code-share-container">
+                    <div class="code-display" id="room-code-display">NINJA7</div>
+                    <button class="btn-copy-code" id="btn-copy-lobby-code">📋 Copiar Código</button>
+                </div>
+
+                <div class="players-in-room-box">
+                    <div class="players-box-title">Ninjas en la Sala:</div>
+                    <div class="players-chips-container" id="lobby-players-list">
+                        <!-- Chips de jugadores -->
+                    </div>
+                </div>
+
+                <div class="lobby-actions-row">
+                    <button class="btn-mode btn-mode-solo" id="btn-start-playing-room">⚔️ ¡ENTRAR AL DOJO Y COMBATIR!</button>
+                </div>
+            </div>
+
+            <!-- Subvista: Unirse con Código -->
+            <div class="lobby-section" id="lobby-join-view" style="display: none;">
+                <div class="section-label">Introduce el Código de la Sala:</div>
+                <div class="join-input-container">
+                    <input type="text" id="input-join-room-code" placeholder="EJ: NINJA7" maxlength="10">
+                    <button class="btn-mode btn-mode-create" id="btn-confirm-join">¡ENTRAR A LA SALA!</button>
+                </div>
+                <div class="join-error-msg" id="join-error-msg" style="display: none;"></div>
+                <div style="margin-top: 15px;">
+                    <button class="btn-hud" id="btn-back-to-modes">← Volver</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script principal de inicio -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "guerrero-ninja-3d",
+  "version": "1.0.0",
+  "description": "Videojuego 3D de combate ninja estilo Roblox en WebGL/Three.js con multijugador en tiempo real",
+  "main": "js/main.js",
+  "author": "jjedi90",
+  "creator": "jjedi90",
+  "publisher": "jjedi90",
+  "license": "UNLICENSED",
+  "private": true,
+  "homepage": "https://valenciajedison90-gif.github.io/guerrero-ninja/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/valenciajedison90-gif/guerrero-ninja.git"
+  },
+  "keywords": [
+    "guerrero-ninja",
+    "videojuego",
+    "threejs",
+    "webgl",
+    "roblox-style",
+    "multiplayer",
+    "jjedi90"
+  ]
+}

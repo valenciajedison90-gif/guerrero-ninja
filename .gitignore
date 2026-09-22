@@ -1,0 +1,18 @@
+# Sistema Operativo y Basura Local
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+.system_generated/
+__pycache__/
+
+# Dependencias y temporales
+node_modules/
+.npm/
+
+# IDE y Editores
+.vscode/
+.idea/
+*.suo
+*.user
