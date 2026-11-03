@@ -616,6 +616,11 @@ class Game {
         banner.classList.remove('show');
         void banner.offsetWidth;
         banner.classList.add('show');
+
+        clearTimeout(this.bannerTimeout);
+        this.bannerTimeout = setTimeout(() => {
+            banner.classList.remove('show');
+        }, 2200);
     }
 
     setupUI() {
@@ -1795,15 +1800,14 @@ class Game {
             const isMobile = window.innerWidth <= 768 || (window.innerWidth / window.innerHeight) < 1.0;
 
             if (isMobile) {
-                // CELULARES: El héroe está perfectamente centrado y encuadrado
-                // Deja espacio libre arriba (orejas bajo la etiqueta) y abajo (pies sobre el selector)
+                // CELULARES: El héroe está completamente en el centro libre (sin tarjetas encima)
                 const camFloatX = Math.sin(this.menuHoverTime * 0.4) * 0.06;
-                const camFloatY = 1.32 + Math.cos(this.menuHoverTime * 0.6) * 0.03;
-                this.camera.position.set(camFloatX, camFloatY, 4.12);
-                this.camera.lookAt(0, 1.05, 0);
+                const camFloatY = 1.40 + Math.cos(this.menuHoverTime * 0.6) * 0.03;
+                this.camera.position.set(camFloatX, camFloatY, 4.40);
+                this.camera.lookAt(0, 1.15, 0);
 
                 if (this.player && this.player.mesh) {
-                    this.player.mesh.position.set(0, -0.18, 0);
+                    this.player.mesh.position.set(0, 0.05, 0);
                     if (this.heroManualRotation !== undefined) {
                         this.player.mesh.rotation.y = this.heroManualRotation;
                     } else {

@@ -49,10 +49,10 @@ export class Player {
         this.moveDirection = new THREE.Vector3();
         this.gravity = -26.0;
 
-        // Cámara en 3ra persona orbital
-        this.cameraDistance = 6.2;
-        this.cameraHeight = 3.2;
-        this.cameraPitch = 0.25;
+        // Cámara en 3ra persona orbital elevada estilo Free Fire (despeja totalmente al héroe)
+        this.cameraDistance = 7.4;
+        this.cameraHeight = 3.8;
+        this.cameraPitch = 0.32;
         this.cameraYaw = 0;
         this.isDraggingMouse = false;
         this.isRotatingCamera = false;
@@ -772,7 +772,8 @@ export class Player {
         this.bandanaTail2.rotation.x = 0.45 - flutter * 0.8;
 
         // 4. Cámara orbital suave en 3ra persona
-        const targetPos = this.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0));
+        const isMobileScreen = window.innerWidth <= 768;
+        const targetPos = this.mesh.position.clone().add(new THREE.Vector3(0, isMobileScreen ? 1.05 : 1.4, 0));
         const camX = targetPos.x + Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
         const camY = targetPos.y + Math.sin(this.cameraPitch) * this.cameraDistance + this.cameraHeight * 0.3;
         const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
