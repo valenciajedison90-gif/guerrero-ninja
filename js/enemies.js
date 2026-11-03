@@ -1,12 +1,14 @@
 // js/enemies.js - Gestor de Enemigos con IA Táctica de Combate, Rodeo y Cinemática Articular
 import * as THREE from 'three';
 import { sounds } from './sound.js?v=6.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=10.0';
 
 export class EnemyManager {
     constructor(scene, particles) {
         this.scene = scene;
         this.particles = particles;
         this.enemies = [];
+        this.groundCheckProvider = null;
 
         this.spawnInitialEnemies('forest');
     }
@@ -652,7 +654,7 @@ export class EnemyManager {
             setTimeout(() => {
                 this.spawnDummy(enemy.originalPos);
             }, 5000);
-        } else if (enemy.type !== 'boss') {
+        } else if (enemy.type !== 'boss' && !enemy.isCampaign && !enemy.isCampaignBoss) {
             setTimeout(() => {
                 const angle = Math.random() * Math.PI * 2;
                 const r = 16 + Math.random() * 12;
@@ -683,11 +685,9 @@ export class EnemyManager {
 
             if (enemy.type === 'dummy') return;
 
-            // Física y gravedad
-            enemy.velocity.y += -26.0 * delta;
-            enemy.mesh.position.y += enemy.velocity.y * delta;
-            if (enemy.mesh.position.y <= 0) {
-                enemy.mesh.position.y = 0;
+            const groundY = enemy.groundY !== undefined ? enemy.groundY : (this.groundCheckProvider ? this.groundCheckProvider(enemy.mesh.position.x, enemy.mesh.position.y, enemy.mesh.position.z) : 0);
+            if (enemy.mesh.position.y <= groundY) {
+                enemy.mesh.position.y = groundY;
                 enemy.velocity.y = 0;
                 enemy.isGrounded = true;
             }
@@ -698,6 +698,12 @@ export class EnemyManager {
                 enemy.knockbackVelocity.multiplyScalar(0.82);
             }
 
+            
+            // Caída al abismo para esbirros de plataformas
+            if (enemy.isCampaign && enemy.mesh.position.y < -12.0) {
+                this.defeatEnemy(enemy, null);
+                return;
+            }
             if (enemy.jumpTimer > 0) enemy.jumpTimer -= delta;
             if (enemy.timer > 0) enemy.timer -= delta;
             if (enemy.stateTimer > 0) enemy.stateTimer -= delta;
@@ -854,4 +860,416 @@ export class EnemyManager {
             }
         });
     }
+
+    // =========================================================================
+    // SPAWN DE ENEMIGOS PARA NIVELES DE PLATAFORMAS (CAMPAÑA)
+    // =========================================================================
+    spawnCampaignLevelEnemies(spawns = [], worldNum = 1) {
+        this.clearEnemies();
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+
+        spawns.forEach((s, idx) => {
+            const pos = s.pos || new THREE.Vector3(0, 0, 0);
+            const range = s.range || 5.0;
+            const enemyGroup = new THREE.Group();
+            enemyGroup.position.copy(pos);
+
+            // Estilo caricaturesco adaptado al bioma del mundo
+            const matTheme = new THREE.MeshStandardMaterial({ color: worldMeta.themeColor, roughness: 0.6 });
+            const matDark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.7 });
+            const matSkin = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.5 });
+
+            // Cuerpo compacto estilo ninja caricaturesco
+            const bodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.7, 12), matTheme);
+            bodyMesh.position.y = 0.6;
+            bodyMesh.castShadow = true;
+            enemyGroup.add(bodyMesh);
+
+            // Cabeza
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 12), matTheme);
+            head.position.y = 1.15;
+            head.castShadow = true;
+            enemyGroup.add(head);
+
+            // Cinta ninja flotante con color del bioma
+            const headband = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.1, 12), matDark);
+            headband.position.y = 1.18;
+            enemyGroup.add(headband);
+
+            // Ojos caricaturescos grandes
+            [-0.1, 0.1].forEach(ox => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                eye.position.set(ox, 1.2, 0.28);
+                const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+                pupil.position.set(ox, 1.2, 0.33);
+                enemyGroup.add(eye);
+                enemyGroup.add(pupil);
+            });
+
+            // Arma según tipo (Shuriken o Daga de bambú)
+            const weaponMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 });
+            const dagger = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.08), weaponMat);
+            dagger.position.set(0.42, 0.6, 0.2);
+            dagger.rotation.x = Math.PI / 4;
+            enemyGroup.add(dagger);
+
+            const hp = 45 + worldNum * 10;
+            const healthBar = this.createHealthBar(hp);
+            healthBar.position.y = 1.8;
+            enemyGroup.add(healthBar);
+
+            const enemy = {
+                mesh: enemyGroup,
+                type: 'campaign_minion',
+                isCampaign: true,
+                groundY: pos.y,
+                name: `Guardia del ${worldMeta.name}`,
+                health: hp,
+                maxHealth: hp,
+                healthBar: healthBar,
+                coinsDrop: 12 + worldNum * 3,
+                xpDrop: 20 + worldNum * 5,
+                damage: 8 + worldNum * 2,
+                speed: 3.5 + Math.min(3.0, worldNum * 0.3),
+                attackRange: 2.2,
+                attackCooldown: 1.5,
+                timer: 0,
+                bodyMesh: bodyMesh,
+                velocity: new THREE.Vector3(0, 0, 0),
+                isGrounded: true,
+                jumpTimer: 3.0,
+                patrolOrigin: pos.clone(),
+                patrolMinZ: pos.z - range,
+                patrolMaxZ: pos.z + range,
+                patrolDirection: (idx % 2 === 0) ? 1 : -1,
+                patrolTimer: 0,
+                originalPos: pos.clone(),
+                slotIndex: idx % 6,
+                aiState: 'patrolling',
+                stateTimer: 2.0
+            };
+
+            this.enemies.push(enemy);
+            this.scene.add(enemyGroup);
+        });
+    }
+
+    // =========================================================================
+    // SPAWN DE LOS 10 JEFES FINALES DE COLOMBIA
+    // =========================================================================
+    spawnCampaignBoss(worldNum = 1, pos = new THREE.Vector3(0, 0, -18)) {
+        this.clearEnemies();
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const bossSpec = worldMeta.boss || {
+            name: 'Jefe Guardián',
+            hp: 250,
+            damage: 18,
+            speed: 6.5,
+            themeColor: 0x10b981
+        };
+
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.scale.set(1.5, 1.5, 1.5);
+
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.2 });
+        const themeMat = new THREE.MeshStandardMaterial({ color: bossSpec.themeColor, roughness: 0.3, metalness: 0.5 });
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.5 });
+        const energyMat = new THREE.MeshStandardMaterial({
+            color: bossSpec.themeColor,
+            emissive: bossSpec.themeColor,
+            emissiveIntensity: 0.65,
+            roughness: 0.1
+        });
+
+        const torsoGroup = new THREE.Group();
+        torsoGroup.position.y = 1.35;
+        group.add(torsoGroup);
+
+        let mainBodyMesh = null;
+        let rightArmPivot = new THREE.Group();
+        let rightElbowPivot = new THREE.Group();
+        let leftArmPivot = new THREE.Group();
+        let leftElbowPivot = new THREE.Group();
+        let leftLegPivot = new THREE.Group();
+        let leftKneePivot = new THREE.Group();
+        let rightLegPivot = new THREE.Group();
+        let rightKneePivot = new THREE.Group();
+
+        // CONSTRUCCIÓN DEL MODELO 3D SEGÚN EL JEFE ESPECÍFICO DEL MUNDO
+        if (worldNum === 1) {
+            // 1. ANACONDA FURTIVA DEL AMAZONAS (Serpiente colosal esmeralda con cresta ninja)
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.75, 1.4, 16), themeMat);
+            torsoGroup.add(mainBodyMesh);
+
+            // Cabeza de anaconda agresiva
+            const snakeHead = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.1, 12), themeMat);
+            snakeHead.rotation.x = -Math.PI / 2.3;
+            snakeHead.position.set(0, 0.9, 0.35);
+            torsoGroup.add(snakeHead);
+
+            // Ojos reptilianos amarillos
+            [-0.32, 0.32].forEach(ox => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+                eye.position.set(ox, 1.05, 0.7);
+                torsoGroup.add(eye);
+            });
+
+            // Cresta de plumas amazónicas
+            const crest = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 6), energyMat);
+            crest.position.set(0, 1.4, 0.1);
+            torsoGroup.add(crest);
+
+            // Anillos serpentinos en la base
+            for (let r = 0; r < 3; r++) {
+                const coil = new THREE.Mesh(new THREE.TorusGeometry(0.9 + r * 0.3, 0.22, 10, 24), themeMat);
+                coil.rotation.x = Math.PI / 2;
+                coil.position.y = -0.5 - r * 0.25;
+                torsoGroup.add(coil);
+            }
+        } else if (worldNum === 2) {
+            // 2. ESPANTAPÁJAROS MECÁNICO DEL CAFÉ (Sombrero aguadeño, engranajes y brazos aserrados)
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.52, 1.1, 12), new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 }));
+            torsoGroup.add(mainBodyMesh);
+
+            // Engranaje de cobre en el pecho
+            const gear = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 12), goldMat);
+            gear.rotation.x = Math.PI / 2;
+            gear.position.set(0, 0.1, 0.3);
+            torsoGroup.add(gear);
+
+            // Cabeza de calabaza/tela con sombrero de paja aguadeño
+            const scHead = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+            scHead.position.y = 0.95;
+            torsoGroup.add(scHead);
+
+            const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.05, 18), new THREE.MeshStandardMaterial({ color: 0xfef08a }));
+            hatBrim.position.y = 1.25;
+            torsoGroup.add(hatBrim);
+            const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.35, 18), new THREE.MeshStandardMaterial({ color: 0xfef08a }));
+            hatCrown.position.y = 1.45;
+            torsoGroup.add(hatCrown);
+        } else if (worldNum === 3) {
+            // 3. CAPITÁN CORSARIO BARBACORAL (Tricornio, barba de coral caribeño, sable dorado)
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.48, 1.0, 16), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.6 }));
+            torsoGroup.add(mainBodyMesh);
+
+            const pirateHead = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 14), new THREE.MeshStandardMaterial({ color: 0xfbbf24 }));
+            pirateHead.position.y = 0.85;
+            torsoGroup.add(pirateHead);
+
+            // Barba de coral rojo
+            const coralBeard = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0xf43f5e }));
+            coralBeard.position.set(0, 0.55, 0.3);
+            torsoGroup.add(coralBeard);
+
+            // Tricornio pirata
+            const tricorn = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.5, 0.25, 3), darkMat);
+            tricorn.position.y = 1.2;
+            torsoGroup.add(tricorn);
+        } else if (worldNum === 4) {
+            // 4. COLOSO GLACIAL DEL PÁRAMO (Hielo cristalino andino, musgo de frailejón y picos)
+            mainBodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8, roughness: 0.1 }));
+            torsoGroup.add(mainBodyMesh);
+
+            // Hombreras de frailejón aterciopelado
+            [-0.75, 0.75].forEach(sx => {
+                const mossPad = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 10), new THREE.MeshStandardMaterial({ color: 0x84cc16, roughness: 0.9 }));
+                mossPad.position.set(sx, 0.6, 0);
+                torsoGroup.add(mossPad);
+            });
+
+            // Cabeza de cristal de hielo
+            const iceHead = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.7, 5), energyMat);
+            iceHead.position.y = 1.05;
+            torsoGroup.add(iceHead);
+        } else if (worldNum === 5) {
+            // 5. ESCORPIÓN REAL DE TATACOA (Caparazón dorado del desierto con cola de aguijón)
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.6, 0.7, 16), new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.8, roughness: 0.3 }));
+            torsoGroup.add(mainBodyMesh);
+
+            // Cola curvada de escorpión por encima
+            for (let s = 0; s < 5; s++) {
+                const seg = new THREE.Mesh(new THREE.SphereGeometry(0.24 - s * 0.02, 10, 10), goldMat);
+                seg.position.set(0, 0.5 + s * 0.35, -0.4 - s * 0.15 + (s > 2 ? (s - 2) * 0.4 : 0));
+                torsoGroup.add(seg);
+            }
+            const stinger = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 8), energyMat);
+            stinger.position.set(0, 2.2, 0.2);
+            stinger.rotation.x = Math.PI / 1.5;
+            torsoGroup.add(stinger);
+        } else if (worldNum === 6) {
+            // 6. MONSTRUO DEL MANGLAR (Raíces marinas retorcidas, fauces y linterna abisal)
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.8, 1.2, 14), new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.85 }));
+            torsoGroup.add(mainBodyMesh);
+
+            const lanternStalk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8), themeMat);
+            lanternStalk.position.set(0, 1.2, 0.4);
+            lanternStalk.rotation.x = Math.PI / 4;
+            torsoGroup.add(lanternStalk);
+            const anglerOrb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 10), energyMat);
+            anglerOrb.position.set(0, 1.6, 0.8);
+            torsoGroup.add(anglerOrb);
+        } else if (worldNum === 7) {
+            // 7. CAIMÁN TITÁN DEL LLANO (Fauces acorazadas masivas, escamas y blindaje)
+            mainBodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 1.5), new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: 0.8 }));
+            torsoGroup.add(mainBodyMesh);
+
+            // Fauces alargadas de caimán
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 1.4), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
+            snout.position.set(0, 0.1, 1.1);
+            torsoGroup.add(snout);
+
+            // Dientes afilados
+            for (let t = 0; t < 6; t++) {
+                const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.15, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                tooth.position.set((t % 2 === 0 ? -0.4 : 0.4), -0.15, 0.6 + Math.floor(t / 2) * 0.35);
+                tooth.rotation.x = Math.PI;
+                torsoGroup.add(tooth);
+            }
+        } else if (worldNum === 8) {
+            // 8. ESPÍRITU GUARDIÁN DE LOS 5 COLORES (Cristal iridiscente multicolor de Caño Cristales)
+            mainBodyMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 2), new THREE.MeshStandardMaterial({
+                color: 0xf43f5e,
+                emissive: 0x06b6d4,
+                emissiveIntensity: 0.5,
+                metalness: 0.9,
+                roughness: 0.1
+            }));
+            torsoGroup.add(mainBodyMesh);
+
+            // 5 orbes giratorios flotantes de los 5 colores (Rojo, Amarillo, Verde, Azul, Negro)
+            const colors = [0xef4444, 0xfacc15, 0x22c55e, 0x3b82f6, 0x18181b];
+            colors.forEach((col, cIdx) => {
+                const ang = (cIdx / colors.length) * Math.PI * 2;
+                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 10), new THREE.MeshStandardMaterial({
+                    color: col,
+                    emissive: col,
+                    emissiveIntensity: 0.8
+                }));
+                orb.position.set(Math.cos(ang) * 1.5, Math.sin(ang) * 0.5 + 0.6, Math.sin(ang) * 1.5);
+                torsoGroup.add(orb);
+            });
+        } else if (worldNum === 9) {
+            // 9. CHAMÁN SUPREMO TAYRONA (Pectoral de oro Tayrona, máscara solar y báculo místico)
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.45, 1.1, 14), new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.5 }));
+            torsoGroup.add(mainBodyMesh);
+
+            // Pectoral dorado icónico Tayrona en el pecho
+            const pectoral = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.35, 0.45, 8), goldMat);
+            pectoral.rotation.x = Math.PI / 2;
+            pectoral.position.set(0, 0.25, 0.26);
+            torsoGroup.add(pectoral);
+
+            // Máscara solar con rayos dorados
+            const sunMask = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.08, 16), goldMat);
+            sunMask.rotation.x = Math.PI / 2;
+            sunMask.position.set(0, 0.95, 0.3);
+            torsoGroup.add(sunMask);
+
+            // Capa de jaguar manchado
+            const jaguarCape = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.85, 1.2, 12, 1, true, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 }));
+            jaguarCape.position.set(0, 0.35, -0.1);
+            jaguarCape.rotation.y = Math.PI / 2;
+            torsoGroup.add(jaguarCape);
+        } else {
+            // 10. EL INVERNAL (FORMA SUPREMA) - Villano definitivo con cuernos gigantes y espadas dobles
+            mainBodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.54, 1.1, 20), new THREE.MeshStandardMaterial({ color: 0x2e1065, metalness: 0.85, roughness: 0.2 }));
+            torsoGroup.add(mainBodyMesh);
+
+            const supremeBelt = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.15, 20), goldMat);
+            supremeBelt.position.y = -0.2;
+            torsoGroup.add(supremeBelt);
+
+            const supremeHead = new THREE.Mesh(new THREE.SphereGeometry(0.48, 20, 20), new THREE.MeshStandardMaterial({ color: 0x4c1d95 }));
+            supremeHead.position.y = 0.95;
+            torsoGroup.add(supremeHead);
+
+            // Gran corona de cuernos oscuros de hielo
+            [-0.32, 0.32].forEach((cx, cIdx) => {
+                const horn = new THREE.Mesh(new THREE.ConeGeometry(0.12, 1.1, 8), energyMat);
+                horn.position.set(cx, 1.5, 0.1);
+                horn.rotation.z = cIdx === 0 ? 0.45 : -0.45;
+                torsoGroup.add(horn);
+            });
+
+            // Ojos fulgurantes violeta
+            [-0.16, 0.16].forEach(ex => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0xd946ef }));
+                eye.position.set(ex, 0.95, 0.45);
+                torsoGroup.add(eye);
+            });
+        }
+
+        // Brazos y arma genérica si no es serpentino
+        if (worldNum !== 1) {
+            rightArmPivot.position.set(0.7, 0.5, 0);
+            torsoGroup.add(rightArmPivot);
+            rightElbowPivot.position.set(0, -0.45, 0);
+            rightArmPivot.add(rightElbowPivot);
+
+            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.2, 0.08), energyMat);
+            weapon.position.set(0, 0.3, 0.6);
+            weapon.rotation.x = Math.PI / 3;
+            rightElbowPivot.add(weapon);
+
+            leftArmPivot.position.set(-0.7, 0.5, 0);
+            torsoGroup.add(leftArmPivot);
+            leftElbowPivot.position.set(0, -0.45, 0);
+            leftArmPivot.add(leftElbowPivot);
+
+            leftLegPivot.position.set(-0.3, -0.5, 0);
+            torsoGroup.add(leftLegPivot);
+            rightLegPivot.position.set(0.3, -0.5, 0);
+            torsoGroup.add(rightLegPivot);
+        }
+
+        const healthBar = this.createHealthBar(bossSpec.hp);
+        healthBar.scale.set(1.8, 1.8, 1.8);
+        healthBar.position.y = 4.2;
+        group.add(healthBar);
+
+        const enemy = {
+            mesh: group,
+            type: 'boss',
+            isCampaignBoss: true,
+            worldNum: worldNum,
+            name: `${bossSpec.name} — ${bossSpec.title || 'Guardián Regional'}`,
+            health: bossSpec.hp,
+            maxHealth: bossSpec.hp,
+            healthBar: healthBar,
+            coinsDrop: bossSpec.rewardCoins || (200 + worldNum * 50),
+            xpDrop: 300 + worldNum * 60,
+            gemsDrop: bossSpec.rewardGems || 20,
+            damage: bossSpec.damage || (14 + worldNum * 2),
+            speed: bossSpec.speed || 6.5,
+            attackRange: 4.2,
+            attackCooldown: 1.3,
+            timer: 0,
+            bodyMesh: mainBodyMesh || group.children[0],
+            velocity: new THREE.Vector3(0, 0, 0),
+            isGrounded: true,
+            jumpTimer: 2.2,
+            patrolTarget: pos.clone(),
+            patrolTimer: 0,
+            originalPos: pos.clone(),
+            slotIndex: 0,
+            aiState: 'circling',
+            stateTimer: 2.0,
+            combatRadius: 5.0,
+            rightArmPivot: rightArmPivot,
+            rightElbowPivot: rightElbowPivot,
+            leftArmPivot: leftArmPivot,
+            leftElbowPivot: leftElbowPivot,
+            leftLegPivot: leftLegPivot,
+            leftKneePivot: leftKneePivot,
+            rightLegPivot: rightLegPivot,
+            rightKneePivot: rightKneePivot
+        };
+
+        this.enemies.push(enemy);
+        this.scene.add(group);
+        return enemy;
+    }
+
 }

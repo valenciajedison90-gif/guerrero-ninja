@@ -10,6 +10,7 @@ import { EnemyManager } from './enemies.js?v=9.0';
 import { MultiplayerManager } from './multiplayer.js?v=9.0';
 import { TouchControlsManager } from './touch.js?v=9.0';
 import { CHARACTERS_DATA } from './characters.js?v=9.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=10.0';
 
 class Game {
     constructor() {
@@ -26,6 +27,18 @@ class Game {
         this.menuOrbitAngle = 0;
 
         // 1. Inicializar Three.js con antialiasing y nitidez HD
+        
+        // Conectar proveedor de altura de suelo para plataformas 3D
+        this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
+        this.enemyManager.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
+
+        // Variables de Modo Campaña: 10 Mundos de Colombia
+        this.isCampaignMode = false;
+        this.campaignCurrentWorld = 1;
+        this.campaignCurrentLevel = 1;
+        this.campaignIsBossFight = false;
+        this.campaignCollectedGems = 0;
+        this.campaignStartTime = 0;
         this.setupRenderer();
         this.setupSceneAndLights();
 
@@ -356,6 +369,10 @@ class Game {
 
     handleEnemyDefeated(enemy) {
         storage.incrementEnemiesDefeated();
+        if (enemy.isCampaignBoss) {
+            this.handleCampaignBossDefeated(enemy);
+            return;
+        }
 
         // Registrar en la misión del mundo
         if (enemy.type === 'boss') {
@@ -420,6 +437,16 @@ class Game {
     }
 
     handleGemCollected(gemId, pos) {
+        if (this.isCampaignMode) {
+            this.campaignCollectedGems = (this.campaignCollectedGems || 0) + 1;
+            const cGemsEl = document.getElementById('camp-hud-gems-count');
+            if (cGemsEl) cGemsEl.textContent = `${this.campaignCollectedGems} / 3`;
+            this.showBanner('💎 CRISTAL DE BIODIVERSIDAD 💎', `¡Recolectado! (${this.campaignCollectedGems}/3)`);
+            sounds.playGemCollect();
+            this.particles.createHitSparks(pos.clone().add(new THREE.Vector3(0, 0.5, 0)), true);
+            return;
+        }
+
         sounds.playGemCollect();
         this.particles.createHitSparks(pos.clone().add(new THREE.Vector3(0, 0.5, 0)), true);
         storage.recordMissionGem(this.world.currentMapId);
@@ -509,6 +536,11 @@ class Game {
     handlePortalVictory() {
         if (this.portalVictoryTriggered) return;
         this.portalVictoryTriggered = true;
+        if (this.isCampaignMode) {
+            this.handleCampaignPortalVictory();
+            return;
+        }
+
 
         const currentWorld = this.world.currentMapId;
         const cfg = MAPS_CONFIG[currentWorld] || MAPS_CONFIG.selva;
@@ -904,6 +936,7 @@ class Game {
                 modeCards.forEach(c => c.classList.remove('active'));
                 mc.classList.add('active');
                 storage.setSelectedMode(modeId);
+                if (modeId === 'adventure') { this.openCampaignWorldsModal(); }
 
                 const titles = {
                     battle_royale: 'BATTLE ROYALE (50 JUGADORES)',
@@ -1264,6 +1297,11 @@ class Game {
     }
 
     startGame() {
+
+        if (storage.getSelectedMode() === 'adventure' && !this.isCampaignMode) {
+            this.openCampaignWorldsModal();
+            return;
+        }
         this.state = 'PLAYING';
         sounds.playGameStart();
         const menu = document.getElementById('main-menu-overlay');
@@ -1288,6 +1326,13 @@ class Game {
 
     returnToMenu() {
         this.state = 'MENU';
+        this.isCampaignMode = false;
+        if (this.player) this.player.isCampaignMode = false;
+        const campHud = document.getElementById('campaign-hud');
+        if (campHud) campHud.style.display = 'none';
+        const missHud = document.getElementById('mission-hud');
+        if (missHud) missHud.style.display = 'flex';
+
         const menu = document.getElementById('main-menu-overlay');
         if (menu) menu.classList.remove('menu-hidden');
 
@@ -1610,6 +1655,16 @@ class Game {
             this.handlePortalVictory();
         }
 
+        
+        // Actualizar temporizador de campaña
+        if (this.isCampaignMode && this.state === 'PLAYING') {
+            const elapsedSec = Math.floor((performance.now() - this.campaignStartTime) / 1000);
+            const m = Math.floor(elapsedSec / 60);
+            const s = (elapsedSec % 60).toString().padStart(2, '0');
+            const timerEl = document.getElementById('camp-hud-timer');
+            if (timerEl) timerEl.textContent = `${m}:${s}`;
+        }
+
         // 7. Actualizar enemigos con IA táctica
         this.enemyManager.update(delta, this.player, this.camera);
 
@@ -1693,4 +1748,402 @@ class Game {
 
 window.addEventListener('DOMContentLoaded', () => {
     new Game();
-});
+
+    // =========================================================================
+    // MÓDULO DE CAMPAÑA INDIVIDUAL: 10 MUNDOS DE COLOMBIA (AVENTURA NINJA)
+    // =========================================================================
+
+    openCampaignWorldsModal() {
+        const modal = document.getElementById('campaign-worlds-modal');
+        const grid = document.getElementById('campaign-worlds-grid');
+        if (!modal || !grid) return;
+
+        // Actualizar contadores globales de campaña
+        const totalStarsEl = document.getElementById('campaign-total-stars');
+        const totalLevelsEl = document.getElementById('campaign-total-levels');
+        if (totalStarsEl) totalStarsEl.textContent = storage.getTotalCampaignStars();
+        if (totalLevelsEl) totalLevelsEl.textContent = storage.getTotalCampaignLevelsCompleted();
+
+        grid.innerHTML = '';
+
+        for (let w = 1; w <= 10; w++) {
+            const worldMeta = CAMPAIGN_WORLDS[w];
+            const worldData = storage.getCampaignWorld(w);
+            const isUnlocked = storage.isCampaignWorldUnlocked(w);
+
+            let starsEarned = 0;
+            let levelsCompleted = 0;
+            if (worldData && worldData.levels) {
+                Object.values(worldData.levels).forEach(lvl => {
+                    if (lvl.completed) levelsCompleted++;
+                    starsEarned += (lvl.stars || 0);
+                });
+            }
+
+            const diffClass = 'diff-' + (worldMeta.difficulty.toLowerCase().replace(/\s+/g, '-'));
+
+            const card = document.createElement('div');
+            card.className = `camp-world-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+
+            let bossStatusPill = '';
+            if (worldData && worldData.bossDefeated) {
+                bossStatusPill = '<span class="camp-boss-status-pill boss-status-defeated">👑 ¡Jefe Derrotado!</span>';
+            } else if (worldData && worldData.bossUnlocked) {
+                bossStatusPill = '<span class="camp-boss-status-pill boss-status-ready">⚔️ ¡Jefe Disponible!</span>';
+            } else {
+                bossStatusPill = '<span class="camp-boss-status-pill boss-status-locked">🔒 Jefe Bloqueado</span>';
+            }
+
+            card.innerHTML = `
+                <div class="camp-card-banner" style="background: linear-gradient(135deg, ${this.hexColorToRgba(worldMeta.themeColor, 0.65)}, rgba(15, 23, 42, 0.95));">
+                    <span class="camp-card-emoji">${worldMeta.emoji}</span>
+                    <span class="camp-difficulty-pill ${diffClass}">${worldMeta.difficulty}</span>
+                </div>
+                <div class="camp-card-content">
+                    <div class="camp-world-num">Mundo ${w} • ${worldMeta.region}</div>
+                    <div class="camp-world-name">${worldMeta.name}</div>
+                    <div class="camp-world-lore">${worldMeta.lore}</div>
+
+                    <div class="camp-world-progress-bar">
+                        <div class="camp-world-progress-fill" style="width: ${(levelsCompleted / 5) * 100}%;"></div>
+                    </div>
+
+                    <div class="camp-world-meta-row">
+                        <span>⭐ ${starsEarned} / 15</span>
+                        <span>Niveles: ${levelsCompleted} / 5</span>
+                    </div>
+
+                    ${bossStatusPill}
+
+                    <button class="btn-explore-world">
+                        ${isUnlocked ? 'EXPLORAR MUNDO ➔' : '🔒 BLOQUEADO (Supera Mundo ' + (w - 1) + ')'}
+                    </button>
+                </div>
+            `;
+
+            if (isUnlocked) {
+                card.addEventListener('click', () => {
+                    modal.classList.remove('open');
+                    this.openCampaignLevelsModal(w);
+                });
+            }
+
+            grid.appendChild(card);
+        }
+
+        modal.classList.add('open');
+    }
+
+    openCampaignLevelsModal(worldNum = 1) {
+        const modal = document.getElementById('campaign-levels-modal');
+        const container = document.getElementById('campaign-levels-container');
+        if (!modal || !container) return;
+
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const worldData = storage.getCampaignWorld(worldNum);
+
+        const iconEl = document.getElementById('campaign-world-icon');
+        const titleEl = document.getElementById('campaign-levels-world-title');
+        const subEl = document.getElementById('campaign-levels-world-sub');
+
+        if (iconEl) iconEl.textContent = worldMeta.emoji;
+        if (titleEl) titleEl.textContent = `MUNDO ${worldNum}: ${worldMeta.name.toUpperCase()}`;
+        if (subEl) subEl.textContent = `${worldMeta.region} • Dificultad: ${worldMeta.difficulty}`;
+
+        container.innerHTML = '';
+
+        // 5 NIVELES DE PLATAFORMAS 3D
+        for (let l = 1; l <= 5; l++) {
+            const lvlMeta = (worldMeta.levels && worldMeta.levels[l - 1]) || { title: 'Nivel ' + l, targetTime: 60 };
+            const lvlData = (worldData && worldData.levels) ? worldData.levels[l] : { unlocked: l === 1, stars: 0, completed: false };
+            const isUnlocked = storage.isCampaignLevelUnlocked(worldNum, l);
+            const stars = (lvlData && lvlData.stars) || 0;
+
+            const node = document.createElement('div');
+            node.className = `level-card-node ${isUnlocked ? 'unlocked' : 'locked'}`;
+
+            let starsHtml = '';
+            for (let s = 1; s <= 3; s++) {
+                if (s <= stars) {
+                    starsHtml += '<span class="star-earned">⭐</span>';
+                } else {
+                    starsHtml += '<span class="star-empty">⭐</span>';
+                }
+            }
+
+            const bestTimeText = (lvlData && lvlData.bestTime) ? `⏱️ Récord: ${lvlData.bestTime}s` : `⏱️ Meta: ${lvlMeta.targetTime}s`;
+
+            node.innerHTML = `
+                <div class="level-num-badge">${l}</div>
+                <div class="level-title-node">${lvlMeta.title}</div>
+                <div class="level-stars-row">${starsHtml}</div>
+                <div class="level-best-time">${bestTimeText}</div>
+                <button class="btn-play-level-node">
+                    ${isUnlocked ? (lvlData.completed ? 'JUGAR DE NUEVO' : 'JUGAR') : '🔒 BLOQUEADO'}
+                </button>
+            `;
+
+            if (isUnlocked) {
+                node.addEventListener('click', () => {
+                    modal.classList.remove('open');
+                    this.startCampaignLevel(worldNum, l);
+                });
+            }
+
+            container.appendChild(node);
+        }
+
+        // NODO DEL JEFE FINAL DEL MUNDO
+        const bossSpec = worldMeta.boss;
+        const bossUnlocked = worldData && worldData.bossUnlocked;
+        const bossDefeated = worldData && worldData.bossDefeated;
+
+        const bossNode = document.createElement('div');
+        bossNode.className = `boss-card-node ${bossUnlocked ? 'unlocked' : 'locked'}`;
+
+        bossNode.innerHTML = `
+            <div class="boss-node-info">
+                <div class="boss-node-avatar">👑</div>
+                <div>
+                    <div class="boss-node-title">${bossSpec.name}</div>
+                    <div class="boss-node-sub">${bossSpec.title} • HP: ${bossSpec.hp} • Daño: ${bossSpec.damage}</div>
+                </div>
+            </div>
+            <button class="btn-fight-boss-node">
+                ${bossUnlocked ? (bossDefeated ? 'DERROTADO (REPETIR ⚔️)' : '¡LUCHAR CONTRA JEFE! ⚔️') : '🔒 SUPERA LOS 5 NIVELES'}
+            </button>
+        `;
+
+        if (bossUnlocked) {
+            bossNode.addEventListener('click', () => {
+                modal.classList.remove('open');
+                this.startCampaignBoss(worldNum);
+            });
+        }
+
+        container.appendChild(bossNode);
+        modal.classList.add('open');
+    }
+
+    startCampaignLevel(worldNum = 1, levelNum = 1) {
+        this.isCampaignMode = true;
+        this.campaignCurrentWorld = worldNum;
+        this.campaignCurrentLevel = levelNum;
+        this.campaignIsBossFight = false;
+        this.campaignCollectedGems = 0;
+        this.campaignStartTime = performance.now();
+        this.portalVictoryTriggered = false;
+
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const lvlMeta = (worldMeta.levels && worldMeta.levels[levelNum - 1]) || { title: 'Nivel ' + levelNum, targetTime: 60 };
+
+        // Construir nivel 3D con plataformas y trampas
+        this.world.buildCampaignLevel(worldNum, levelNum);
+
+        // Posicionar jugador al inicio
+        this.player.isCampaignMode = true;
+        this.player.lastCheckpointPos = new THREE.Vector3(0, 1.5, 0);
+        this.player.mesh.position.set(0, 1.5, 0);
+        this.player.velocity.set(0, 0, 0);
+        this.player.health = this.player.maxHealth;
+
+        // Generar enemigos caricaturescos a lo largo del recorrido
+        this.enemyManager.spawnCampaignLevelEnemies(this.world.campaignEnemySpawns, worldNum);
+
+        // Configurar HUD
+        const campHud = document.getElementById('campaign-hud');
+        const missHud = document.getElementById('mission-hud');
+        if (campHud) campHud.style.display = 'flex';
+        if (missHud) missHud.style.display = 'none';
+
+        const badgeEl = document.getElementById('camp-hud-world-badge');
+        const titleEl = document.getElementById('camp-hud-level-title');
+        const gemsEl = document.getElementById('camp-hud-gems-count');
+        const targetEl = document.getElementById('camp-hud-target-time');
+        const bossWrap = document.getElementById('camp-hud-boss-wrap');
+        const gemsWrap = document.getElementById('camp-obj-gems-wrap');
+
+        if (badgeEl) badgeEl.textContent = `MUNDO ${worldNum}`;
+        if (titleEl) titleEl.textContent = `${worldMeta.name.toUpperCase()} • NIVEL ${levelNum}`;
+        if (gemsEl) gemsEl.textContent = `0 / 3`;
+        if (targetEl) targetEl.textContent = `(Meta: ${lvlMeta.targetTime}s)`;
+        if (bossWrap) bossWrap.style.display = 'none';
+        if (gemsWrap) gemsWrap.style.display = 'flex';
+
+        this.startGame();
+        this.showBanner(`¡${worldMeta.name.toUpperCase()}!`, `Nivel ${levelNum}: ${lvlMeta.title}`);
+    }
+
+    startCampaignBoss(worldNum = 1) {
+        this.isCampaignMode = true;
+        this.campaignCurrentWorld = worldNum;
+        this.campaignCurrentLevel = 6; // Representa al jefe
+        this.campaignIsBossFight = true;
+        this.campaignStartTime = performance.now();
+        this.portalVictoryTriggered = false;
+
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const bossSpec = worldMeta.boss;
+
+        // Construir arena de combate circular del jefe
+        this.world.buildCampaignBossArena(worldNum);
+
+        // Posicionar jugador en un extremo de la arena
+        this.player.isCampaignMode = false;
+        this.player.mesh.position.set(0, 1.5, 18);
+        this.player.velocity.set(0, 0, 0);
+        this.player.health = this.player.maxHealth;
+
+        // Generar jefe final en el centro opuesto
+        const bossEnemy = this.enemyManager.spawnCampaignBoss(worldNum, new THREE.Vector3(0, 0, -12));
+
+        // Configurar HUD
+        const campHud = document.getElementById('campaign-hud');
+        const missHud = document.getElementById('mission-hud');
+        if (campHud) campHud.style.display = 'flex';
+        if (missHud) missHud.style.display = 'none';
+
+        const badgeEl = document.getElementById('camp-hud-world-badge');
+        const titleEl = document.getElementById('camp-hud-level-title');
+        const bossWrap = document.getElementById('camp-hud-boss-wrap');
+        const bossNameEl = document.getElementById('camp-hud-boss-name');
+        const gemsWrap = document.getElementById('camp-obj-gems-wrap');
+
+        if (badgeEl) badgeEl.textContent = `MUNDO ${worldNum} — JEFE`;
+        if (titleEl) titleEl.textContent = bossSpec.name.toUpperCase();
+        if (bossWrap) bossWrap.style.display = 'flex';
+        if (bossNameEl) bossNameEl.textContent = bossSpec.name;
+        if (gemsWrap) gemsWrap.style.display = 'none';
+
+        this.startGame();
+        this.showBanner(`👑 ¡BATALLA CONTRA JEFE!`, `¡Derrota a ${bossSpec.name} para liberar este territorio!`);
+    }
+
+    handleCampaignPortalVictory() {
+        sounds.playVictoryFanfare();
+        const worldNum = this.campaignCurrentWorld;
+        const levelNum = this.campaignCurrentLevel;
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const lvlMeta = (worldMeta.levels && worldMeta.levels[levelNum - 1]) || { title: 'Nivel ' + levelNum, targetTime: 60 };
+
+        const elapsedSec = Math.floor((performance.now() - this.campaignStartTime) / 1000);
+        const collectedGems = this.campaignCollectedGems || 0;
+
+        // Cálculo de Estrellas
+        const star1 = 1; // Llegar a la meta
+        const star2 = (collectedGems >= 3) ? 1 : 0; // 3 Cristales
+        const star3 = (elapsedSec <= lvlMeta.targetTime) ? 1 : 0; // Tiempo récord
+        const totalStars = star1 + star2 + star3;
+
+        // Guardar resultado
+        storage.recordCampaignLevelResult(worldNum, levelNum, totalStars, elapsedSec, collectedGems);
+
+        // Recompensas
+        const coinsReward = 50 + totalStars * 20;
+        const gemsReward = totalStars >= 3 ? 5 : (totalStars >= 2 ? 3 : 1);
+        const xpReward = 100 + totalStars * 40;
+
+        storage.addCoins(coinsReward);
+        storage.addGems(gemsReward);
+        storage.addXP(xpReward);
+        this.updateHUD();
+
+        // Mostrar Modal de Victoria
+        const modal = document.getElementById('campaign-victory-modal');
+        if (!modal) return;
+
+        const ribbonEl = document.getElementById('camp-victory-ribbon');
+        const titleEl = document.getElementById('camp-victory-title');
+        const timeEl = document.getElementById('camp-victory-time');
+        const gemsEl = document.getElementById('camp-victory-gems');
+        const coinsEl = document.getElementById('camp-victory-coins');
+        const xpEl = document.getElementById('camp-victory-xp');
+
+        if (ribbonEl) ribbonEl.textContent = totalStars === 3 ? '⭐⭐⭐ ¡DOMINIO PERFECTO! ⭐⭐⭐' : '⭐ ¡NIVEL COMPLETADO! ⭐';
+        if (titleEl) titleEl.textContent = `MUNDO ${worldNum}: ${worldMeta.name.toUpperCase()} — NIVEL ${levelNum}`;
+        if (timeEl) timeEl.textContent = `${elapsedSec}s (Meta: ${lvlMeta.targetTime}s)`;
+        if (gemsEl) gemsEl.textContent = `${collectedGems} / 3`;
+        if (coinsEl) coinsEl.textContent = `+${coinsReward}`;
+        if (xpEl) xpEl.textContent = `+${xpReward} XP`;
+
+        // Activar estrellas conseguidas
+        const s1 = document.getElementById('camp-star-1');
+        const s2 = document.getElementById('camp-star-2');
+        const s3 = document.getElementById('camp-star-3');
+
+        if (s1) { if (star1) s1.classList.add('earned'); else s1.classList.remove('earned'); }
+        if (s2) { if (star2) s2.classList.add('earned'); else s2.classList.remove('earned'); }
+        if (s3) { if (star3) s3.classList.add('earned'); else s3.classList.remove('earned'); }
+
+        const btnNext = document.getElementById('btn-camp-next');
+        if (btnNext) {
+            btnNext.textContent = (levelNum < 5) ? 'SIGUIENTE NIVEL ➔' : '¡LUCHAR CONTRA EL JEFE! 👑';
+        }
+
+        modal.classList.add('open');
+    }
+
+    handleCampaignBossDefeated(bossEnemy) {
+        sounds.playVictoryFanfare();
+        const worldNum = this.campaignCurrentWorld;
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const bossSpec = worldMeta.boss;
+
+        // Registrar jefe derrotado y desbloquear siguiente mundo
+        storage.recordCampaignBossDefeated(worldNum);
+
+        const coinsReward = bossSpec.rewardCoins || (250 + worldNum * 50);
+        const gemsReward = bossSpec.rewardGems || (20 + worldNum * 5);
+        const xpReward = 400 + worldNum * 80;
+
+        storage.addCoins(coinsReward);
+        storage.addGems(gemsReward);
+        storage.addXP(xpReward);
+        this.updateHUD();
+
+        // Mostrar Modal de Victoria de Jefe
+        const modal = document.getElementById('campaign-victory-modal');
+        if (!modal) return;
+
+        const ribbonEl = document.getElementById('camp-victory-ribbon');
+        const titleEl = document.getElementById('camp-victory-title');
+        const timeEl = document.getElementById('camp-victory-time');
+        const gemsEl = document.getElementById('camp-victory-gems');
+        const coinsEl = document.getElementById('camp-victory-coins');
+        const xpEl = document.getElementById('camp-victory-xp');
+
+        if (ribbonEl) ribbonEl.textContent = '👑 ¡JEFE DERROTADO CON HONOR! 👑';
+        if (titleEl) titleEl.textContent = (worldNum < 10)
+            ? `¡MUNDO ${worldNum} LIBERADO! EL MUNDO ${worldNum + 1} HA SIDO DESBLOQUEADO`
+            : '🏆 ¡EL INVERNAL HA SIDO VENCIDO! ¡HAS SALVADO A TODA COLOMBIA!';
+
+        const elapsedSec = Math.floor((performance.now() - this.campaignStartTime) / 1000);
+        if (timeEl) timeEl.textContent = `${elapsedSec}s de combate épico`;
+        if (gemsEl) gemsEl.textContent = `¡Biodiversidad Protegida!`;
+        if (coinsEl) coinsEl.textContent = `+${coinsReward}`;
+        if (xpEl) xpEl.textContent = `+${xpReward} XP`;
+
+        // Las 3 estrellas brillan por la victoria del jefe
+        const s1 = document.getElementById('camp-star-1');
+        const s2 = document.getElementById('camp-star-2');
+        const s3 = document.getElementById('camp-star-3');
+        if (s1) s1.classList.add('earned');
+        if (s2) s2.classList.add('earned');
+        if (s3) s3.classList.add('earned');
+
+        const btnNext = document.getElementById('btn-camp-next');
+        if (btnNext) {
+            btnNext.textContent = (worldNum < 10) ? `IR AL MUNDO ${worldNum + 1} ➔` : 'VER MAPA DE COLOMBIA 🗺️';
+        }
+
+        modal.classList.add('open');
+    }
+
+    hexColorToRgba(hex, alpha = 1.0) {
+        const r = (hex >> 16) & 255;
+        const g = (hex >> 8) & 255;
+        const b = hex & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+}

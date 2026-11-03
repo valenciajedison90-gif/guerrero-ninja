@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ninja Colombia">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="css/style.css?v=9.0">
+    <link rel="stylesheet" href="css/style.css?v=10.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -77,6 +77,10 @@
                 <button class="menu-nav-pill btn-play-highlight" id="btn-menu-play">
                     <span class="nav-icon">▶</span>
                     <span class="nav-label">JUGAR</span>
+                </button>
+                <button class="menu-nav-pill btn-campaign-highlight" id="btn-menu-campaign" title="Aventura Ninja - 10 Mundos de Colombia">
+                    <span class="nav-icon">🗺️</span>
+                    <span class="nav-label">10 MUNDOS</span>
                 </button>
                 <button class="menu-nav-pill" id="btn-menu-characters">
                     <span class="nav-icon">👥</span>
@@ -718,6 +722,112 @@
     <!-- ========================================================================= -->
     <!-- MODAL: INSTALACIÓN PWA PARA CELULAR                                       -->
     <!-- ========================================================================= -->
+    
+    <!-- ========================================================================= -->
+    <!-- MODAL: CAMPAÑA INDIVIDUAL — 10 MUNDOS DE COLOMBIA (AVENTURA NINJA)         -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="campaign-worlds-modal">
+        <div class="modal-window-extra-large campaign-window">
+            <div class="modal-header campaign-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">🇨🇴</span>
+                    <div>
+                        <div class="modal-title">AVENTURA NINJA — 10 MUNDOS DE COLOMBIA</div>
+                        <div class="modal-subtitle">Campaña individual: 50 niveles de plataformas 3D y 10 batallas de jefes ancestrales</div>
+                    </div>
+                </div>
+                <div class="campaign-header-stats">
+                    <div class="campaign-stat-badge">
+                        <span class="stat-star-icon">⭐</span>
+                        <span id="campaign-total-stars">0</span> / 150
+                    </div>
+                    <div class="campaign-stat-badge">
+                        <span>🏆</span>
+                        <span id="campaign-total-levels">0</span> / 50
+                    </div>
+                    <button class="modal-close-btn" id="btn-close-campaign-worlds">✕</button>
+                </div>
+            </div>
+            <div class="modal-body-campaign" id="campaign-worlds-grid">
+                <!-- Inyectado dinámicamente con los 10 mundos de Colombia -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: SELECTOR DE NIVELES DEL MUNDO                                       -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="campaign-levels-modal">
+        <div class="modal-window-large campaign-levels-window">
+            <div class="modal-header campaign-header">
+                <button class="btn-campaign-back" id="btn-back-to-worlds">⬅ VOLVER AL MAPA</button>
+                <div class="modal-title-group" style="margin-left: 14px;">
+                    <span class="modal-header-icon" id="campaign-world-icon">🌿</span>
+                    <div>
+                        <div class="modal-title" id="campaign-levels-world-title">MUNDO 1: EL CORAZÓN DEL AMAZONAS</div>
+                        <div class="modal-subtitle" id="campaign-levels-world-sub">Selva Profunda • Dificultad: Fácil</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-campaign-levels">✕</button>
+            </div>
+            <div class="modal-body-levels">
+                <div class="levels-route-container" id="campaign-levels-container">
+                    <!-- Inyectado dinámicamente con 5 niveles + 1 jefe final -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: VICTORIA 3 ESTRELLAS (AVENTURA NINJA)                               -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="campaign-victory-modal">
+        <div class="campaign-victory-window">
+            <div class="victory-ribbon" id="camp-victory-ribbon">⭐ ¡NIVEL COMPLETADO! ⭐</div>
+            <div class="victory-world-title" id="camp-victory-title">MUNDO 1 — NIVEL 1</div>
+            
+            <div class="victory-stars-cluster" id="camp-victory-stars">
+                <div class="c-star" id="camp-star-1">
+                    <span class="star-icon">⭐</span>
+                    <span class="star-label">Completar</span>
+                </div>
+                <div class="c-star" id="camp-star-2">
+                    <span class="star-icon">⭐</span>
+                    <span class="star-label">3 Cristales</span>
+                </div>
+                <div class="c-star" id="camp-star-3">
+                    <span class="star-icon">⭐</span>
+                    <span class="star-label">Tiempo Récord</span>
+                </div>
+            </div>
+
+            <div class="camp-victory-stats-grid">
+                <div class="c-stat-box">
+                    <span class="c-stat-label">⏱️ Tiempo</span>
+                    <span class="c-stat-val" id="camp-victory-time">0:45</span>
+                </div>
+                <div class="c-stat-box">
+                    <span class="c-stat-label">💎 Cristales</span>
+                    <span class="c-stat-val" id="camp-victory-gems">3 / 3</span>
+                </div>
+                <div class="c-stat-box">
+                    <span class="c-stat-label">🪙 Monedas</span>
+                    <span class="c-stat-val" id="camp-victory-coins">+80</span>
+                </div>
+                <div class="c-stat-box">
+                    <span class="c-stat-label">⚡ Experiencia</span>
+                    <span class="c-stat-val" id="camp-victory-xp">+120 XP</span>
+                </div>
+            </div>
+
+            <div class="camp-victory-actions">
+                <button class="btn-camp-retry" id="btn-camp-retry">🔄 REPETIR</button>
+                <button class="btn-camp-next" id="btn-camp-next">SIGUIENTE NIVEL ➔</button>
+                <button class="btn-camp-map" id="btn-camp-map">🗺️ MAPA DE MUNDOS</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="pwa-install-modal">
         <div class="pwa-install-window">
             <div class="pwa-badge">⚡ APP OFICIAL PARA CELULAR</div>
@@ -741,6 +851,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=9.0"></script>
+    <script type="module" src="js/main.js?v=10.0"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@
 // Incluye: Cajas Sorpresa con '?', Airdrops con Paracaídas, Cristales de Biodiversidad y Portales Precolombinos
 
 import * as THREE from 'three';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=9.0';
 
 export const MAPS_CONFIG = {
     selva: {
@@ -16,7 +17,7 @@ export const MAPS_CONFIG = {
         fogColor: 0xbae6fd,
         fogDensity: 0.012,
         sunColor: 0xfef08a,
-        gemColor: 0xa855f7 // Púrpura Biodiversidad
+        gemColor: 0xa855f7
     },
     eje_cafetero: {
         id: 'eje_cafetero',
@@ -56,10 +57,91 @@ export const MAPS_CONFIG = {
         fogDensity: 0.011,
         sunColor: 0xfef9c3,
         gemColor: 0xa855f7
+    },
+    desierto: {
+        id: 'desierto',
+        name: 'El desierto de los secretos',
+        badge: '🏜️ LA GUAJIRA',
+        desc: 'Dunas doradas de Taroa, cactus gigantes y pilares de arcilla roja.',
+        missionTitle: 'Misión del Desierto',
+        missionDesc: 'Cruza las dunas, esquiva arenas movedizas y recolecta 3 cristales.',
+        bgColor: 0xfed7aa,
+        fogColor: 0xfdba74,
+        fogDensity: 0.013,
+        sunColor: 0xfde047,
+        gemColor: 0xa855f7
+    },
+    pacifico: {
+        id: 'pacifico',
+        name: 'Los misterios del Pacífico',
+        badge: '🌊 CHOCÓ PACÍFICO',
+        desc: 'Selva húmeda, manglares gigantes, lianas y cascadas de aguas profundas.',
+        missionTitle: 'Misión del Pacífico',
+        missionDesc: 'Supera las mareas y el laberinto de raíces de mangle.',
+        bgColor: 0x99f6e4,
+        fogColor: 0x5eead4,
+        fogDensity: 0.012,
+        sunColor: 0x5eead4,
+        gemColor: 0xa855f7
+    },
+    sabana: {
+        id: 'sabana',
+        name: 'La sabana de los gigantes',
+        badge: '🌾 LLANOS ORIENTALES',
+        desc: 'Sabanas doradas infinitas, esteros, morichales y chigüiros en libertad.',
+        missionTitle: 'Misión de la Sabana',
+        missionDesc: 'Navega los esteros y plataformas flotantes de los llanos.',
+        bgColor: 0xfef08a,
+        fogColor: 0xd9f99d,
+        fogDensity: 0.013,
+        sunColor: 0xfef08a,
+        gemColor: 0xa855f7
+    },
+    cano_cristales: {
+        id: 'cano_cristales',
+        name: 'El río de los cinco colores',
+        badge: '🌈 CAÑO CRISTALES',
+        desc: 'Pozas circulares rocosas y plantas acuáticas de cinco colores radiantes.',
+        missionTitle: 'Misión del Río Arcoíris',
+        missionDesc: 'Salta entre los remolinos y cascadas de cuarzo de colores.',
+        bgColor: 0xfbcfe8,
+        fogColor: 0xf5d0fe,
+        fogDensity: 0.013,
+        sunColor: 0xf472b6,
+        gemColor: 0xa855f7
+    },
+    ciudad_perdida: {
+        id: 'ciudad_perdida',
+        name: 'La ciudad perdida',
+        badge: '🏛️ TEYUNA TAYRONA',
+        desc: 'Terrazas circulares de piedra, monolitos ancestrales y selva de montaña.',
+        missionTitle: 'Misión de la Ciudad Perdida',
+        missionDesc: 'Asciende las escaleras milenarias y sortea las trampas antiguas.',
+        bgColor: 0xcfd8dc,
+        fogColor: 0x90a4ae,
+        fogDensity: 0.014,
+        sunColor: 0xe2e8f0,
+        gemColor: 0xa855f7
+    },
+    templo_biodiversidad: {
+        id: 'templo_biodiversidad',
+        name: 'El templo de la biodiversidad',
+        badge: '💎 TEMPLO SUPREMO',
+        desc: 'Santuario de energía pura en la cima nevada custodiado por El Invernal.',
+        missionTitle: 'Misión Definitiva',
+        missionDesc: 'Vence la tormenta cósmica y derrota a El Invernal en su forma suprema.',
+        bgColor: 0xe9d5ff,
+        fogColor: 0xd8b4fe,
+        fogDensity: 0.015,
+        sunColor: 0xc084fc,
+        gemColor: 0xa855f7
     }
 };
 
-// Aliases retrocompatibles
+// Aliases para compatibilidad
+MAPS_CONFIG.amazonas = MAPS_CONFIG.selva;
+MAPS_CONFIG.cafetero = MAPS_CONFIG.eje_cafetero;
+MAPS_CONFIG.frailejones = MAPS_CONFIG.paramo;
 MAPS_CONFIG.forest = MAPS_CONFIG.selva;
 MAPS_CONFIG.volcano = MAPS_CONFIG.eje_cafetero;
 MAPS_CONFIG.snow = MAPS_CONFIG.paramo;
@@ -68,6 +150,11 @@ export class World {
     constructor(scene) {
         this.scene = scene;
         this.currentMapId = 'selva';
+        this.platforms = [];
+        this.isCampaignMode = false;
+        this.campaignEnemySpawns = [];
+        this.currentCampaignWorldNum = 1;
+        this.currentCampaignLevelNum = 1;
         this.trampolines = [];
         this.floatingCoins = [];
         this.crates = [];
@@ -1098,4 +1185,449 @@ export class World {
             }
         }
     }
+
+    // =========================================================================
+    // MÓDULO DE CAMPAÑA INDIVIDUAL "AVENTURA NINJA": PLATAFORMAS 3D & 10 BIOMAS
+    // =========================================================================
+
+    getGroundHeightAt(x, y, z) {
+        if (!this.isCampaignMode) {
+            return 0; // En arena regular, suelo en Y = 0
+        }
+
+        let bestY = -999;
+        for (let i = 0; i < this.platforms.length; i++) {
+            const p = this.platforms[i];
+            if (x >= p.minX && x <= p.maxX && z >= p.minZ && z <= p.maxZ) {
+                if (y >= p.y - 0.45) {
+                    if (p.y > bestY) bestY = p.y;
+                }
+            }
+        }
+        return bestY;
+    }
+
+    addPlatformMesh(x, y, z, width, length, material, isMoving = false) {
+        const group = new THREE.Group();
+        group.position.set(x, y, z);
+
+        const thickness = 1.4;
+        const geom = new THREE.BoxGeometry(width, thickness, length);
+        const mesh = new THREE.Mesh(geom, material);
+        mesh.position.y = -thickness / 2;
+        mesh.receiveShadow = true;
+        mesh.castShadow = true;
+        group.add(mesh);
+
+        // Borde dorado superior decorativo
+        const trimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.6 });
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, 0.08, length + 0.1), trimMat);
+        trim.position.y = 0.02;
+        group.add(trim);
+
+        this.mapRoot.add(group);
+
+        const halfW = width / 2;
+        const halfL = length / 2;
+        this.platforms.push({
+            group: group,
+            minX: x - halfW,
+            maxX: x + halfW,
+            minZ: z - halfL,
+            maxZ: z + halfL,
+            y: y,
+            width: width,
+            length: length,
+            isMoving: isMoving
+        });
+
+        return group;
+    }
+
+    updatePlatformHitbox(group, x, y, z, width, length) {
+        for (let i = 0; i < this.platforms.length; i++) {
+            const p = this.platforms[i];
+            if (p.group === group) {
+                const halfW = width / 2;
+                const halfL = length / 2;
+                p.minX = x - halfW;
+                p.maxX = x + halfW;
+                p.minZ = z - halfL;
+                p.maxZ = z + halfL;
+                p.y = y;
+                break;
+            }
+        }
+    }
+
+    buildStartGate(pos) {
+        const gate = new THREE.Group();
+        gate.position.copy(pos);
+
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
+        const bannerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
+
+        [-3.2, 3.2].forEach(px => {
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 4.5, 12), poleMat);
+            pole.position.set(px, 2.25, 0);
+            pole.castShadow = true;
+            gate.add(pole);
+        });
+
+        const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 6.8, 12), poleMat);
+        crossbar.rotation.z = Math.PI / 2;
+        crossbar.position.y = 4.2;
+        gate.add(crossbar);
+
+        const banner = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.2), bannerMat);
+        banner.position.y = 3.4;
+        gate.add(banner);
+
+        this.mapRoot.add(gate);
+    }
+
+    buildFloatingCoinsArc(startX, startY, startZ, count = 3) {
+        for (let i = 0; i < count; i++) {
+            const coinZ = startZ - i * 1.6;
+            const coinY = startY + Math.sin((i / (count - 1)) * Math.PI) * 1.5 + 0.8;
+            this.buildFloatingCoins([new THREE.Vector3(startX, coinY, coinZ)]);
+        }
+    }
+
+    // Props decorativos para los 10 biomas
+    buildCactus(pos) {
+        const c = new THREE.Group();
+        c.position.copy(pos);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.7 });
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.38, 4.2, 12), mat);
+        stem.position.y = 2.1;
+        c.add(stem);
+
+        const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.8, 10), mat);
+        armL.position.set(-0.8, 2.4, 0);
+        c.add(armL);
+
+        const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.8, 10), mat);
+        armR.position.set(0.8, 2.9, 0);
+        c.add(armR);
+
+        this.mapRoot.add(c);
+    }
+
+    buildMangrove(pos) {
+        const m = new THREE.Group();
+        m.position.copy(pos);
+        const rootMat = new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.9 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.6 });
+
+        for (let i = 0; i < 4; i++) {
+            const angle = (i / 4) * Math.PI * 2;
+            const root = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.25, 8, 16, Math.PI), rootMat);
+            root.position.set(Math.cos(angle) * 1.1, 0.4, Math.sin(angle) * 1.1);
+            root.rotation.y = angle;
+            m.add(root);
+        }
+
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 3.8, 12), rootMat);
+        trunk.position.y = 2.2;
+        m.add(trunk);
+
+        const foliage = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 12), leafMat);
+        foliage.scale.set(1.4, 0.7, 1.4);
+        foliage.position.y = 4.4;
+        m.add(foliage);
+
+        this.mapRoot.add(m);
+    }
+
+    buildMorichePalm(pos) {
+        const p = new THREE.Group();
+        p.position.copy(pos);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.8 });
+        const frondMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.6 });
+
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.45, 7.5, 12), trunkMat);
+        trunk.position.y = 3.75;
+        p.add(trunk);
+
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const frond = new THREE.Mesh(new THREE.ConeGeometry(0.65, 2.6, 6), frondMat);
+            frond.position.set(Math.cos(angle) * 1.2, 7.5, Math.sin(angle) * 1.2);
+            frond.rotation.x = Math.PI / 3;
+            frond.rotation.y = angle;
+            p.add(frond);
+        }
+        this.mapRoot.add(p);
+    }
+
+    buildRainbowAlgae(pos, colorHex = 0xec4899) {
+        const a = new THREE.Group();
+        a.position.copy(pos);
+        const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4, emissive: colorHex, emissiveIntensity: 0.2 });
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const petal = new THREE.Mesh(new THREE.SphereGeometry(0.6, 10, 8), mat);
+            petal.scale.set(1.5, 0.25, 0.8);
+            petal.position.set(Math.cos(angle) * 0.9, 0.1, Math.sin(angle) * 0.9);
+            petal.rotation.y = angle;
+            a.add(petal);
+        }
+        this.mapRoot.add(a);
+    }
+
+    buildTayronaMonolith(pos) {
+        const m = new THREE.Group();
+        m.position.copy(pos);
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x57534e, roughness: 0.85 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
+
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 1.2, 16), stoneMat);
+        base.position.y = 0.6;
+        m.add(base);
+
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.4, 4.8, 1.4), stoneMat);
+        pillar.position.y = 3.2;
+        m.add(pillar);
+
+        const mask = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 0.3), goldMat);
+        mask.position.set(0, 4.2, 0.75);
+        m.add(mask);
+
+        this.mapRoot.add(m);
+    }
+
+    buildCrystalTower(pos) {
+        const c = new THREE.Group();
+        c.position.copy(pos);
+        const crystalMat = new THREE.MeshStandardMaterial({
+            color: 0xc084fc,
+            emissive: 0x9333ea,
+            emissiveIntensity: 0.6,
+            roughness: 0.2,
+            metalness: 0.7,
+            transparent: true,
+            opacity: 0.88
+        });
+
+        const spire = new THREE.Mesh(new THREE.ConeGeometry(0.9, 5.5, 6), crystalMat);
+        spire.position.y = 2.75;
+        c.add(spire);
+
+        this.mapRoot.add(c);
+    }
+
+    spawnBiomeProps(worldNum, platX, platY, platZ) {
+        const side = (Math.random() < 0.5 ? -1 : 1);
+        const propPos = new THREE.Vector3(platX + side * (6.5 + Math.random() * 3.0), platY, platZ);
+
+        if (worldNum === 1) {
+            this.buildCeibaTree(propPos);
+        } else if (worldNum === 2) {
+            this.buildCoffeeBush(propPos);
+        } else if (worldNum === 3) {
+            this.buildCoconutPalm(propPos);
+        } else if (worldNum === 4) {
+            this.buildFrailejon(propPos);
+        } else if (worldNum === 5) {
+            this.buildCactus(propPos);
+        } else if (worldNum === 6) {
+            this.buildMangrove(propPos);
+        } else if (worldNum === 7) {
+            this.buildMorichePalm(propPos);
+        } else if (worldNum === 8) {
+            const colors = [0xec4899, 0xfacc15, 0x10b981, 0x0284c7, 0x8b5cf6];
+            this.buildRainbowAlgae(propPos, colors[Math.floor(Math.random() * colors.length)]);
+        } else if (worldNum === 9) {
+            this.buildTayronaMonolith(propPos);
+        } else if (worldNum === 10) {
+            this.buildCrystalTower(propPos);
+        }
+    }
+
+    // =========================================================================
+    // GENERADOR DE NIVELES 3D PROCEDURAL DE CAMPAÑA
+    // =========================================================================
+    buildCampaignLevel(worldNum = 1, levelNum = 1) {
+        this.isCampaignMode = true;
+        this.campaignEnemySpawns = [];
+        this.currentCampaignWorldNum = worldNum;
+        this.currentCampaignLevelNum = levelNum;
+
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const lvlMeta = (worldMeta.levels && worldMeta.levels[levelNum - 1]) ? worldMeta.levels[levelNum - 1] : { length: 80, targetTime: 70 };
+
+        while (this.mapRoot.children.length > 0) {
+            const child = this.mapRoot.children[0];
+            this.mapRoot.remove(child);
+            this.disposeObject(child);
+        }
+
+        this.trampolines = [];
+        this.floatingCoins = [];
+        this.crates = [];
+        this.missionGems = [];
+        this.airdrops = [];
+        this.totems = [];
+        this.portal = null;
+        this.platforms = [];
+        this.animatedUpdaters = [];
+
+        // Atmósfera según el mundo
+        if (this.scene.background && this.scene.background.setHex) {
+            this.scene.background.setHex(worldMeta.skyColor);
+        } else {
+            this.scene.background = new THREE.Color(worldMeta.skyColor);
+        }
+
+        if (this.scene.fog) {
+            this.scene.fog.color.setHex(worldMeta.fogColor);
+            this.scene.fog.density = 0.012;
+        }
+
+        const themeMat = new THREE.MeshStandardMaterial({
+            color: worldMeta.groundColor,
+            roughness: 0.8
+        });
+        const goldAccentMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
+
+        // 1. Plataforma de Inicio
+        this.addPlatformMesh(0, 0, 0, 11, 14, themeMat);
+        this.buildStartGate(new THREE.Vector3(0, 0, 4));
+
+        // 2. Circuito de Plataformas
+        const totalLength = lvlMeta.length || 80;
+        let currentZ = -9;
+        let currentY = 0;
+        let sectionIndex = 0;
+
+        const gemPlacements = [Math.floor(totalLength * 0.25), Math.floor(totalLength * 0.55), Math.floor(totalLength * 0.82)];
+        let gemsPlaced = 0;
+
+        while (Math.abs(currentZ) < totalLength) {
+            sectionIndex++;
+            const heightVariation = Math.sin(sectionIndex * 0.75) * 1.6;
+            currentY = Math.max(0, heightVariation);
+
+            const platWidth = 5.5 + Math.sin(sectionIndex) * 2.0;
+            const platLength = 6.0 + (sectionIndex % 3) * 2.5;
+            const gap = 2.8 + (worldNum > 4 ? 0.6 : 0) + (worldNum > 7 ? 0.7 : 0);
+            const platZ = currentZ - gap - platLength / 2;
+            const platX = (sectionIndex % 2 === 0 ? 1 : -1) * (Math.sin(sectionIndex * 1.3) * 4.2);
+
+            const isMoving = (worldNum >= 4 && sectionIndex % 3 === 0);
+            const platGroup = this.addPlatformMesh(platX, currentY, platZ, platWidth, platLength, themeMat, isMoving);
+
+            if (isMoving) {
+                const startX = platX;
+                const moveDist = 4.2;
+                const speed = 1.6 + worldNum * 0.12;
+                this.animatedUpdaters.push((delta, time) => {
+                    const offset = Math.sin(time * speed) * moveDist;
+                    platGroup.position.x = startX + offset;
+                    this.updatePlatformHitbox(platGroup, startX + offset, currentY, platZ, platWidth, platLength);
+                });
+            }
+
+            // Trampolín en saltos grandes
+            if (gap > 3.4 && sectionIndex % 2 === 1) {
+                this.buildTrampoline(new THREE.Vector3(platX, currentY, platZ + platLength / 2 - 1.2));
+            }
+
+            // Cajas Sorpresa con '?'
+            if (sectionIndex % 2 === 0) {
+                this.buildCrate(new THREE.Vector3(platX + 1.2, currentY + 0.46, platZ), (sectionIndex % 4 === 0) ? 'fruit' : 'coins');
+            }
+
+            // Cristales de Energía de la Biodiversidad (3 por nivel)
+            if (gemsPlaced < 3 && Math.abs(currentZ) >= gemPlacements[gemsPlaced]) {
+                gemsPlaced++;
+                this.buildBiodiversityCrystal(new THREE.Vector3(platX, currentY + 1.4, platZ), `gem_w${worldNum}_l${levelNum}_${gemsPlaced}`);
+            }
+
+            // Monedas flotantes
+            this.buildFloatingCoinsArc(platX, currentY, platZ, 3);
+
+            // Spawns de enemigos de nivel
+            if (sectionIndex > 1 && sectionIndex % 2 === 0) {
+                this.campaignEnemySpawns.push(new THREE.Vector3(platX, currentY, platZ));
+            }
+
+            // Props del bioma a los lados
+            this.spawnBiomeProps(worldNum, platX, currentY, platZ);
+
+            currentZ = platZ - platLength / 2;
+        }
+
+        // 3. Plataforma Final de Meta
+        const endZ = currentZ - 6;
+        const endY = currentY;
+        this.addPlatformMesh(0, endY, endZ, 12, 14, goldAccentMat);
+
+        // Portal Místico de Victoria
+        this.buildMysticPortal(new THREE.Vector3(0, endY, endZ), 0, worldMeta.groundColor);
+        if (this.portal) {
+            this.portal.isActive = true;
+        }
+    }
+
+    // =========================================================================
+    // ARENA CIRCULAR PARA ENFRENTAMIENTO CONTRA JEFE DE MUNDO
+    // =========================================================================
+    buildCampaignBossArena(worldNum = 1) {
+        this.isCampaignMode = false;
+        this.campaignEnemySpawns = [];
+        this.currentCampaignWorldNum = worldNum;
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+
+        while (this.mapRoot.children.length > 0) {
+            const child = this.mapRoot.children[0];
+            this.mapRoot.remove(child);
+            this.disposeObject(child);
+        }
+
+        this.trampolines = [];
+        this.floatingCoins = [];
+        this.crates = [];
+        this.missionGems = [];
+        this.airdrops = [];
+        this.totems = [];
+        this.portal = null;
+        this.platforms = [];
+        this.animatedUpdaters = [];
+
+        if (this.scene.background && this.scene.background.setHex) {
+            this.scene.background.setHex(worldMeta.skyColor);
+        }
+        if (this.scene.fog) {
+            this.scene.fog.color.setHex(worldMeta.fogColor);
+            this.scene.fog.density = 0.015;
+        }
+
+        // Suelo de la arena (Radio 28m)
+        const arenaMat = new THREE.MeshStandardMaterial({ color: worldMeta.groundColor, roughness: 0.85 });
+        const arenaMesh = new THREE.Mesh(new THREE.CylinderGeometry(28, 30, 2.0, 36), arenaMat);
+        arenaMesh.position.y = -1.0;
+        arenaMesh.receiveShadow = true;
+        this.mapRoot.add(arenaMesh);
+
+        // Pilares periféricos
+        for (let i = 0; i < 16; i++) {
+            const angle = (i / 16) * Math.PI * 2;
+            const px = Math.cos(angle) * 27;
+            const pz = Math.sin(angle) * 27;
+            this.spawnBiomeProps(worldNum, px * 0.7, 0, pz * 0.7);
+        }
+
+        // Cajas de fruta curativa en esquinas
+        [
+            [-14, -14], [14, -14], [-14, 14], [14, 14]
+        ].forEach(([cx, cz]) => {
+            this.buildCrate(new THREE.Vector3(cx, 0.45, cz), 'fruit');
+        });
+
+        // Cristal de Biodiversidad como recompensa central
+        this.buildBiodiversityCrystal(new THREE.Vector3(0, 1.8, -18), `boss_reward_w${worldNum}`);
+    }
+
 }

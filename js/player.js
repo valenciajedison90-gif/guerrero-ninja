@@ -609,20 +609,39 @@ export class Player {
         this.mesh.position.y += this.velocity.y * delta;
         this.mesh.position.z += this.velocity.z * delta;
 
-        if (this.mesh.position.y <= 0) {
-            this.mesh.position.y = 0;
+        let groundY = 0;
+        if (this.groundCheckProvider) {
+            groundY = this.groundCheckProvider(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
+        }
+
+        if (this.mesh.position.y <= groundY) {
+            this.mesh.position.y = groundY;
             this.velocity.y = 0;
             this.isGrounded = true;
             this.jumpCount = 0;
         }
 
+        // Caida al abismo en niveles de plataformas
+        if (this.mesh.position.y < -12.0) {
+            this.takeDamage(20);
+            const respawnPoint = this.lastCheckpointPos || new THREE.Vector3(0, 1.5, 0);
+            this.mesh.position.copy(respawnPoint);
+            this.velocity.set(0, 0, 0);
+        }
+
         // Límites del mapa
-        const arenaRadius = 55.0;
-        const currentDist = Math.hypot(this.mesh.position.x, this.mesh.position.z);
-        if (currentDist > arenaRadius) {
-            const angle = Math.atan2(this.mesh.position.z, this.mesh.position.x);
-            this.mesh.position.x = Math.cos(angle) * arenaRadius;
-            this.mesh.position.z = Math.sin(angle) * arenaRadius;
+        if (!this.isCampaignMode) {
+            const arenaRadius = 55.0;
+            const currentDist = Math.hypot(this.mesh.position.x, this.mesh.position.z);
+            if (currentDist > arenaRadius) {
+                const angle = Math.atan2(this.mesh.position.z, this.mesh.position.x);
+                this.mesh.position.x = Math.cos(angle) * arenaRadius;
+                this.mesh.position.z = Math.sin(angle) * arenaRadius;
+            }
+        } else {
+            // Limites laterales en el circuito de campana
+            this.mesh.position.x = Math.max(-26, Math.min(26, this.mesh.position.x));
+            if (this.mesh.position.z > 12) this.mesh.position.z = 12;
         }
 
         // =====================================================================

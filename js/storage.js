@@ -47,6 +47,29 @@ const defaultMissions = {
     }
 };
 
+function createDefaultCampaign() {
+    const worlds = {};
+    for (let w = 1; w <= 10; w++) {
+        worlds[w] = {
+            unlocked: w === 1,
+            bossUnlocked: false,
+            bossDefeated: false,
+            levels: {
+                1: { completed: false, stars: 0, bestTime: 0, gemsCollected: 0, unlocked: true },
+                2: { completed: false, stars: 0, bestTime: 0, gemsCollected: 0, unlocked: false },
+                3: { completed: false, stars: 0, bestTime: 0, gemsCollected: 0, unlocked: false },
+                4: { completed: false, stars: 0, bestTime: 0, gemsCollected: 0, unlocked: false },
+                5: { completed: false, stars: 0, bestTime: 0, gemsCollected: 0, unlocked: false }
+            }
+        };
+    }
+    return {
+        selectedWorld: 1,
+        selectedLevel: 1,
+        worlds: worlds
+    };
+}
+
 const defaultState = {
     playerName: 'Guardián Ninja',
     selectedCharacter: 'chucho',
@@ -63,12 +86,13 @@ const defaultState = {
     unlockedWeapons: ['bokken', 'machete_dorado', 'katana'],
     hotbar: ['bokken', 'machete_dorado', null, null, null],
     currentSlot: 0,
-    selectedMode: 'battle_royale', // 'battle_royale' | 'aventura' | 'equipos' | 'eventos'
+    selectedMode: 'battle_royale', // 'battle_royale' | 'adventure' | 'squads' | 'events'
     enemiesDefeated: 12,
     soundMuted: false,
     currentWorld: 'selva',
     unlockedWorlds: ['selva', 'eje_cafetero', 'paramo', 'caribe'],
-    worldProgress: JSON.parse(JSON.stringify(defaultMissions))
+    worldProgress: JSON.parse(JSON.stringify(defaultMissions)),
+    campaign: createDefaultCampaign()
 };
 
 class StorageEngine {
@@ -81,6 +105,28 @@ class StorageEngine {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
                 const parsed = JSON.parse(raw);
+                const defaultCamp = createDefaultCampaign();
+                const savedCamp = parsed.campaign || {};
+                
+                // Asegurar que los 10 mundos existen
+                const mergedWorlds = {};
+                for (let w = 1; w <= 10; w++) {
+                    const defW = defaultCamp.worlds[w];
+                    const savW = savedCamp.worlds?.[w] || {};
+                    mergedWorlds[w] = {
+                        unlocked: savW.unlocked !== undefined ? savW.unlocked : defW.unlocked,
+                        bossUnlocked: savW.bossUnlocked !== undefined ? savW.bossUnlocked : defW.bossUnlocked,
+                        bossDefeated: savW.bossDefeated !== undefined ? savW.bossDefeated : defW.bossDefeated,
+                        levels: {
+                            1: { ...defW.levels[1], ...(savW.levels?.[1] || {}) },
+                            2: { ...defW.levels[2], ...(savW.levels?.[2] || {}) },
+                            3: { ...defW.levels[3], ...(savW.levels?.[3] || {}) },
+                            4: { ...defW.levels[4], ...(savW.levels?.[4] || {}) },
+                            5: { ...defW.levels[5], ...(savW.levels?.[5] || {}) }
+                        }
+                    };
+                }
+
                 return {
                     ...defaultState,
                     ...parsed,
@@ -90,7 +136,12 @@ class StorageEngine {
                         paramo: { ...defaultMissions.paramo, ...(parsed.worldProgress?.paramo || {}) },
                         caribe: { ...defaultMissions.caribe, ...(parsed.worldProgress?.caribe || {}) }
                     },
-                    unlockedWorlds: parsed.unlockedWorlds || defaultState.unlockedWorlds
+                    unlockedWorlds: parsed.unlockedWorlds || defaultState.unlockedWorlds,
+                    campaign: {
+                        selectedWorld: savedCamp.selectedWorld || 1,
+                        selectedLevel: savedCamp.selectedLevel || 1,
+                        worlds: mergedWorlds
+                    }
                 };
             }
         } catch (e) {
@@ -308,6 +359,118 @@ class StorageEngine {
     isWorldUnlocked(worldId) {
         const mapKey = worldId === 'forest' ? 'selva' : (worldId === 'volcano' ? 'eje_cafetero' : (worldId === 'snow' ? 'paramo' : worldId));
         return this.data.unlockedWorlds.includes(mapKey);
+    }
+
+    // =========================================================================
+    // MÓDULO: CAMPAÑA INDIVIDUAL "AVENTURA NINJA" (10 MUNDOS & 50 NIVELES)
+    // =========================================================================
+    getCampaign() {
+        if (!this.data.campaign) {
+            this.data.campaign = createDefaultCampaign();
+            this.save();
+        }
+        return this.data.campaign;
+    }
+
+    getCampaignWorld(worldNum) {
+        const camp = this.getCampaign();
+        return camp.worlds[worldNum] || null;
+    }
+
+    isCampaignWorldUnlocked(worldNum) {
+        if (worldNum === 1) return true;
+        const w = this.getCampaignWorld(worldNum);
+        return w ? w.unlocked : false;
+    }
+
+    isCampaignLevelUnlocked(worldNum, levelNum) {
+        if (!this.isCampaignWorldUnlocked(worldNum)) return false;
+        if (levelNum === 1) return true;
+        const w = this.getCampaignWorld(worldNum);
+        if (!w || !w.levels[levelNum]) return false;
+        return w.levels[levelNum].unlocked === true;
+    }
+
+    getCampaignLevel(worldNum, levelNum) {
+        const w = this.getCampaignWorld(worldNum);
+        return (w && w.levels) ? w.levels[levelNum] : null;
+    }
+
+    recordCampaignLevelResult(worldNum, levelNum, stars, time, gems) {
+        const camp = this.getCampaign();
+        const w = camp.worlds[worldNum];
+        if (!w) return;
+
+        const lvl = w.levels[levelNum];
+        if (lvl) {
+            lvl.completed = true;
+            lvl.stars = Math.max(lvl.stars || 0, Math.min(3, stars));
+            lvl.bestTime = (lvl.bestTime === 0 || time < lvl.bestTime) ? Math.round(time) : lvl.bestTime;
+            lvl.gemsCollected = Math.max(lvl.gemsCollected || 0, gems || 0);
+
+            // Desbloquear el siguiente nivel del mundo
+            if (levelNum < 5 && w.levels[levelNum + 1]) {
+                w.levels[levelNum + 1].unlocked = true;
+            } else if (levelNum === 5) {
+                // Al completar el nivel 5, se desbloquea el jefe del mundo
+                w.bossUnlocked = true;
+            }
+        }
+
+        // Recompensas inmediatas
+        this.addCoins(stars * 25);
+        this.addGems(stars >= 2 ? 5 : 2);
+        this.addXP(stars * 40);
+
+        this.save();
+    }
+
+    recordCampaignBossDefeated(worldNum) {
+        const camp = this.getCampaign();
+        const w = camp.worlds[worldNum];
+        if (!w) return;
+
+        w.bossDefeated = true;
+
+        // Desbloquear el siguiente mundo
+        if (worldNum < 10 && camp.worlds[worldNum + 1]) {
+            camp.worlds[worldNum + 1].unlocked = true;
+        }
+
+        // Gran recompensa por vencer al jefe del mundo
+        this.addCoins(250);
+        this.addGems(35);
+        this.addXP(400);
+
+        this.save();
+    }
+
+    getTotalCampaignStars() {
+        const camp = this.getCampaign();
+        let total = 0;
+        for (let w = 1; w <= 10; w++) {
+            const world = camp.worlds[w];
+            if (world && world.levels) {
+                for (let l = 1; l <= 5; l++) {
+                    total += (world.levels[l]?.stars || 0);
+                }
+            }
+        }
+        return total;
+    }
+
+    getTotalCampaignLevelsCompleted() {
+        const camp = this.getCampaign();
+        let count = 0;
+        for (let w = 1; w <= 10; w++) {
+            const world = camp.worlds[w];
+            if (world && world.levels) {
+                for (let l = 1; l <= 5; l++) {
+                    if (world.levels[l]?.completed) count++;
+                }
+            }
+        }
+        return count;
     }
 
     resetProgress() {
