@@ -1056,6 +1056,10 @@ body, html {
     pointer-events: none;
     z-index: 50;
     display: block !important;
+    touch-action: none !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Ocultar únicamente en computadoras de escritorio con ratón exclusivo y pantalla grande */
@@ -1151,8 +1155,9 @@ body, html {
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: manipulation;
-    transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.1s ease;
+    touch-action: none !important;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.08s ease, filter 0.08s ease;
 }
 
 .btn-touch-action:active,

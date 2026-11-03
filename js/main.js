@@ -31,8 +31,40 @@ class Game {
         this.touchControls = new TouchControlsManager(this.player, this);
 
         // Conectar eventos de combate del jugador
-        this.player.onAttackCallback = (weaponId, combo) => this.handlePlayerAttack(weaponId, combo);
+        this.player.onAttackCallback = (weaponId, combo, target) => this.handlePlayerAttack(weaponId, combo, target);
         this.player.onSpinAttackCallback = () => this.handlePlayerSpinAttack();
+
+        // Conectar proveedor de objetivos para Auto-Apuntado Asistido (Soft Aim Assist)
+        this.player.setTargetsProvider(() => {
+            const targets = [];
+            if (this.enemyManager && this.enemyManager.enemies) {
+                for (const e of this.enemyManager.enemies) {
+                    if (e && e.mesh && e.health > 0) targets.push(e);
+                }
+            }
+            if (this.world && this.world.crates) {
+                for (const c of this.world.crates) {
+                    if (c && c.mesh && !c.isBroken) targets.push(c);
+                }
+            }
+            if (this.world && this.world.totems) {
+                for (const t of this.world.totems) {
+                    if (t && t.mesh && !t.isDestroyed) targets.push(t);
+                }
+            }
+            return targets;
+        });
+
+        // Estelas de sombra ninja durante el dash
+        this.shadowClones = [];
+        this.player.setSpawnShadowCallback((pos, rotY) => {
+            this.spawnShadowClone(pos, rotY);
+        });
+
+        // Sistemas de Game Juice (Screen Shake & Números de Daño Flotantes)
+        this.screenShakeIntensity = 0;
+        this.screenShakeDuration = 0;
+        this.damagePopups = [];
 
         // 3. Inicializar Interfaz de Usuario y Misiones
         this.setupUI();
@@ -105,9 +137,84 @@ class Game {
     }
 
     // =========================================================================
-    // COMBATE DEL JUGADOR
     // =========================================================================
-    handlePlayerAttack(weaponId, combo) {
+    // GAME JUICE: ESTELAS DE SOMBRA, SACUDIDA DE PANTALLA Y DAÑO FLOTANTE
+    // =========================================================================
+    spawnShadowClone(pos, rotY) {
+        const shadowGroup = new THREE.Group();
+        shadowGroup.position.copy(pos);
+        shadowGroup.rotation.y = rotY;
+
+        const shadowMat = new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.45
+        });
+
+        const ghostBody = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.18, 1.2, 12), shadowMat);
+        ghostBody.position.y = 1.0;
+        shadowGroup.add(ghostBody);
+
+        const ghostHead = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), shadowMat);
+        ghostHead.position.y = 1.85;
+        shadowGroup.add(ghostHead);
+
+        this.scene.add(shadowGroup);
+        this.shadowClones.push({ mesh: shadowGroup, mat: shadowMat, life: 0.22, maxLife: 0.22 });
+    }
+
+    spawnDamagePopup(pos, damage, isCrit = false) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        ctx.font = isCrit ? 'bold 36px sans-serif' : 'bold 30px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.shadowColor = isCrit ? '#f59e0b' : '#000000';
+        ctx.shadowBlur = 6;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        const text = isCrit ? `¡${damage}! 💥` : `-${damage}`;
+        ctx.strokeText(text, 64, 32);
+
+        ctx.fillStyle = isCrit ? '#fbbf24' : '#ef4444';
+        ctx.fillText(text, 64, 32);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: false
+        });
+
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.scale.set(1.4, 0.7, 1);
+        sprite.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4));
+
+        this.scene.add(sprite);
+        this.damagePopups.push({
+            sprite: sprite,
+            mat: spriteMat,
+            texture: texture,
+            life: 0.65,
+            maxLife: 0.65,
+            vy: 2.2
+        });
+    }
+
+    triggerScreenShake(intensity = 0.2, duration = 0.12) {
+        this.screenShakeIntensity = intensity;
+        this.screenShakeDuration = duration;
+    }
+
+    // =========================================================================
+    // COMBATE DEL JUGADOR CON AUTO-APUNTADO Y COMBOS FLUIDOS
+    // =========================================================================
+    handlePlayerAttack(weaponId, combo, target) {
         const weapon = WEAPONS[weaponId] || WEAPONS.bokken;
         const playerPos = this.player.mesh.position;
 
@@ -133,38 +240,52 @@ class Game {
         let hitCount = 0;
         const range = weapon.range;
 
+        // Bonificación de daño progresivo en combos 1-2-3
+        const comboMultipliers = [1.0, 1.25, 1.75];
+        const comboMult = comboMultipliers[combo] || 1.0;
+
         // Golpear enemigos frente al jugador
         this.enemyManager.enemies.forEach(enemy => {
             const enemyPos = enemy.mesh.position;
             const dist = playerPos.distanceTo(enemyPos);
 
-            if (dist <= range + 0.8) {
+            if (dist <= range + 1.2) {
                 const toEnemy = new THREE.Vector3().subVectors(enemyPos, playerPos).normalize();
                 const angle = forward.angleTo(toEnemy);
 
-                if (angle < Math.PI * 0.65) {
+                // Ángulo de barrido generoso (140° o 360° en proximidad inmediata)
+                if (angle < Math.PI * 0.75 || dist < 1.8) {
                     hitCount++;
-                    const isCrit = Math.random() < 0.25;
-                    let damage = weapon.damage;
-                    if (isCrit) damage = Math.round(damage * 1.6);
+                    const isCrit = (combo === 2) || (Math.random() < 0.25);
+                    let baseDamage = weapon.damage;
+                    let damage = Math.round(baseDamage * comboMult);
+                    if (isCrit) damage = Math.round(damage * 1.5);
                     damage += (storage.data.level - 1) * 3;
 
                     this.enemyManager.damageEnemy(enemy, damage, isCrit, toEnemy, (defeatedEnemy) => {
                         this.handleEnemyDefeated(defeatedEnemy);
                     });
+
+                    // Game Juice
+                    this.triggerScreenShake(isCrit ? 0.28 : 0.15, 0.12);
+                    this.spawnDamagePopup(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), damage, isCrit);
                 }
             }
         });
 
         // Golpear cajas de madera destructibles
         const attackCenter = playerPos.clone().addScaledVector(forward, 1.2);
-        this.world.checkCrateHits(attackCenter, range + 0.8, (crate) => {
+        this.world.checkCrateHits(attackCenter, range + 1.2, (crate) => {
             this.handleCrateBroken(crate);
+            this.triggerScreenShake(0.2, 0.1);
+            this.spawnDamagePopup(crate.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 50, false);
         });
 
         // Golpear tótems de fuego
-        this.world.checkTotemHits(attackCenter, range + 0.8, (totem) => {
+        this.world.checkTotemHits(attackCenter, range + 1.2, (totem) => {
             this.handleTotemDestroyed(totem);
+            this.triggerScreenShake(0.22, 0.12);
+            this.spawnDamagePopup(totem.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 70, true);
         });
 
         if (hitCount > 0) {
@@ -175,7 +296,7 @@ class Game {
     // Ataque de Giro Ninja 360° estilo Crash Bandicoot
     handlePlayerSpinAttack() {
         const playerPos = this.player.mesh.position;
-        const spinRadius = 3.4;
+        const spinRadius = 3.6;
 
         this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(1, 0, 0), 'light');
         this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(-1, 0, 0), 'light');
@@ -188,17 +309,27 @@ class Game {
                 const isCrit = Math.random() < 0.35;
                 const toEnemy = new THREE.Vector3().subVectors(enemy.mesh.position, playerPos).normalize();
                 const weapon = WEAPONS[storage.getActiveWeaponId()] || WEAPONS.bokken;
-                const damage = Math.round(weapon.damage * 1.4) + (storage.data.level - 1) * 3;
+                const damage = Math.round(weapon.damage * 1.5) + (storage.data.level - 1) * 3;
 
                 this.enemyManager.damageEnemy(enemy, damage, isCrit, toEnemy, (def) => this.handleEnemyDefeated(def));
+                this.triggerScreenShake(0.24, 0.12);
+                this.spawnDamagePopup(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), damage, isCrit);
             }
         });
 
         // Romper todas las cajas en radio 360°
-        this.world.checkCrateHits(playerPos, spinRadius, (crate) => this.handleCrateBroken(crate));
+        this.world.checkCrateHits(playerPos, spinRadius, (crate) => {
+            this.handleCrateBroken(crate);
+            this.triggerScreenShake(0.2, 0.1);
+            this.spawnDamagePopup(crate.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 50, false);
+        });
 
         // Romper tótems en radio 360°
-        this.world.checkTotemHits(playerPos, spinRadius, (totem) => this.handleTotemDestroyed(totem));
+        this.world.checkTotemHits(playerPos, spinRadius, (totem) => {
+            this.handleTotemDestroyed(totem);
+            this.triggerScreenShake(0.25, 0.12);
+            this.spawnDamagePopup(totem.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 70, true);
+        });
 
         if (hitCount > 0) {
             this.showCombo(2);
@@ -995,13 +1126,49 @@ class Game {
             });
         }
 
-        // 10. Multijugador
+        // 10. Actualizar estelas de sombra ninja durante el dash
+        for (let i = this.shadowClones.length - 1; i >= 0; i--) {
+            const sc = this.shadowClones[i];
+            sc.life -= delta;
+            sc.mat.opacity = Math.max(0, (sc.life / sc.maxLife) * 0.45);
+            if (sc.life <= 0) {
+                this.scene.remove(sc.mesh);
+                sc.mat.dispose();
+                this.shadowClones.splice(i, 1);
+            }
+        }
+
+        // 11. Actualizar números de daño flotantes animados
+        for (let i = this.damagePopups.length - 1; i >= 0; i--) {
+            const pop = this.damagePopups[i];
+            pop.life -= delta;
+            pop.sprite.position.y += pop.vy * delta;
+            const progress = pop.life / pop.maxLife;
+            pop.mat.opacity = Math.min(1.0, progress * 1.5);
+            if (pop.life <= 0) {
+                this.scene.remove(pop.sprite);
+                pop.mat.dispose();
+                pop.texture.dispose();
+                this.damagePopups.splice(i, 1);
+            }
+        }
+
+        // 12. Multijugador
         this.multiplayer.update(delta);
         this.multiplayer.sendLocalUpdate(this.player.getNetworkState());
 
         const healthPercent = Math.max(0, (this.player.health / this.player.maxHealth) * 100);
         document.getElementById('player-health-fill').style.width = `${healthPercent}%`;
         document.getElementById('player-health-text').textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
+
+        // 13. Micro-sacudida de pantalla (Screen Shake por impacto)
+        if (this.screenShakeDuration > 0) {
+            this.screenShakeDuration -= delta;
+            const shakeX = (Math.random() - 0.5) * this.screenShakeIntensity;
+            const shakeY = (Math.random() - 0.5) * this.screenShakeIntensity;
+            this.camera.position.x += shakeX;
+            this.camera.position.y += shakeY;
+        }
 
         this.renderer.render(this.scene, this.camera);
     }

@@ -40,7 +40,12 @@ export class Player {
         this.cameraPitch = 0.25;
         this.cameraYaw = 0;
         this.isDraggingMouse = false;
+        this.isRotatingCamera = false;
         this.previousMousePosition = { x: 0, y: 0 };
+        this.runTime = 0;
+        this.getTargetsCallback = null;
+        this.onSpawnShadowCallback = null;
+        this.shadowSpawnTimer = 0;
 
         // Teclas activas
         this.keys = {
@@ -471,10 +476,60 @@ export class Player {
         this.touchMoveVector.set(x, y);
     }
 
+    setRotatingCamera(isRotating) {
+        this.isRotatingCamera = isRotating;
+    }
+
+    setTargetsProvider(callback) {
+        this.getTargetsCallback = callback;
+    }
+
+    setSpawnShadowCallback(callback) {
+        this.onSpawnShadowCallback = callback;
+    }
+
     addCameraRotation(deltaX, deltaY) {
-        this.cameraYaw -= deltaX * 0.013;
-        this.cameraPitch += deltaY * 0.007;
+        // Sensibilidad calibrada para giros suaves y directos estilo Free Fire
+        this.cameraYaw -= deltaX * 0.009;
+        this.cameraPitch += deltaY * 0.005;
         this.cameraPitch = Math.max(-0.15, Math.min(0.95, this.cameraPitch));
+    }
+
+    findBestTarget(maxDistance = 8.5) {
+        if (!this.getTargetsCallback) return null;
+        const targets = this.getTargetsCallback();
+        if (!targets || !targets.length) return null;
+
+        let bestTarget = null;
+        let minScore = Infinity;
+
+        const playerPos = this.mesh.position;
+        const currentHeading = this.moveDirection.lengthSq() > 0.01
+            ? Math.atan2(this.moveDirection.x, this.moveDirection.z)
+            : this.mesh.rotation.y;
+
+        for (const t of targets) {
+            if (!t) continue;
+            const targetMesh = t.mesh || t;
+            if (!targetMesh || !targetMesh.position) continue;
+            if (t.isDead || (t.health !== undefined && t.health <= 0)) continue;
+
+            const tPos = targetMesh.position;
+            const dist = Math.hypot(tPos.x - playerPos.x, tPos.z - playerPos.z);
+            if (dist > maxDistance) continue;
+
+            const angleToTarget = Math.atan2(tPos.x - playerPos.x, tPos.z - playerPos.z);
+            let angleDiff = Math.abs(angleToTarget - currentHeading);
+            while (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+
+            // Prioriza enemigos más cercanos y que estén dentro del ángulo de vista
+            const score = dist * (1.0 + angleDiff * 0.5);
+            if (score < minScore) {
+                minScore = score;
+                bestTarget = { target: t, mesh: targetMesh, dist, angleToTarget };
+            }
+        }
+        return bestTarget;
     }
 
     jump() {
@@ -484,7 +539,7 @@ export class Player {
             this.jumpCount = 1;
             sounds.playJump();
         } else if (this.jumpCount < this.maxJumps) {
-            // Doble salto estilo Crash Bandicoot
+            // Doble salto estilo plataformas
             this.velocity.y = this.jumpForce * 0.95;
             this.jumpCount = 2;
             sounds.playJump();
@@ -493,7 +548,7 @@ export class Player {
 
     dash() {
         if (this.dashCooldown > 0) return;
-        this.dashCooldown = 0.9;
+        this.dashCooldown = 0.55; // Esquive ágil y rápido
         this.dashTimer = 0.22;
         sounds.playDash();
 
@@ -506,43 +561,71 @@ export class Player {
                 Math.cos(this.mesh.rotation.y)
             ).normalize();
         }
+
+        if (this.onSpawnShadowCallback) {
+            this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
+        }
     }
 
     triggerAttack() {
         if (this.attackCooldown > 0) return;
 
-        this.mesh.rotation.y = this.cameraYaw + Math.PI;
+        // Auto-Apuntado Asistido (Soft Aim Assist estilo Free Fire / Brawl Stars)
+        const best = this.findBestTarget(8.5);
+        if (best) {
+            this.mesh.rotation.y = best.angleToTarget;
+            // Paso de acometida magnético hacia el objetivo
+            if (best.dist > 1.3) {
+                const lungeDist = Math.min(2.0, best.dist - 1.0);
+                this.mesh.position.x += Math.sin(best.angleToTarget) * lungeDist;
+                this.mesh.position.z += Math.cos(best.angleToTarget) * lungeDist;
+            }
+        } else if (this.moveDirection.lengthSq() > 0.01) {
+            this.mesh.rotation.y = Math.atan2(this.moveDirection.x, this.moveDirection.z);
+        } else {
+            this.mesh.rotation.y = this.cameraYaw + Math.PI;
+        }
 
         const weaponData = WEAPONS[this.currentWeaponId] || WEAPONS.bokken;
         this.isAttacking = true;
         this.attackTimer = 0;
-        this.attackCooldown = weaponData.attackSpeed;
 
-        this.attackCombo = (this.attackCombo + 1) % 3;
-        this.comboResetTimer = 0.9;
+        // Cadena de combo rápida (Hit 1: 0.18s, Hit 2: 0.18s, Hit 3 Finisher: 0.28s)
+        const comboCooldowns = [0.18, 0.18, 0.28];
+        this.attackCooldown = comboCooldowns[this.attackCombo] || weaponData.attackSpeed;
 
         sounds.playSlash(weaponData.element);
 
         if (this.onAttackCallback) {
-            this.onAttackCallback(this.currentWeaponId, this.attackCombo);
+            this.onAttackCallback(this.currentWeaponId, this.attackCombo, best ? best.target : null);
         }
+
+        this.attackCombo = (this.attackCombo + 1) % 3;
+        this.comboResetTimer = 0.85;
     }
 
     // Ataque de Giro Ninja 360° estilo Crash Bandicoot
     triggerSpinAttack() {
         if (this.spinCooldown > 0) return;
-        this.spinCooldown = 0.65;
+        this.spinCooldown = 0.52;
         this.isSpinning = true;
         this.spinTimer = 0.35;
         this.isAttacking = true;
         this.attackCombo = 2;
+
+        const best = this.findBestTarget(6.5);
+        if (best && best.dist > 1.2) {
+            const lungeDist = Math.min(1.4, best.dist - 0.8);
+            this.mesh.position.x += Math.sin(best.angleToTarget) * lungeDist;
+            this.mesh.position.z += Math.cos(best.angleToTarget) * lungeDist;
+        }
 
         sounds.playSlash('heavy');
 
         if (this.onSpinAttackCallback) {
             this.onSpinAttackCallback();
         } else if (this.onAttackCallback) {
-            this.onAttackCallback(this.currentWeaponId, 2);
+            this.onAttackCallback(this.currentWeaponId, 2, best ? best.target : null);
         }
     }
 
@@ -554,6 +637,9 @@ export class Player {
     }
 
     takeDamage(amount) {
+        // Invulnerabilidad (i-frames) durante el dash ninja
+        if (this.dashTimer > 0) return;
+
         this.health = Math.max(0, this.health - amount);
         sounds.playHit(false);
 
@@ -615,7 +701,7 @@ export class Player {
         if (this.keys.a) this.moveDirection.sub(right);
 
         if (this.touchMoveVector.lengthSq() > 0.01) {
-            this.moveDirection.addScaledVector(forward, -this.touchMoveVector.y);
+            this.moveDirection.addScaledVector(forward, this.touchMoveVector.y);
             this.moveDirection.addScaledVector(right, this.touchMoveVector.x);
         }
 
@@ -628,8 +714,21 @@ export class Player {
                 let diff = targetRotation - this.mesh.rotation.y;
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
-                this.mesh.rotation.y += diff * 0.22;
+                this.mesh.rotation.y += diff * 0.25;
             }
+
+            // Auto-alineación suave de la cámara al correr estilo Free Fire
+            this.runTime += delta;
+            if (this.runTime > 0.35 && !this.isRotatingCamera && !this.isAttacking && !this.isSpinning) {
+                const moveAngle = Math.atan2(this.moveDirection.x, this.moveDirection.z);
+                const desiredYaw = moveAngle - Math.PI;
+                let diffYaw = desiredYaw - this.cameraYaw;
+                while (diffYaw < -Math.PI) diffYaw += Math.PI * 2;
+                while (diffYaw > Math.PI) diffYaw -= Math.PI * 2;
+                this.cameraYaw += diffYaw * Math.min(1.0, delta * 3.2);
+            }
+        } else {
+            this.runTime = 0;
         }
 
         // Velocidad de movimiento
@@ -641,6 +740,12 @@ export class Player {
             currentSpeed = 24.0;
             this.velocity.x = this.dashDirection.x * currentSpeed;
             this.velocity.z = this.dashDirection.z * currentSpeed;
+
+            this.shadowSpawnTimer += delta;
+            if (this.shadowSpawnTimer > 0.05 && this.onSpawnShadowCallback) {
+                this.shadowSpawnTimer = 0;
+                this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
+            }
         } else if (isMoving) {
             this.velocity.x = this.moveDirection.x * currentSpeed;
             this.velocity.z = this.moveDirection.z * currentSpeed;
@@ -806,7 +911,7 @@ export class Player {
         const camY = targetPos.y + Math.sin(this.cameraPitch) * this.cameraDistance + this.cameraHeight * 0.3;
         const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
 
-        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.28);
+        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.35);
         this.camera.lookAt(targetPos);
     }
 }

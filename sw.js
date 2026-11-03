@@ -1,14 +1,14 @@
 // sw.js - Service Worker para Guerrero Ninja 3D (Soporte Offline e Instalación PWA)
-const CACHE_NAME = 'guerrero-ninja-v5.0';
+const CACHE_NAME = 'guerrero-ninja-v8.0';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=5.0',
+  './css/style.css?v=8.0',
   './lib/three.module.js',
   './lib/peerjs.min.js',
-  './js/main.js?v=5.0',
+  './js/main.js?v=8.0',
   './js/player.js',
   './js/enemies.js',
   './js/world.js',

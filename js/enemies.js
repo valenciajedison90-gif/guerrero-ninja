@@ -575,7 +575,8 @@ export class EnemyManager {
 
         // Retroceso por impacto
         if (hitDirection) {
-            enemy.mesh.position.addScaledVector(hitDirection, 0.45);
+            enemy.knockbackVelocity = hitDirection.clone().setY(0).normalize().multiplyScalar(isCrit ? 10.5 : 6.8);
+            enemy.mesh.position.addScaledVector(hitDirection, 0.35);
         }
 
         // Esquiva reactiva: al ser golpeado, salta hacia atrás
@@ -665,6 +666,12 @@ export class EnemyManager {
                 enemy.mesh.position.y = 0;
                 enemy.velocity.y = 0;
                 enemy.isGrounded = true;
+            }
+
+            // Inercia de retroceso por golpe de espada (Knockback)
+            if (enemy.knockbackVelocity && enemy.knockbackVelocity.lengthSq() > 0.01) {
+                enemy.mesh.position.addScaledVector(enemy.knockbackVelocity, delta);
+                enemy.knockbackVelocity.multiplyScalar(0.82);
             }
 
             if (enemy.jumpTimer > 0) enemy.jumpTimer -= delta;

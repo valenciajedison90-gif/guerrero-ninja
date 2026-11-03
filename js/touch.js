@@ -1,5 +1,5 @@
 // js/touch.js - Controles Táctiles para Celular Estilo Free Fire
-// Soporta Multi-Touch simultáneo (moverse con pulgar izquierdo mientras se rota la cámara y ataca)
+// Soporta Multi-Touch simultáneo, joystick responsivo con zona muerta y cámara panorámica suave
 
 export class TouchControlsManager {
     constructor(player, game) {
@@ -27,7 +27,8 @@ export class TouchControlsManager {
         this.attackInterval = null;
 
         // Configuración del joystick
-        this.maxRadius = 50; // Radio máximo de desplazamiento del pomo en px
+        this.maxRadius = 55; // Radio máximo de desplazamiento del pomo en px
+        this.deadzone = 8;   // Zona muerta mínima para evitar temblores
         this.baseCenter = { x: 0, y: 0 };
 
         this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024);
@@ -45,7 +46,7 @@ export class TouchControlsManager {
         this.setupCameraTouchEvents();
         this.setupActionButtons();
 
-        // Si en cualquier momento el usuario toca la pantalla, asegurar que los controles estén visibles
+        // Al tocar por primera vez, asegurar activación de clases visuales
         window.addEventListener('touchstart', () => {
             document.body.classList.add('touch-active');
         }, { once: true, passive: true });
@@ -66,21 +67,20 @@ export class TouchControlsManager {
         window.addEventListener('resize', updateBaseCenter);
         setTimeout(updateBaseCenter, 200);
 
-        // Iniciar joystick al tocar la zona izquierda inferior
+        // Iniciar joystick al tocar la mitad izquierda de la pantalla
         window.addEventListener('touchstart', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                // Si cae en la zona izquierda y no hay joystick activo
-                if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.45 && touch.clientY > window.innerHeight * 0.2) {
-                    // Evitar interferir con elementos de menú o modales abiertos
+                // Lado izquierdo de la pantalla (excluyendo zona de menús)
+                if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.48 && touch.clientY > window.innerHeight * 0.15) {
                     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (target && (target.closest('.modal-overlay') || target.closest('.btn-hud') || target.closest('.player-card'))) {
+                    if (target && (target.closest('.modal-overlay') || target.closest('.btn-hud') || target.closest('.player-card') || target.closest('#mission-hud'))) {
                         continue;
                     }
 
                     this.joystickTouchId = touch.identifier;
 
-                    // Centrar base del joystick directamente bajo el pulgar izquierdo
+                    // Centrar visualmente el joystick bajo el pulgar
                     if (this.joystickZone) {
                         this.joystickZone.style.left = `${touch.clientX - 65}px`;
                         this.joystickZone.style.top = `${touch.clientY - 65}px`;
@@ -139,6 +139,12 @@ export class TouchControlsManager {
         const dy = clientY - this.baseCenter.y;
         const distance = Math.hypot(dx, dy);
 
+        if (distance < this.deadzone) {
+            if (this.joystickKnob) this.joystickKnob.style.transform = 'translate(0px, 0px)';
+            this.player.setTouchMovement(0, 0);
+            return;
+        }
+
         let clampedX = dx;
         let clampedY = dy;
 
@@ -147,36 +153,41 @@ export class TouchControlsManager {
             clampedY = (dy / distance) * this.maxRadius;
         }
 
-        // Mover visualmente el pomo interior
+        // Mover pomo visualmente
         if (this.joystickKnob) {
             this.joystickKnob.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
         }
 
-        // Pasar vector normalizado al jugador (-1 a 1)
-        // dy negativo (hacia arriba en pantalla) = avanzar (+Y en dirección frontal)
-        const normX = clampedX / this.maxRadius;
-        const normY = -clampedY / this.maxRadius;
+        // normX: -1 (izq) a +1 (der)
+        // normY: hacia arriba (dy negativo) = +1 (avanzar al frente)
+        const effectiveDist = (Math.min(distance, this.maxRadius) - this.deadzone) / (this.maxRadius - this.deadzone);
+        const angle = Math.atan2(dy, dx);
+        const normX = Math.cos(angle) * effectiveDist;
+        const normY = -Math.sin(angle) * effectiveDist;
+
         this.player.setTouchMovement(normX, normY);
     }
 
-    // 2. Control Panorámico de Cámara Estilo Free Fire (Aim / Mover vista con el dedo)
+    // 2. Control Panorámico de Cámara Estilo Free Fire
     setupCameraTouchEvents() {
         window.addEventListener('touchstart', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                // Si ya es el joystick, ignorar
                 if (touch.identifier === this.joystickTouchId) continue;
 
-                // Comprobar si tocó un botón de acción táctil o del HUD
+                // Si tocó un botón de acción táctil o elemento interactivo del HUD
                 const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                if (target && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot') || target.closest('.player-card') || target.closest('.coin-counter'))) {
+                if (target && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot') || target.closest('.player-card') || target.closest('#mission-hud'))) {
                     continue;
                 }
 
-                // Cualquier otro toque en la pantalla controla la cámara de forma inmediata
-                if (this.cameraTouchId === null) {
+                // Mitad derecha o centro libre: control de rotación de cámara
+                if (this.cameraTouchId === null && touch.clientX > window.innerWidth * 0.35) {
                     this.cameraTouchId = touch.identifier;
                     this.lastCameraPos = { x: touch.clientX, y: touch.clientY };
+                    if (this.player && this.player.setRotatingCamera) {
+                        this.player.setRotatingCamera(true);
+                    }
                     break;
                 }
             }
@@ -190,11 +201,10 @@ export class TouchControlsManager {
                     const rawDeltaX = touch.clientX - this.lastCameraPos.x;
                     const rawDeltaY = touch.clientY - this.lastCameraPos.y;
 
-                    // Limitar saltos extremos por lag de pantalla
-                    const deltaX = Math.max(-90, Math.min(90, rawDeltaX));
-                    const deltaY = Math.max(-90, Math.min(90, rawDeltaY));
+                    // Suavizado y limitador para evitar tirones
+                    const deltaX = Math.max(-80, Math.min(80, rawDeltaX));
+                    const deltaY = Math.max(-80, Math.min(80, rawDeltaY));
 
-                    // Rota la cámara y orienta suavemente al personaje
                     this.player.addCameraRotation(deltaX, deltaY);
 
                     this.lastCameraPos = { x: touch.clientX, y: touch.clientY };
@@ -209,6 +219,9 @@ export class TouchControlsManager {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === this.cameraTouchId) {
                     this.cameraTouchId = null;
+                    if (this.player && this.player.setRotatingCamera) {
+                        this.player.setRotatingCamera(false);
+                    }
                     break;
                 }
             }
@@ -220,19 +233,25 @@ export class TouchControlsManager {
 
     // 3. Configuración de Botones de Acción Estilo Free Fire
     setupActionButtons() {
+        const vibrateShort = () => {
+            try {
+                if ('vibrate' in navigator) navigator.vibrate(18);
+            } catch (_) {}
+        };
+
         // A) Botón de Disparo / Ataque Principal
         if (this.btnAttack) {
             const startAttack = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                vibrateShort();
                 this.btnAttack.classList.add('pressed');
                 this.player.triggerAttack();
 
-                // Permitir ataque continuo si se mantiene presionado el botón
                 clearInterval(this.attackInterval);
                 this.attackInterval = setInterval(() => {
                     this.player.triggerAttack();
-                }, 220);
+                }, 190);
             };
 
             const stopAttack = (e) => {
@@ -245,7 +264,6 @@ export class TouchControlsManager {
             this.btnAttack.addEventListener('touchstart', startAttack, { passive: false });
             this.btnAttack.addEventListener('touchend', stopAttack, { passive: false });
             this.btnAttack.addEventListener('touchcancel', stopAttack, { passive: false });
-            // Soporte clic mouse si se prueba en emulador
             this.btnAttack.addEventListener('mousedown', startAttack);
             this.btnAttack.addEventListener('mouseup', stopAttack);
             this.btnAttack.addEventListener('mouseleave', stopAttack);
@@ -256,44 +274,47 @@ export class TouchControlsManager {
             const doSpin = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                vibrateShort();
                 this.btnSpin.classList.add('pressed');
                 this.player.triggerSpinAttack();
-                setTimeout(() => this.btnSpin.classList.remove('pressed'), 250);
+                setTimeout(() => this.btnSpin.classList.remove('pressed'), 240);
             };
 
             this.btnSpin.addEventListener('touchstart', doSpin, { passive: false });
             this.btnSpin.addEventListener('mousedown', doSpin);
         }
 
-        // C) Botón de Salto
+        // C) Botón de Salto / Doble Salto
         if (this.btnJump) {
             const doJump = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                vibrateShort();
                 this.btnJump.classList.add('pressed');
                 this.player.jump();
-                setTimeout(() => this.btnJump.classList.remove('pressed'), 140);
+                setTimeout(() => this.btnJump.classList.remove('pressed'), 130);
             };
 
             this.btnJump.addEventListener('touchstart', doJump, { passive: false });
             this.btnJump.addEventListener('mousedown', doJump);
         }
 
-        // C) Botón de Sprint / Impulso Ninja (Dash)
+        // D) Botón de Esquive / Dash de Sombras Ninja
         if (this.btnDash) {
             const doDash = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                vibrateShort();
                 this.btnDash.classList.add('pressed');
                 this.player.dash();
-                setTimeout(() => this.btnDash.classList.remove('pressed'), 200);
+                setTimeout(() => this.btnDash.classList.remove('pressed'), 180);
             };
 
             this.btnDash.addEventListener('touchstart', doDash, { passive: false });
             this.btnDash.addEventListener('mousedown', doDash);
         }
 
-        // D) Botón de Cambio Rápido de Arma
+        // E) Botón de Cambio Rápido de Arma
         if (this.btnSwitch) {
             const doSwitch = (e) => {
                 e.preventDefault();
@@ -302,7 +323,7 @@ export class TouchControlsManager {
                 if (this.game && this.game.cycleWeaponSlot) {
                     this.game.cycleWeaponSlot();
                 }
-                setTimeout(() => this.btnSwitch.classList.remove('pressed'), 150);
+                setTimeout(() => this.btnSwitch.classList.remove('pressed'), 140);
             };
 
             this.btnSwitch.addEventListener('touchstart', doSwitch, { passive: false });
