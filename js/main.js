@@ -1,7 +1,10 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
 import { sounds } from './sound.js?v=9.0';
-import { storage } from './storage.js?v=9.0';
+import { storage, clearAllCookies } from './storage.js?v=12.0';
+
+// Limpieza automática de cookies al iniciar el juego
+clearAllCookies();
 import { WEAPONS } from './weapons.js?v=9.0';
 import { ParticleSystem } from './particles.js?v=9.0';
 import { World, MAPS_CONFIG } from './world.js?v=9.0';
@@ -10,7 +13,7 @@ import { EnemyManager } from './enemies.js?v=9.0';
 import { MultiplayerManager } from './multiplayer.js?v=9.0';
 import { TouchControlsManager } from './touch.js?v=9.0';
 import { CHARACTERS_DATA } from './characters.js?v=9.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=10.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=12.0';
 
 class Game {
     constructor() {
@@ -622,6 +625,23 @@ class Game {
     }
 
     setupUI() {
+        const safeListener = (id, event, fn) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener(event, fn);
+        };
+        const safeText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
+        const safeStyle = (id, prop, val) => {
+            const el = document.getElementById(id);
+            if (el) el.style[prop] = val;
+        };
+        const safeClass = (id, action, cls) => {
+            const el = document.getElementById(id);
+            if (el) el.classList[action](cls);
+        };
+
         const slots = document.querySelectorAll('.hotbar-slot');
         slots.forEach((slot, index) => {
             slot.addEventListener('click', () => {
@@ -643,61 +663,41 @@ class Game {
             }
         });
 
-        document.getElementById('btn-open-shop').addEventListener('click', () => this.toggleShop());
-        document.getElementById('btn-close-shop').addEventListener('click', () => this.closeShop());
+        // Tienda y Mapas
+        safeListener('btn-open-shop', 'click', () => this.toggleShop());
+        safeListener('btn-close-shop', 'click', () => this.closeShop());
+        safeListener('btn-open-maps', 'click', () => this.toggleMaps());
+        safeListener('btn-close-maps', 'click', () => this.closeMaps());
 
-        const btnMaps = document.getElementById('btn-open-maps');
-        if (btnMaps) btnMaps.addEventListener('click', () => this.toggleMaps());
-        const btnCloseMaps = document.getElementById('btn-close-maps');
-        if (btnCloseMaps) btnCloseMaps.addEventListener('click', () => this.closeMaps());
-
-        // Botón del Modal de Victoria (Nivel Superado)
-        const btnNextWorld = document.getElementById('btn-next-world');
-        if (btnNextWorld) {
-            btnNextWorld.addEventListener('click', () => {
-                const modal = document.getElementById('level-clear-modal');
-                if (modal) modal.classList.remove('open');
-                this.portalVictoryTriggered = false;
-
-                const curr = this.world.currentMapId;
-                if (curr === 'forest') {
-                    this.switchMap('volcano');
-                } else if (curr === 'volcano') {
-                    this.switchMap('snow');
-                } else {
-                    this.switchMap('forest');
-                }
-            });
-        }
+        // Botón del Modal de Victoria de Mundo
+        safeListener('btn-next-world', 'click', () => {
+            safeClass('level-clear-modal', 'remove', 'open');
+            this.portalVictoryTriggered = false;
+            const curr = this.world.currentMapId;
+            if (curr === 'forest') this.switchMap('volcano');
+            else if (curr === 'volcano') this.switchMap('snow');
+            else this.switchMap('forest');
+        });
 
         this.setupMapSelector();
         this.setupPWAInstall();
 
-        document.getElementById('btn-spawn-boss').addEventListener('click', () => {
-            this.enemyManager.spawnBoss(new THREE.Vector3(0, 0, -2));
-            this.showBanner('¡EL GRAN JEFE HA APARECIDO! 👹', '¡Derrótalo para ganar 160 monedas doradas!');
+        // Sonido
+        safeListener('btn-toggle-sound', 'click', () => {
+            sounds.enabled = !sounds.enabled;
+            safeText('sound-icon', sounds.enabled ? '🔊' : '🔇');
         });
 
-        const soundBtn = document.getElementById('btn-toggle-sound');
-        if (soundBtn) {
-            soundBtn.addEventListener('click', () => {
-                sounds.enabled = !sounds.enabled;
-                document.getElementById('sound-icon').textContent = sounds.enabled ? '🔊' : '🔇';
-            });
-        }
-
-        const touchBtn = document.getElementById('btn-toggle-touch');
-        if (touchBtn) {
-            touchBtn.addEventListener('click', () => {
-                const tc = document.getElementById('mobile-touch-controls');
-                if (tc) {
-                    const isVisible = window.getComputedStyle(tc).display !== 'none';
-                    tc.style.display = isVisible ? 'none' : 'block';
-                    document.body.classList.toggle('touch-enabled', !isVisible);
-                    document.body.classList.toggle('touch-active', !isVisible);
-                }
-            });
-        }
+        // Controles táctiles
+        safeListener('btn-toggle-touch', 'click', () => {
+            const tc = document.getElementById('mobile-touch-controls');
+            if (tc) {
+                const isVisible = window.getComputedStyle(tc).display !== 'none';
+                tc.style.display = isVisible ? 'none' : 'block';
+                document.body.classList.toggle('touch-enabled', !isVisible);
+                document.body.classList.toggle('touch-active', !isVisible);
+            }
+        });
 
         this.renderShopItems();
 
@@ -726,7 +726,7 @@ class Game {
         }
 
         const startCombatNow = () => {
-            document.getElementById('multiplayer-modal').classList.remove('open');
+            safeClass('multiplayer-modal', 'remove', 'open');
             this.showBanner('¡DOJO NINJA LISTO! 🥷', '¡Usa el joystick y los botones para combatir!');
             document.body.classList.add('touch-enabled', 'touch-active');
             const tc = document.getElementById('mobile-touch-controls');
@@ -750,16 +750,16 @@ class Game {
         const btnGotoJoin = document.getElementById('btn-goto-join');
         if (btnGotoJoin) {
             btnGotoJoin.addEventListener('click', () => {
-                document.getElementById('lobby-modes-view').style.display = 'none';
-                document.getElementById('lobby-join-view').style.display = 'block';
+                safeStyle('lobby-modes-view', 'display', 'none');
+                safeStyle('lobby-join-view', 'display', 'block');
             });
         }
 
         const btnBack = document.getElementById('btn-back-to-modes');
         if (btnBack) {
             btnBack.addEventListener('click', () => {
-                document.getElementById('lobby-join-view').style.display = 'none';
-                document.getElementById('lobby-modes-view').style.display = 'block';
+                const lj = document.getElementById('lobby-join-view'); if (lj) lj.style.display = 'none';
+                const lm = document.getElementById('lobby-modes-view'); if (lm) lm.style.display = 'block';
             });
         }
 
@@ -805,23 +805,23 @@ class Game {
         const btnOpenLobby = document.getElementById('btn-open-multiplayer');
         if (btnOpenLobby) {
             btnOpenLobby.addEventListener('click', () => {
-                document.getElementById('multiplayer-modal').classList.add('open');
+                safeClass('multiplayer-modal', 'add', 'open');
             });
         }
 
         const btnCloseLobby = document.getElementById('btn-close-lobby');
         if (btnCloseLobby) {
             btnCloseLobby.addEventListener('click', () => {
-                document.getElementById('multiplayer-modal').classList.remove('open');
+                safeClass('multiplayer-modal', 'remove', 'open');
             });
         }
 
         this.multiplayer.onRoomCreated = (code) => {
-            document.getElementById('lobby-modes-view').style.display = 'none';
-            document.getElementById('lobby-created-view').style.display = 'block';
-            document.getElementById('room-code-display').textContent = code;
-            document.getElementById('hud-room-code').textContent = code;
-            document.getElementById('hud-room-badge').style.display = 'inline-flex';
+            safeStyle('lobby-modes-view', 'display', 'none');
+            safeStyle('lobby-created-view', 'display', 'block');
+            safeText('room-code-display', code);
+            safeText('hud-room-code', code);
+            safeStyle('hud-room-badge', 'display', 'inline-flex');
             this.showBanner('¡SALA PRIVADA CREADA! 🏠', `Código de acceso: ${code}`);
         };
 
@@ -867,6 +867,61 @@ class Game {
 
         const btnPlay = document.getElementById('btn-menu-play');
         if (btnPlay) btnPlay.addEventListener('click', () => this.startGame());
+
+        // Botón 10 MUNDOS (Campaña Aventura Ninja)
+        const btnCamp = document.getElementById('btn-menu-campaign');
+        if (btnCamp) btnCamp.addEventListener('click', () => this.openCampaignWorldsModal());
+
+        // Modales de Campaña (10 Mundos, Niveles y Pantalla de Victoria)
+        safeListener('btn-close-campaign-worlds', 'click', () => {
+            safeClass('campaign-worlds-modal', 'remove', 'open');
+        });
+        safeListener('btn-back-to-worlds', 'click', () => {
+            safeClass('campaign-levels-modal', 'remove', 'open');
+            this.openCampaignWorldsModal();
+        });
+        safeListener('btn-close-campaign-levels', 'click', () => {
+            safeClass('campaign-levels-modal', 'remove', 'open');
+        });
+
+        // Victoria de Nivel / Jefe en Campaña (Reintentar, Siguiente, Volver al mapa)
+        safeListener('btn-camp-retry', 'click', () => {
+            safeClass('campaign-victory-modal', 'remove', 'open');
+            if (this.campaignIsBossFight) {
+                this.startCampaignBoss(this.campaignCurrentWorld);
+            } else {
+                this.startCampaignLevel(this.campaignCurrentWorld, this.campaignCurrentLevel);
+            }
+        });
+        safeListener('btn-camp-next', 'click', () => {
+            safeClass('campaign-victory-modal', 'remove', 'open');
+            if (this.campaignIsBossFight) {
+                if (this.campaignCurrentWorld < 10) {
+                    this.startCampaignLevel(this.campaignCurrentWorld + 1, 1);
+                } else {
+                    this.returnToMenu();
+                    this.openCampaignWorldsModal();
+                }
+            } else if (this.campaignCurrentLevel < 5) {
+                this.startCampaignLevel(this.campaignCurrentWorld, this.campaignCurrentLevel + 1);
+            } else {
+                this.startCampaignBoss(this.campaignCurrentWorld);
+            }
+        });
+        safeListener('btn-camp-map', 'click', () => {
+            safeClass('campaign-victory-modal', 'remove', 'open');
+            this.returnToMenu();
+            this.openCampaignLevelsModal(this.campaignCurrentWorld);
+        });
+
+        // Botón Invocación de Jefe en Batalla
+        safeListener('btn-spawn-boss', 'click', () => {
+            if (this.enemyManager && this.player) {
+                const pos = this.player.mesh.position.clone().add(new THREE.Vector3(10, 0, 10));
+                this.enemyManager.spawnBoss(pos);
+                this.showBanner('¡JEFE ANCESTRAL INVOCADO! ⚔️', '¡Derrota al titán con tus combos!');
+            }
+        });
 
         const btnReturnMenu = document.getElementById('btn-return-menu');
         if (btnReturnMenu) btnReturnMenu.addEventListener('click', () => this.returnToMenu());
@@ -918,6 +973,71 @@ class Game {
         if (btnMenuShop) btnMenuShop.addEventListener('click', () => this.toggleShop());
 
         // Modal Ajustes
+        
+        // -------------------------------------------------------------
+        // Modal de Historial y Avances del Jugador
+        // -------------------------------------------------------------
+        const btnOpenHistory = document.getElementById('btn-menu-history');
+        const btnProfile = document.getElementById('menu-profile-btn');
+        if (btnOpenHistory) btnOpenHistory.addEventListener('click', () => this.openHistoryModal());
+        if (btnProfile) btnProfile.addEventListener('click', () => this.openHistoryModal());
+
+        safeListener('btn-close-history', 'click', () => {
+            safeClass('history-modal', 'remove', 'open');
+        });
+
+        // Pestañas de Historial
+        const tabCareer = document.getElementById('tab-btn-career');
+        const tabMatches = document.getElementById('tab-btn-matches');
+        const viewCareer = document.getElementById('view-career-stats');
+        const viewMatches = document.getElementById('view-match-history');
+
+        if (tabCareer && tabMatches && viewCareer && viewMatches) {
+            tabCareer.addEventListener('click', () => {
+                tabCareer.classList.add('active');
+                tabMatches.classList.remove('active');
+                viewCareer.style.display = 'block';
+                viewMatches.style.display = 'none';
+            });
+
+            tabMatches.addEventListener('click', () => {
+                tabMatches.classList.add('active');
+                tabCareer.classList.remove('active');
+                viewCareer.style.display = 'none';
+                viewMatches.style.display = 'block';
+            });
+        }
+
+        // Copiar y Restaurar Respaldo
+        const btnCopyBackup = document.getElementById('btn-copy-backup');
+        if (btnCopyBackup) {
+            btnCopyBackup.addEventListener('click', () => {
+                const saveJson = storage.exportSaveJson();
+                navigator.clipboard.writeText(saveJson).then(() => {
+                    this.showBanner('¡RESPALDO COPIADO! 📋', 'Pégalo en tus notas para guardar tus avances');
+                    btnCopyBackup.textContent = '✅ ¡CÓDIGO COPIADO!';
+                    setTimeout(() => { btnCopyBackup.textContent = '📋 COPIAR CÓDIGO DE RESPALDO'; }, 2500);
+                }).catch(() => {
+                    prompt('Copia tu código de respaldo:', saveJson);
+                });
+            });
+        }
+
+        const btnLoadBackup = document.getElementById('btn-load-backup');
+        if (btnLoadBackup) {
+            btnLoadBackup.addEventListener('click', () => {
+                const input = prompt('Pega el código de respaldo guardado:');
+                if (input && storage.importSaveJson(input)) {
+                    this.updateHUD();
+                    this.updateHeroShowcaseCard();
+                    this.showBanner('¡PROGRESO RESTAURADO! 🏆', 'Tus avances han sido cargados con éxito');
+                    this.openHistoryModal();
+                } else if (input) {
+                    alert('Código de respaldo inválido.');
+                }
+            });
+        }
+
         const btnSettings = document.getElementById('btn-menu-settings');
         const settingsModal = document.getElementById('settings-modal');
         const btnCloseSettings = document.getElementById('btn-close-settings');
@@ -1124,6 +1244,7 @@ class Game {
 
     toggleShop() {
         const modal = document.getElementById('shop-modal');
+        if (!modal) return;
         if (modal.classList.contains('open')) {
             this.closeShop();
         } else {
@@ -1133,7 +1254,8 @@ class Game {
     }
 
     closeShop() {
-        document.getElementById('shop-modal').classList.remove('open');
+        const modal = document.getElementById('shop-modal');
+        if (modal) modal.classList.remove('open');
     }
 
     toggleMaps() {
@@ -1304,15 +1426,19 @@ class Game {
 
     updateHUD() {
         const healthPercent = Math.max(0, (this.player.health / this.player.maxHealth) * 100);
-        document.getElementById('player-health-fill').style.width = `${healthPercent}%`;
-        document.getElementById('player-health-text').textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
+        const aHpFill = document.getElementById('player-health-fill');
+        if (aHpFill) aHpFill.style.width = `${healthPercent}%`;
+        const aHpText = document.getElementById('player-health-text');
+        if (aHpText) aHpText.textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
 
         const coinEl = document.getElementById('coin-count');
-        coinEl.textContent = storage.data.coins;
+        if (coinEl) coinEl.textContent = storage.data.coins;
 
-        document.getElementById('player-level-badge').textContent = `NVL ${storage.data.level}`;
+        const lvlEl = document.getElementById('player-level-badge');
+        if (lvlEl) lvlEl.textContent = `NVL ${storage.data.level}`;
         const xpPercent = Math.min(100, (storage.data.xp / storage.data.xpToNext) * 100);
-        document.getElementById('player-xp-fill').style.width = `${xpPercent}%`;
+        const xpFill = document.getElementById('player-xp-fill');
+        if (xpFill) xpFill.style.width = `${xpPercent}%`;
 
         this.updateHotbarVisuals();
 
@@ -1331,22 +1457,32 @@ class Game {
     }
 
     startGame() {
-
         if (storage.getSelectedMode() === 'adventure' && !this.isCampaignMode) {
             this.openCampaignWorldsModal();
             return;
         }
-        this.state = 'PLAYING';
-        sounds.playGameStart();
-        const menu = document.getElementById('main-menu-overlay');
-        if (menu) menu.classList.add('menu-hidden');
 
-        const hud = document.getElementById('hud-container');
-        if (hud) {
-            hud.style.opacity = '1';
-            hud.style.pointerEvents = 'auto';
+        this.state = 'PLAYING';
+        document.body.classList.add('playing-state');
+        sounds.playGameStart();
+
+        // 1. Ocultar Menú Principal por completo
+        const menu = document.getElementById('main-menu-overlay');
+        if (menu) {
+            menu.classList.add('menu-hidden');
+            menu.style.display = 'none';
         }
 
+        // 2. Mostrar HUD de combate en partida activa
+        const hud = document.getElementById('hud-container');
+        if (hud) {
+            hud.classList.add('hud-active');
+            hud.style.display = 'flex';
+            hud.style.opacity = '1';
+            hud.style.pointerEvents = 'none';
+        }
+
+        // 3. Controles táctiles en celulares o pantallas táctiles
         const tc = document.getElementById('mobile-touch-controls');
         if (tc && (this.isMobile || window.innerWidth <= 900)) {
             tc.style.display = 'block';
@@ -1360,22 +1496,32 @@ class Game {
 
     returnToMenu() {
         this.state = 'MENU';
+        document.body.classList.remove('playing-state');
         this.isCampaignMode = false;
         if (this.player) this.player.isCampaignMode = false;
+
+        // 1. Mostrar Menú Principal
+        const menu = document.getElementById('main-menu-overlay');
+        if (menu) {
+            menu.classList.remove('menu-hidden');
+            menu.style.display = 'flex';
+            menu.style.opacity = '1';
+        }
+
+        // 2. Ocultar HUD de combate
+        const hud = document.getElementById('hud-container');
+        if (hud) {
+            hud.classList.remove('hud-active');
+            hud.style.display = 'none';
+            hud.style.opacity = '0';
+        }
+
         const campHud = document.getElementById('campaign-hud');
         if (campHud) campHud.style.display = 'none';
         const missHud = document.getElementById('mission-hud');
         if (missHud) missHud.style.display = 'flex';
 
-        const menu = document.getElementById('main-menu-overlay');
-        if (menu) menu.classList.remove('menu-hidden');
-
-        const hud = document.getElementById('hud-container');
-        if (hud) {
-            hud.style.opacity = '0';
-            hud.style.pointerEvents = 'none';
-        }
-
+        // 3. Ocultar Controles Táctiles en el menú
         const tc = document.getElementById('mobile-touch-controls');
         if (tc) tc.style.display = 'none';
 
@@ -1773,8 +1919,10 @@ class Game {
         this.multiplayer.sendLocalUpdate(this.player.getNetworkState());
 
         const healthPercent = Math.max(0, (this.player.health / this.player.maxHealth) * 100);
-        document.getElementById('player-health-fill').style.width = `${healthPercent}%`;
-        document.getElementById('player-health-text').textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
+        const aHpFill = document.getElementById('player-health-fill');
+        if (aHpFill) aHpFill.style.width = `${healthPercent}%`;
+        const aHpText = document.getElementById('player-health-text');
+        if (aHpText) aHpText.textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
 
         // 13. Micro-sacudida de pantalla (Screen Shake por impacto)
         if (this.screenShakeDuration > 0) {
@@ -2081,6 +2229,22 @@ window.addEventListener('DOMContentLoaded', () => {
         // Guardar resultado
         storage.recordCampaignLevelResult(worldNum, levelNum, totalStars, elapsedSec, collectedGems);
 
+        // Registrar partida en el historial
+        storage.recordMatchResult({
+            mode: 'Aventura Ninja',
+            map: `Mundo ${worldNum}: ${worldMeta.name} — Nivel ${levelNum}`,
+            hero: (CHARACTERS_DATA[storage.getSelectedCharacter()] || {}).name || 'Chucho',
+            outcome: `Nivel Superado (${totalStars} ⭐)`,
+            isVictory: true,
+            kills: 0,
+            stars: totalStars,
+            time: `${elapsedSec}s`,
+            coins: coinsReward,
+            gems: gemsReward,
+            xp: xpReward
+        });
+
+
         // Recompensas
         const coinsReward = 50 + totalStars * 20;
         const gemsReward = totalStars >= 3 ? 5 : (totalStars >= 2 ? 3 : 1);
@@ -2134,6 +2298,22 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Registrar jefe derrotado y desbloquear siguiente mundo
         storage.recordCampaignBossDefeated(worldNum);
+
+        // Registrar victoria contra jefe en el historial
+        storage.recordMatchResult({
+            mode: 'Jefe Ancestral',
+            map: `Mundo ${worldNum}: ${worldMeta.name}`,
+            hero: (CHARACTERS_DATA[storage.getSelectedCharacter()] || {}).name || 'Chucho',
+            outcome: `¡${bossSpec.name} Vencido! 👑`,
+            isVictory: true,
+            kills: 1,
+            stars: 3,
+            time: `${elapsedSec}s`,
+            coins: coinsReward,
+            gems: gemsReward,
+            xp: xpReward
+        });
+
 
         const coinsReward = bossSpec.rewardCoins || (250 + worldNum * 50);
         const gemsReward = bossSpec.rewardGems || (20 + worldNum * 5);

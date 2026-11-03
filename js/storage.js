@@ -1,3 +1,25 @@
+// Función de limpieza estricta de cookies al iniciar el juego
+export function clearAllCookies() {
+    try {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i];
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+            if (name) {
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+            }
+        }
+        console.log('[Ninja Colombia Arena] Cookies eliminadas exitosamente al inicio.');
+    } catch (e) {
+        console.warn('No se pudieron eliminar cookies:', e);
+    }
+}
+// Ejecutar de inmediato al cargar el módulo
+clearAllCookies();
+
 // js/storage.js - Guardado y carga persistente con localStorage
 // Soporte para NINJA COLOMBIA ARENA: Personajes de Fauna, Gemas de Biodiversidad y Modos de Juego
 
@@ -477,6 +499,101 @@ class StorageEngine {
         this.data = JSON.parse(JSON.stringify(defaultState));
         this.save();
     }
-}
 
-export const storage = new StorageEngine();
+    // =========================================================================
+    // HISTORIAL DE PARTIDAS Y AVANCES PERSISTENTES (CELULAR Y NAVEGADOR)
+    // =========================================================================
+
+    recordMatchResult(match) {
+        if (!this.data.history) this.data.history = [];
+        if (!this.data.careerStats) {
+            this.data.careerStats = {
+                matchesPlayed: 0,
+                victories: 0,
+                totalKills: 0,
+                levelsCompleted: 0,
+                starsEarned: 0,
+                bossesDefeated: 0,
+                totalCoinsEarned: 0,
+                totalGemsEarned: 0
+            };
+        }
+
+        const matchRecord = {
+            id: Date.now(),
+            date: new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
+            mode: match.mode || 'Battle Royale',
+            map: match.map || 'Selva Amazónica',
+            hero: match.hero || 'Chucho',
+            outcome: match.outcome || 'Finalizada',
+            kills: match.kills || 0,
+            time: match.time || '0:00',
+            stars: match.stars || 0,
+            coins: match.coins || 0,
+            gems: match.gems || 0,
+            xp: match.xp || 0
+        };
+
+        // Guardar en la cima del historial (máximo 30 partidas para no saturar memoria)
+        this.data.history.unshift(matchRecord);
+        if (this.data.history.length > 30) {
+            this.data.history.pop();
+        }
+
+        // Actualizar estadísticas de carrera
+        this.data.careerStats.matchesPlayed = (this.data.careerStats.matchesPlayed || 0) + 1;
+        if (match.isVictory) {
+            this.data.careerStats.victories = (this.data.careerStats.victories || 0) + 1;
+        }
+        this.data.careerStats.totalKills = (this.data.careerStats.totalKills || 0) + (match.kills || 0);
+        this.data.careerStats.totalCoinsEarned = (this.data.careerStats.totalCoinsEarned || 0) + (match.coins || 0);
+        this.data.careerStats.totalGemsEarned = (this.data.careerStats.totalGemsEarned || 0) + (match.gems || 0);
+
+        this.save();
+        return matchRecord;
+    }
+
+    getMatchHistory() {
+        return this.data.history || [];
+    }
+
+    getCareerStats() {
+        const stats = this.data.careerStats || {
+            matchesPlayed: 0,
+            victories: 0,
+            totalKills: 0,
+            levelsCompleted: 0,
+            starsEarned: 0,
+            bossesDefeated: 0,
+            totalCoinsEarned: 0,
+            totalGemsEarned: 0
+        };
+        stats.levelsCompleted = this.getTotalCampaignLevelsCompleted();
+        stats.starsEarned = this.getTotalCampaignStars();
+        return stats;
+    }
+
+    clearMatchHistory() {
+        this.data.history = [];
+        this.save();
+    }
+
+    exportSaveJson() {
+        return JSON.stringify(this.data, null, 2);
+    }
+
+    importSaveJson(jsonString) {
+        try {
+            const parsed = JSON.parse(jsonString);
+            if (parsed && typeof parsed === 'object') {
+                this.data = Object.assign(this.data, parsed);
+                this.save();
+                return true;
+            }
+        } catch (e) {
+            console.error('Error importando partida:', e);
+        }
+        return false;
+    }
+
+}

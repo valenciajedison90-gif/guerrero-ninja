@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=11.0">
+    <link rel="stylesheet" href="css/style.css?v=12.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -96,6 +96,10 @@
                 <button class="menu-nav-pill btn-campaign-highlight" id="btn-menu-campaign" title="Aventura Ninja - 10 Mundos de Colombia">
                     <span class="nav-icon">🗺️</span>
                     <span class="nav-label">10 MUNDOS</span>
+                </button>
+                <button class="menu-nav-pill" id="btn-menu-history" title="Ver Historial de Partidas y Avances">
+                    <span class="nav-icon">📜</span>
+                    <span class="nav-label">HISTORIAL</span>
                 </button>
                 <button class="menu-nav-pill" id="btn-menu-characters">
                     <span class="nav-icon">👥</span>
@@ -843,6 +847,80 @@
         </div>
     </div>
 
+    
+    <!-- ========================================================================= -->
+    <!-- MODAL: HISTORIAL DE PARTIDAS Y AVANCES DEL JUGADOR                         -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal-window-large history-window">
+            <div class="modal-header history-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">📜</span>
+                    <div>
+                        <div class="modal-title">HISTORIAL Y AVANCES DEL JUGADOR</div>
+                        <div class="modal-subtitle">Progreso permanente guardado en este dispositivo (móvil y navegador)</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-history">✕</button>
+            </div>
+            
+            <div class="history-nav-tabs">
+                <button class="history-tab-btn active" id="tab-btn-career">📊 ESTADÍSTICAS Y AVANCES</button>
+                <button class="history-tab-btn" id="tab-btn-matches">⚔️ HISTORIAL DE PARTIDAS</button>
+            </div>
+
+            <div class="modal-body-history">
+                <!-- Vista 1: Estadísticas de Carrera y Avances -->
+                <div class="history-view active" id="view-career-stats">
+                    <div class="career-stats-grid">
+                        <div class="career-stat-card">
+                            <span class="c-stat-icon">🎮</span>
+                            <div class="c-stat-val" id="stat-matches-played">0</div>
+                            <div class="c-stat-label">Partidas Jugadas</div>
+                        </div>
+                        <div class="career-stat-card highlight-gold">
+                            <span class="c-stat-icon">🏆</span>
+                            <div class="c-stat-val" id="stat-victories">0</div>
+                            <div class="c-stat-label">Victorias Magistrales</div>
+                        </div>
+                        <div class="career-stat-card">
+                            <span class="c-stat-icon">💀</span>
+                            <div class="c-stat-val" id="stat-total-kills">0</div>
+                            <div class="c-stat-label">Bajas Totales</div>
+                        </div>
+                        <div class="career-stat-card highlight-green">
+                            <span class="c-stat-icon">🗺️</span>
+                            <div class="c-stat-val" id="stat-levels-completed">0 / 50</div>
+                            <div class="c-stat-label">Niveles de Campaña</div>
+                        </div>
+                        <div class="career-stat-card highlight-amber">
+                            <span class="c-stat-icon">⭐</span>
+                            <div class="c-stat-val" id="stat-stars-earned">0 / 150</div>
+                            <div class="c-stat-label">Estrellas Conseguidas</div>
+                        </div>
+                        <div class="career-stat-card highlight-purple">
+                            <span class="c-stat-icon">👑</span>
+                            <div class="c-stat-val" id="stat-bosses-defeated">0 / 10</div>
+                            <div class="c-stat-label">Jefes Ancestrales</div>
+                        </div>
+                    </div>
+
+                    <div class="backup-actions-row">
+                        <button class="btn-backup-action" id="btn-copy-backup">📋 COPIAR CÓDIGO DE RESPALDO</button>
+                        <button class="btn-backup-action" id="btn-load-backup">📥 RESTAURAR RESPALDO</button>
+                    </div>
+                </div>
+
+                <!-- Vista 2: Historial de Partidas Recientes -->
+                <div class="history-view" id="view-match-history" style="display: none;">
+                    <div class="matches-list-container" id="matches-list-container">
+                        <!-- Inyectado dinámicamente con las últimas 30 partidas -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="pwa-install-modal">
         <div class="pwa-install-window">
             <div class="pwa-badge">⚡ APP OFICIAL PARA CELULAR</div>
@@ -866,6 +944,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=11.0"></script>
+    <script type="module" src="js/main.js?v=12.0"></script>
 </body>
 </html>
