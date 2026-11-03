@@ -55,6 +55,8 @@
 }
 
 .logo-text-colombia {
+    display: inline-block;
+    color: #facc15;
     background: linear-gradient(180deg, #fef08a 0%, #facc15 50%, #f59e0b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -2288,12 +2290,7 @@ body.playing-state #mobile-touch-controls {
     align-items: center;
 }
 
-.game-logo-title span {
-    background: linear-gradient(180deg, #fef08a 0%, #facc15 50%, #f59e0b 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 0 #854d0e) drop-shadow(0 4px 10px rgba(245, 158, 11, 0.7));
-}
+/* .game-logo-title span override removed */
 
 .logo-top-tag {
     font-size: 11px;
@@ -2396,10 +2393,10 @@ body.playing-state #mobile-touch-controls {
 .menu-side-nav {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     pointer-events: auto;
     width: 210px;
-    z-index: 10;
+    z-index: 12;
 }
 
 .menu-nav-pill {
@@ -2501,36 +2498,42 @@ body.playing-state #mobile-touch-controls {
 .menu-hero-showcase-zone {
     flex: 1;
     height: 100%;
-    pointer-events: none;
+    pointer-events: auto;
+    touch-action: none;
     position: relative;
     display: flex;
     justify-content: center;
     align-items: flex-end;
+    z-index: 5;
 }
 
 .hero-swipe-hint {
-    margin-bottom: 24px;
-    background: rgba(15, 23, 42, 0.7);
+    margin-bottom: 20px;
+    background: rgba(15, 23, 42, 0.75);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 20px;
-    padding: 4px 14px;
+    padding: 5px 16px;
     font-size: 11px;
+    font-weight: 700;
     color: #94a3b8;
     pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
-/* Tarjeta Inferior de Información del Personaje */
+/* Tarjeta Inferior de Información del Personaje: Ubicada a la izquierda bajo la barra de botones */
 .menu-bottom-hero-card {
     position: absolute;
-    bottom: 0;
-    left: 230px;
-    background: rgba(15, 23, 42, 0.88);
+    bottom: 24px;
+    left: 24px;
+    background: rgba(15, 23, 42, 0.90);
+    backdrop-filter: blur(12px);
     border: 2px solid #38bdf8;
     border-radius: 20px;
     padding: 12px 18px;
-    min-width: 280px;
+    width: 220px;
     pointer-events: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.25);
+    z-index: 15;
 }
 
 .hero-card-role {
@@ -3234,75 +3237,285 @@ body.playing-state #mobile-touch-controls {
 }
 
 /* 5. Adaptabilidad Responsive Móvil (Pantalla Completa) */
-@media (max-width: 900px) {
-    .menu-side-nav {
-        width: 160px;
+@media (max-width: 768px) {
+    #main-menu-overlay {
+        padding: 6px 10px 8px 10px;
+        overflow: hidden;
+    }
+
+    /* Barra Superior Compacta Móvil (Sin desbordamientos) */
+    .menu-top-header {
+        height: 48px;
+        align-items: center;
         gap: 6px;
     }
 
-    .menu-nav-pill {
-        padding: 8px 14px;
-        font-size: 12px;
-        gap: 8px;
+    .menu-profile-pill {
+        padding: 3px 8px 3px 4px;
+        gap: 6px;
+        border-radius: 20px;
     }
 
-    .menu-nav-pill .nav-icon {
-        font-size: 15px;
+    .menu-avatar-badge {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
     }
 
-    .game-logo-title {
-        font-size: 20px;
+    .menu-player-name {
+        font-size: 11px;
     }
 
-    .menu-bottom-hero-card {
-        left: 180px;
-        min-width: 200px;
-        padding: 8px 12px;
+    .rank-badge, .level-pill {
+        font-size: 8px;
+        padding: 1px 4px;
     }
 
-    .menu-mode-selector-badge {
-        padding: 8px 14px;
-        gap: 10px;
+    .menu-logo-banner {
+        display: none !important; /* Limpia el centro superior en celulares: deja cielo 100% abierto */
     }
 
-    .mode-title {
+    .menu-currency-group {
+        gap: 4px;
+    }
+
+    .currency-pill {
+        padding: 4px 8px;
+        font-size: 11px;
+        gap: 4px;
+    }
+
+    .btn-menu-icon {
+        width: 30px;
+        height: 30px;
         font-size: 13px;
     }
 
-    .minimap-circle {
-        width: 72px;
-        height: 72px;
-    }
-
-    .player-mini-status {
-        padding: 4px 8px;
-    }
-
-    .mini-status-bars {
-        min-width: 100px;
-    }
-}
-
-@media (max-width: 650px) {
-    #main-menu-overlay {
-        padding: 10px 12px;
-    }
-
+    /* Zona Central Despejada: 70%+ de la pantalla para el animal 3D */
     .menu-body-layout {
+        flex: 1;
+        width: 100%;
+        position: relative;
+        display: block;
+        margin-top: 4px;
+        pointer-events: none;
+    }
+
+    .menu-hero-showcase-zone {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 125px; /* Deja espacio al dock inferior */
+        width: 100%;
+        pointer-events: auto;
+        touch-action: none;
+        display: flex;
         flex-direction: column;
-        align-items: flex-start;
-        justify-content: flex-end;
-        gap: 10px;
+        align-items: center;
+        justify-content: flex-start;
+        z-index: 5;
     }
 
+    .hero-swipe-hint {
+        margin-top: 46px;
+        margin-bottom: 0;
+        font-size: 9px;
+        padding: 2px 10px;
+        opacity: 0.75;
+    }
+
+    /* Etiqueta flotante superior del héroe (Sutil, NO tapa al personaje) */
     .menu-bottom-hero-card {
-        position: static;
-        width: 100%;
-        margin-top: 10px;
+        position: absolute;
+        top: 0px;
+        left: 50%;
+        bottom: auto;
+        transform: translateX(-50%);
+        width: auto;
+        max-width: 90%;
+        padding: 3px 12px;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.82);
+        border: 1.5px solid rgba(56, 189, 248, 0.6);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
+    .hero-card-role {
+        font-size: 9px;
+        margin: 0;
+    }
+
+    .hero-card-name {
+        font-size: 14px;
+        margin: 0;
+        color: #ffffff;
+    }
+
+    .hero-card-skill, .hero-card-stats-preview {
+        display: none !important; /* Limpia espacio en móvil para máxima visibilidad */
+    }
+
+    /* Selector de modo flotante justo sobre el botón Jugar */
     .menu-mode-selector-badge {
+        position: absolute;
+        bottom: 126px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: auto;
+        max-width: 92%;
+        padding: 4px 12px;
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.88);
+        border: 1.5px solid rgba(250, 204, 21, 0.6);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+        z-index: 12;
+        gap: 6px;
+    }
+
+    .mode-tag {
+        font-size: 7.5px;
+        letter-spacing: 0.5px;
+    }
+
+    .mode-title {
+        font-size: 10px;
+    }
+
+    .mode-sub {
+        display: none;
+    }
+
+    .btn-change-mode {
+        padding: 3px 8px;
+        font-size: 9px;
+        border-radius: 10px;
+    }
+
+    /* DOCK INFERIOR MÓVIL COMPACTO (Estilo Free Fire / Brawl Stars) */
+    .menu-side-nav {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
         width: 100%;
+        margin-bottom: 0;
+        padding: 6px 8px 6px 8px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.94) 22%, rgba(15, 23, 42, 0.98) 100%);
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 5px;
+        z-index: 20;
+    }
+
+    /* Fila 1 del Dock: Botones de Acción Primaria */
+    .menu-nav-pill.btn-play-highlight {
+        grid-column: 1 / span 4;
+        height: 48px;
+        padding: 8px 12px !important;
+        font-size: 19px !important;
+        border-radius: 14px !important;
+        border-bottom-width: 4px !important;
+        gap: 6px;
+    }
+
+    .menu-nav-pill.btn-play-highlight .nav-icon {
+        font-size: 20px;
+    }
+
+    .menu-nav-pill.btn-campaign-highlight {
+        grid-column: 5 / span 2;
+        height: 48px;
+        padding: 6px 4px !important;
+        font-size: 11px !important;
+        border-radius: 14px !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2px;
+        text-align: center;
+    }
+
+    .menu-nav-pill.btn-campaign-highlight .nav-icon {
+        font-size: 16px;
+        width: auto;
+    }
+
+    .menu-nav-pill.btn-campaign-highlight .nav-label {
+        font-size: 10px;
+        line-height: 1.1;
+    }
+
+    /* Fila 2 del Dock: 6 Botones de Navegación con Icono y Texto */
+    .menu-nav-pill:not(.btn-play-highlight):not(.btn-campaign-highlight) {
+        height: 44px;
+        padding: 4px 2px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2px;
+        font-size: 8px;
+        background: rgba(30, 41, 59, 0.85);
+        border-width: 1px;
+    }
+
+    .menu-nav-pill:not(.btn-play-highlight):not(.btn-campaign-highlight) .nav-icon {
+        font-size: 16px;
+        width: auto;
+    }
+
+    .menu-nav-pill:not(.btn-play-highlight):not(.btn-campaign-highlight) .nav-label {
+        font-size: 8px;
+        letter-spacing: 0;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .menu-nav-pill:not(.btn-play-highlight):not(.btn-campaign-highlight):hover {
+        transform: translateY(-2px);
+    }
+
+    /* Modales Responsive en Móvil */
+    .modal-window-large, .modal-window-extra-large, .modal-window-small {
+        width: 96% !important;
+        max-width: 96% !important;
+        max-height: 88vh !important;
+        padding: 12px !important;
+        border-radius: 18px !important;
+    }
+
+    .modal-header-icon {
+        font-size: 24px !important;
+    }
+
+    .modal-title {
+        font-size: 16px !important;
+    }
+
+    .modal-subtitle {
+        font-size: 10px !important;
+    }
+
+    .modal-body-characters {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .modal-body-campaign {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        padding: 12px 6px !important;
     }
 }
 

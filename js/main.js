@@ -169,6 +169,15 @@ class Game {
         // Luz hemisférica: cielo azul celeste y rebote de hierba verde esmeralda
         const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x22c55e, 0.72);
         this.scene.add(hemiLight);
+
+        // Luces frontales de estudio para el Menú Principal (destacan al héroe con tonos cálidos y brillo 3D)
+        this.menuKeyLight = new THREE.DirectionalLight(0xfff7ed, 1.4);
+        this.menuKeyLight.position.set(0.6, 2.8, 4.2);
+        this.scene.add(this.menuKeyLight);
+
+        this.menuRimLight = new THREE.DirectionalLight(0x38bdf8, 0.9);
+        this.menuRimLight.position.set(-2.2, 2.5, -1.8);
+        this.scene.add(this.menuRimLight);
     }
 
     // =========================================================================
@@ -1778,28 +1787,50 @@ class Game {
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
 
-        // Si está en el Menú Principal, rotar cámara alrededor del héroe 3D
+        // Si está en el Menú Principal, posicionar y animar cámara y héroe 3D
         if (this.state === 'MENU') {
             this.menuHoverTime = (this.menuHoverTime || 0) + delta;
             
-            // Encuadre frontal heroico del personaje estilo Free Fire / Crash Bandicoot
-            const camFloatX = Math.sin(this.menuHoverTime * 0.4) * 0.18;
-            const camFloatY = 1.62 + Math.cos(this.menuHoverTime * 0.6) * 0.04;
-            const camZ = 4.2;
-            this.camera.position.set(camFloatX, camFloatY, camZ);
-            this.camera.lookAt(0, 1.30, 0);
+            // Detección precisa de móvil vs escritorio / orientación
+            const isMobile = window.innerWidth <= 768 || (window.innerWidth / window.innerHeight) < 1.0;
 
-            if (this.player && this.player.mesh) {
-                this.player.mesh.position.set(0, 0.22, 0); // Sobre el pedestal decorativo de Colombia
-                if (this.heroManualRotation !== undefined) {
-                    this.player.mesh.rotation.y = this.heroManualRotation;
-                } else {
-                    this.player.mesh.rotation.y = 0; // Frente a la cámara
+            if (isMobile) {
+                // CELULARES: El héroe está perfectamente centrado y encuadrado
+                // Deja espacio libre arriba (orejas bajo la etiqueta) y abajo (pies sobre el selector)
+                const camFloatX = Math.sin(this.menuHoverTime * 0.4) * 0.06;
+                const camFloatY = 1.32 + Math.cos(this.menuHoverTime * 0.6) * 0.03;
+                this.camera.position.set(camFloatX, camFloatY, 4.12);
+                this.camera.lookAt(0, 1.05, 0);
+
+                if (this.player && this.player.mesh) {
+                    this.player.mesh.position.set(0, -0.18, 0);
+                    if (this.heroManualRotation !== undefined) {
+                        this.player.mesh.rotation.y = this.heroManualRotation;
+                    } else {
+                        this.player.mesh.rotation.y = 0.10;
+                    }
+                    if (this.player.animateIdleMenu) {
+                        this.player.animateIdleMenu(delta);
+                    }
                 }
+            } else {
+                // ESCRITORIO / PANTALLA ANCHA: El héroe se ubica en el centro-derecho
+                // totalmente despejado de la barra lateral izquierda y la tarjeta de información
+                const camFloatX = Math.sin(this.menuHoverTime * 0.4) * 0.10;
+                const camFloatY = 1.54 + Math.cos(this.menuHoverTime * 0.6) * 0.03;
+                this.camera.position.set(0.50 + camFloatX, camFloatY, 3.85);
+                this.camera.lookAt(0.38, 1.22, 0);
 
-                // Animación viva y orgánica del héroe
-                if (this.player.animateIdleMenu) {
-                    this.player.animateIdleMenu(delta);
+                if (this.player && this.player.mesh) {
+                    this.player.mesh.position.set(0.60, 0.20, 0);
+                    if (this.heroManualRotation !== undefined) {
+                        this.player.mesh.rotation.y = this.heroManualRotation;
+                    } else {
+                        this.player.mesh.rotation.y = 0.10;
+                    }
+                    if (this.player.animateIdleMenu) {
+                        this.player.animateIdleMenu(delta);
+                    }
                 }
             }
 
@@ -2431,5 +2462,5 @@ class Game {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    new Game();
+    window.game = new Game();
 });
