@@ -112,7 +112,7 @@ class Game {
     setupRenderer() {
         this.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 900);
 
-        // Antialiasing forzado para bordes hiper-nítidos sin pixelación
+        // Renderizado HD con Antialiasing y perfil de color sRGB comercial
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
             antialias: true,
@@ -121,49 +121,50 @@ class Game {
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-        // Resolución nativa nítida: hasta 2.0x DPI en pantallas Retina/AMOLED
         const dpr = window.devicePixelRatio || 1;
         this.renderer.setPixelRatio(Math.min(dpr, 2.0));
 
-        this.renderer.shadowMap.enabled = !this.isMobile;
-        if (!this.isMobile) {
-            this.renderer.shadowMap.type = THREE.PCFShadowMap;
-        }
+        // Espacio de color sRGB y mapeo de tonos cinematográfico (Colores tropicales vivos estilo Pixar)
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.22;
+
+        // Sombras suaves PCF activas en todas las plataformas
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x7dd3fc);
-        this.scene.fog = new THREE.FogExp2(0x7dd3fc, 0.015);
+        this.scene.background = new THREE.Color(0x38bdf8);
+        this.scene.fog = new THREE.FogExp2(0x38bdf8, 0.011);
 
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 160);
-        this.camera.position.set(0, 4, 8);
+        this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 180);
+        this.camera.position.set(0, 3.8, 7.5);
     }
 
     setupSceneAndLights() {
-        const ambientIntensity = this.isMobile ? 0.95 : 0.75;
-        const ambientLight = new THREE.AmbientLight(0xffffff, ambientIntensity);
+        const ambientLight = new THREE.AmbientLight(0xfff8ee, 0.68);
         this.scene.add(ambientLight);
 
-        const sunLight = new THREE.DirectionalLight(0xfffbeb, this.isMobile ? 1.0 : 1.3);
-        sunLight.position.set(25, 40, 20);
+        // Luz del sol tropical colombiano
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.55);
+        sunLight.position.set(24, 42, 22);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 135;
 
-        if (!this.isMobile) {
-            sunLight.castShadow = true;
-            sunLight.shadow.mapSize.width = 1024;
-            sunLight.shadow.mapSize.height = 1024;
-            sunLight.shadow.camera.near = 0.5;
-            sunLight.shadow.camera.far = 120;
-
-            const d = 36;
-            sunLight.shadow.camera.left = -d;
-            sunLight.shadow.camera.right = d;
-            sunLight.shadow.camera.top = d;
-            sunLight.shadow.camera.bottom = -d;
-            sunLight.shadow.bias = -0.0005;
-        }
-
+        const d = 42;
+        sunLight.shadow.camera.left = -d;
+        sunLight.shadow.camera.right = d;
+        sunLight.shadow.camera.top = d;
+        sunLight.shadow.camera.bottom = -d;
+        sunLight.shadow.bias = -0.0003;
+        sunLight.shadow.normalBias = 0.02;
         this.scene.add(sunLight);
 
-        const hemiLight = new THREE.HemisphereLight(0xbae6fd, 0x86efac, 0.45);
+        // Luz hemisférica: cielo azul celeste y rebote de hierba verde esmeralda
+        const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x22c55e, 0.72);
         this.scene.add(hemiLight);
     }
 
@@ -831,6 +832,39 @@ class Game {
         // =====================================================================
         // CONTROLES DEL MENÚ PRINCIPAL PROFESIONAL (ESTILO REFERENCIA PITCH)
         // =====================================================================
+        
+        // Rotación táctil e interactiva del héroe 3D en el menú principal
+        const showcaseZone = document.getElementById('hero-showcase-zone');
+        if (showcaseZone) {
+            let isDraggingHero = false;
+            let lastMouseX = 0;
+            this.heroManualRotation = 0;
+
+            const onStart = (clientX) => {
+                isDraggingHero = true;
+                lastMouseX = clientX;
+            };
+            const onMove = (clientX) => {
+                if (!isDraggingHero) return;
+                const deltaX = clientX - lastMouseX;
+                lastMouseX = clientX;
+                this.heroManualRotation = (this.heroManualRotation || 0) + deltaX * 0.015;
+            };
+            const onEnd = () => { isDraggingHero = false; };
+
+            showcaseZone.addEventListener('mousedown', (e) => onStart(e.clientX));
+            window.addEventListener('mousemove', (e) => onMove(e.clientX));
+            window.addEventListener('mouseup', onEnd);
+
+            showcaseZone.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches[0]) onStart(e.touches[0].clientX);
+            }, { passive: true });
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches && e.touches[0]) onMove(e.touches[0].clientX);
+            }, { passive: true });
+            window.addEventListener('touchend', onEnd);
+        }
+
         const btnPlay = document.getElementById('btn-menu-play');
         if (btnPlay) btnPlay.addEventListener('click', () => this.startGame());
 
@@ -1591,18 +1625,27 @@ class Game {
 
         // Si está en el Menú Principal, rotar cámara alrededor del héroe 3D
         if (this.state === 'MENU') {
-            this.menuOrbitAngle += delta * 0.35;
-            const camDist = 5.2;
-            const camHeight = 1.8;
-            this.camera.position.set(
-                Math.sin(this.menuOrbitAngle) * camDist,
-                camHeight,
-                Math.cos(this.menuOrbitAngle) * camDist
-            );
-            this.camera.lookAt(0, 1.2, 0);
+            this.menuHoverTime = (this.menuHoverTime || 0) + delta;
+            
+            // Encuadre frontal heroico del personaje estilo Free Fire / Crash Bandicoot
+            const camFloatX = Math.sin(this.menuHoverTime * 0.4) * 0.18;
+            const camFloatY = 1.62 + Math.cos(this.menuHoverTime * 0.6) * 0.04;
+            const camZ = 4.2;
+            this.camera.position.set(camFloatX, camFloatY, camZ);
+            this.camera.lookAt(0, 1.30, 0);
 
             if (this.player && this.player.mesh) {
-                this.player.mesh.position.set(0, 0, 0);
+                this.player.mesh.position.set(0, 0.22, 0); // Sobre el pedestal decorativo de Colombia
+                if (this.heroManualRotation !== undefined) {
+                    this.player.mesh.rotation.y = this.heroManualRotation;
+                } else {
+                    this.player.mesh.rotation.y = 0; // Frente a la cámara
+                }
+
+                // Animación viva y orgánica del héroe
+                if (this.player.animateIdleMenu) {
+                    this.player.animateIdleMenu(delta);
+                }
             }
 
             this.world.update(delta);

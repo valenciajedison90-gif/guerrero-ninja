@@ -780,4 +780,47 @@ export class Player {
         this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.35);
         this.camera.lookAt(targetPos);
     }
+
+    // =========================================================================
+    // ANIMACIÓN HEROICA VIVA PARA EL MENÚ PRINCIPAL (ESTILO FREE FIRE / CRASH)
+    // =========================================================================
+    animateIdleMenu(delta) {
+        if (!this.torso) return;
+        const time = performance.now() * 0.003;
+        const breath = Math.sin(time) * 0.035;
+
+        // Torso respirando suavemente
+        this.torso.position.y = 1.35 + breath;
+        this.torso.rotation.set(0.04, Math.sin(time * 0.5) * 0.03, 0);
+
+        // Cabeza atenta mirando al jugador
+        if (this.head) {
+            this.head.rotation.y = Math.sin(time * 0.7) * 0.05;
+            this.head.rotation.x = -0.02 + Math.cos(time * 0.5) * 0.02;
+        }
+
+        // Brazo derecho: Pose relajada heroica con pulgar al frente / empuñando arma
+        if (this.rightArmPivot) {
+            this.rightArmPivot.rotation.set(0.1 + breath, 0, 0.18);
+            if (this.rightElbowPivot) this.rightElbowPivot.rotation.set(-0.5, 0, 0);
+        }
+
+        // Brazo izquierdo: En jarra / equilibrio heroico
+        if (this.leftArmPivot) {
+            this.leftArmPivot.rotation.set(-0.05 - breath, 0, -0.22);
+            if (this.leftElbowPivot) this.leftElbowPivot.rotation.set(-0.65, 0, 0);
+        }
+
+        // Piernas firmes sobre el pedestal con peso equilibrado
+        if (this.leftLegPivot) this.leftLegPivot.rotation.set(0, 0, -0.08);
+        if (this.rightLegPivot) this.rightLegPivot.rotation.set(0, 0, 0.08);
+        if (this.leftKneePivot) this.leftKneePivot.rotation.set(0.06, 0, 0);
+        if (this.rightKneePivot) this.rightKneePivot.rotation.set(0.06, 0, 0);
+
+        // Bandana ondeando suavemente en la brisa tropical
+        const flutter = Math.sin(time * 2.2) * 0.18;
+        if (this.bandanaTail1) this.bandanaTail1.rotation.x = 0.35 + flutter;
+        if (this.bandanaTail2) this.bandanaTail2.rotation.x = 0.45 - flutter * 0.85;
+    }
+
 }

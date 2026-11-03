@@ -1,3 +1,116 @@
+
+/* ========================================================================= */
+/* LOGO AAA ESTILO NINJA COLOMBIA ARENA (REFERENCIA GRÁFICA)                 */
+/* ========================================================================= */
+.menu-logo-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.7));
+}
+
+.logo-top-tag {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2.5px;
+    color: #facc15;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    border-radius: 12px;
+    padding: 3px 12px;
+    margin-bottom: 2px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+
+.game-logo-title {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 0.95;
+}
+
+.logo-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 38px;
+    font-family: 'Luckiest Guy', cursive !important;
+}
+
+.logo-text-ninja {
+    color: #ffffff;
+    text-shadow: 
+        3px 3px 0 #0f172a,
+        -2px -2px 0 #0f172a,
+        2px -2px 0 #0f172a,
+        -2px 2px 0 #0f172a,
+        0 6px 14px rgba(0, 0, 0, 0.9);
+}
+
+.logo-text-colombia {
+    background: linear-gradient(180deg, #fef08a 0%, #facc15 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(2px 2px 0 #854d0e) drop-shadow(0 4px 12px rgba(245, 158, 11, 0.8));
+}
+
+.logo-badge-arena {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
+    color: #ffffff;
+    font-family: 'Luckiest Guy', cursive !important;
+    font-size: 19px;
+    letter-spacing: 4px;
+    padding: 2px 18px;
+    border-radius: 8px;
+    border: 2px solid #ffffff;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.75);
+    transform: rotate(-2deg);
+    margin-top: -4px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.colombia-tricolor-stripe {
+    display: flex;
+    width: 140px;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.tri-yellow { flex: 2; background: #facc15; }
+.tri-blue { flex: 1; background: #2563eb; }
+.tri-red { flex: 1; background: #dc2626; }
+
+
+/* ========================================================================= */
+/* TIPOGRAFÍA DE ALTO IMPACTO (CARTOON / COMERCIAL AAA)                      */
+/* ========================================================================= */
+h1, h2, h3,
+.game-logo-title,
+.modal-title,
+.victory-ribbon,
+.victory-world-title,
+.camp-world-name,
+.boss-node-title,
+.btn-play-highlight,
+.btn-victory-next,
+.btn-camp-next,
+.btn-fight-boss-node,
+.level-num-badge,
+.hero-card-name {
+    font-family: 'Luckiest Guy', 'Fredoka', cursive, sans-serif !important;
+    letter-spacing: 0.8px;
+}
+
 /* css/style.css - Estilos Visuales Coloridos y Amigables estilo Roblox / Ninja */
 
 :root {
@@ -26,7 +139,7 @@ body, html {
     -webkit-touch-callout: none;
     user-select: none;
     -webkit-user-select: none;
-    font-family: 'Fredoka', 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Fredoka', 'Poppins', -apple-system, sans-serif;
     background-color: #0f172a;
     color: #ffffff;
 }
@@ -2036,7 +2149,7 @@ body, html {
     flex-direction: column;
     justify-content: space-between;
     padding: 16px 24px;
-    background: radial-gradient(circle at 50% 40%, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0.8) 70%, rgba(10, 15, 30, 0.95) 100%);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.05) 45%, rgba(15, 23, 42, 0.5) 100%);
     pointer-events: none;
     transition: opacity 0.35s ease, visibility 0.35s ease;
 }
@@ -2139,17 +2252,45 @@ body, html {
 }
 
 .game-logo-title {
-    font-size: 28px;
+    font-size: 34px;
     font-weight: 900;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     color: #ffffff;
-    text-shadow: 0 4px 14px rgba(0, 0, 0, 0.9), 0 0 20px rgba(245, 158, 11, 0.6);
-    line-height: 1.1;
+    text-transform: uppercase;
+    text-shadow: 
+        3px 3px 0 #0f172a,
+        -2px -2px 0 #0f172a,
+        2px -2px 0 #0f172a,
+        -2px 2px 0 #0f172a,
+        0 6px 16px rgba(0, 0, 0, 0.85),
+        0 0 25px rgba(250, 204, 21, 0.5);
+    line-height: 1.05;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .game-logo-title span {
-    color: #f59e0b;
-    text-shadow: 0 0 20px rgba(245, 158, 11, 0.85);
+    background: linear-gradient(180deg, #fef08a 0%, #facc15 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 0 #854d0e) drop-shadow(0 4px 10px rgba(245, 158, 11, 0.7));
+}
+
+.logo-top-tag {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #facc15;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(250, 204, 21, 0.4);
+    border-radius: 12px;
+    padding: 2px 10px;
+    margin-bottom: 4px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* Monedas y Gemas */
@@ -2246,17 +2387,25 @@ body, html {
 .menu-nav-pill {
     display: flex;
     align-items: center;
-    gap: 14px;
-    background: rgba(15, 23, 42, 0.9);
-    border: 2px solid #334155;
-    border-radius: 28px;
-    padding: 12px 20px;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(12px);
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 10px 18px;
     color: #ffffff;
-    font-size: 14px;
-    font-weight: 900;
+    font-size: 13px;
+    font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.menu-nav-pill:hover {
+    transform: translateX(6px) scale(1.02);
+    background: rgba(30, 41, 59, 0.95);
+    border-color: #38bdf8;
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
 }
 
 .menu-nav-pill:hover {
@@ -2277,27 +2426,56 @@ body, html {
 }
 
 .menu-nav-pill.btn-play-highlight {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: 2px solid #fef08a;
-    color: #0f172a;
-    font-size: 17px;
-    padding: 14px 22px;
-    box-shadow: 0 6px 25px rgba(245, 158, 11, 0.6);
-    animation: playBtnPulse 2.2s infinite ease-in-out;
+    background: linear-gradient(180deg, #fef08a 0%, #facc15 45%, #eab308 55%, #ca8a04 100%) !important;
+    border: 3px solid #ffffff !important;
+    border-bottom: 7px solid #854d0e !important;
+    border-radius: 20px !important;
+    color: #1c1917 !important;
+    font-size: 24px !important;
+    padding: 14px 24px !important;
+    box-shadow: 0 10px 30px rgba(234, 179, 8, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.9) !important;
+    animation: playBtnPulse 2.0s infinite ease-in-out !important;
+    width: 100% !important;
+    justify-content: center !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-nav-pill.btn-play-highlight::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border-radius: 16px 16px 50% 50%;
+    pointer-events: none;
+}
+
+.menu-nav-pill.btn-play-highlight:hover {
+    transform: translateY(-3px) scale(1.03) !important;
+    box-shadow: 0 14px 35px rgba(234, 179, 8, 0.8), inset 0 2px 4px rgba(255, 255, 255, 1.0) !important;
+}
+
+.menu-nav-pill.btn-play-highlight:active {
+    transform: translateY(4px) scale(0.98) !important;
+    border-bottom-width: 3px !important;
+    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.5) !important;
 }
 
 .menu-nav-pill.btn-play-highlight .nav-icon {
-    font-size: 20px;
+    font-size: 24px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
 }
 
 @keyframes playBtnPulse {
     0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 6px 25px rgba(245, 158, 11, 0.6);
+        box-shadow: 0 10px 30px rgba(234, 179, 8, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.9);
     }
     50% {
-        transform: scale(1.05);
-        box-shadow: 0 8px 32px rgba(245, 158, 11, 0.85);
+        box-shadow: 0 12px 38px rgba(234, 179, 8, 0.9), inset 0 2px 6px rgba(255, 255, 255, 1.0);
     }
 }
 

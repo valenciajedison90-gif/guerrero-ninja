@@ -246,29 +246,60 @@ export class World {
         ground.receiveShadow = true;
         this.mapRoot.add(ground);
 
-        // Río Amazonas curvilíneo con agua animada
+                // Plaza Central de Aventura Colombiana en (0,0)
+        const plazaGroup = new THREE.Group();
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.75, metalness: 0.1 });
+        const goldAccentMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
+        const grassRimMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.85 });
+
+        // Pedestal circular de piedra tallada
+        const plazaBase = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.8, 0.22, 32), stoneMat);
+        plazaBase.position.y = 0.08;
+        plazaBase.receiveShadow = true;
+        plazaGroup.add(plazaBase);
+
+        // Borde dorado con motivo precolombino
+        const goldRing = new THREE.Mesh(new THREE.TorusGeometry(3.65, 0.06, 8, 36), goldAccentMat);
+        goldRing.rotation.x = Math.PI / 2;
+        goldRing.position.y = 0.18;
+        plazaGroup.add(goldRing);
+
+        // Flores y orquídeas colombianas decorativas alrededor del pedestal
+        for (let f = 0; f < 10; f++) {
+            const ang = (f / 10) * Math.PI * 2;
+            const fx = Math.cos(ang) * 4.4;
+            const fz = Math.sin(ang) * 4.4;
+            const orchid = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 8, 8),
+                new THREE.MeshStandardMaterial({ color: (f % 2 === 0 ? 0xd946ef : 0xfacc15), roughness: 0.3 })
+            );
+            orchid.position.set(fx, 0.2, fz);
+            plazaGroup.add(orchid);
+        }
+        this.mapRoot.add(plazaGroup);
+
+        // Río Amazonas serpenteante flanqueando el fondo
         const riverGroup = new THREE.Group();
         const waterMat = new THREE.MeshStandardMaterial({
             color: 0x0284c7,
             roughness: 0.15,
             metalness: 0.35,
             transparent: true,
-            opacity: 0.82
+            opacity: 0.85
         });
-        const river = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 8.5, 0.08, 28), waterMat);
-        river.position.set(0, 0.02, 0);
+        const river = new THREE.Mesh(new THREE.BoxGeometry(70, 0.1, 10), waterMat);
+        river.position.set(0, 0.02, -22);
         riverGroup.add(river);
 
-        // Rocas de río
-        for (let i = 0; i < 14; i++) {
-            const angle = (i / 14) * Math.PI * 2;
-            const rx = Math.cos(angle) * (8.5 + (i % 2) * 0.5);
-            const rz = Math.sin(angle) * (8.5 + (i % 2) * 0.5);
+        // Rocas ribereñas
+        for (let i = 0; i < 16; i++) {
+            const rx = -30 + i * 4.2 + (Math.random() - 0.5) * 1.5;
+            const rz = -22 + (i % 2 === 0 ? 4.8 : -4.8);
             const rock = new THREE.Mesh(
-                new THREE.DodecahedronGeometry(0.55 + (i % 3) * 0.2, 1),
+                new THREE.DodecahedronGeometry(0.7 + (i % 3) * 0.25, 1),
                 new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 })
             );
-            rock.position.set(rx, 0.2, rz);
+            rock.position.set(rx, 0.3, rz);
             riverGroup.add(rock);
         }
         this.mapRoot.add(riverGroup);
