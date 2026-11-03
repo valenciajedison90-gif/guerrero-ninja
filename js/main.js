@@ -1,19 +1,19 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
 import { sounds } from './sound.js?v=9.0';
-import { storage, clearAllCookies } from './storage.js?v=12.0';
-
-// Limpieza automática de cookies al iniciar el juego
-clearAllCookies();
+import { storage, clearAllCookies } from './storage.js?v=13.0';
 import { WEAPONS } from './weapons.js?v=9.0';
 import { ParticleSystem } from './particles.js?v=9.0';
-import { World, MAPS_CONFIG } from './world.js?v=9.0';
+import { World, MAPS_CONFIG } from './world.js?v=13.0';
 import { Player } from './player.js?v=9.0';
 import { EnemyManager } from './enemies.js?v=9.0';
 import { MultiplayerManager } from './multiplayer.js?v=9.0';
 import { TouchControlsManager } from './touch.js?v=9.0';
 import { CHARACTERS_DATA } from './characters.js?v=9.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=12.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=13.0';
+
+// Limpieza automática de cookies al iniciar el juego
+clearAllCookies();
 
 class Game {
     constructor() {
@@ -29,12 +29,6 @@ class Game {
         this.battleRoyaleTimer = 0;
         this.menuOrbitAngle = 0;
 
-        // 1. Inicializar Three.js con antialiasing y nitidez HD
-        
-        // Conectar proveedor de altura de suelo para plataformas 3D
-        this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
-        this.enemyManager.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
-
         // Variables de Modo Campaña: 10 Mundos de Colombia
         this.isCampaignMode = false;
         this.campaignCurrentWorld = 1;
@@ -42,6 +36,8 @@ class Game {
         this.campaignIsBossFight = false;
         this.campaignCollectedGems = 0;
         this.campaignStartTime = 0;
+
+        // 1. Inicializar Three.js con antialiasing y nitidez HD
         this.setupRenderer();
         this.setupSceneAndLights();
 
@@ -51,6 +47,10 @@ class Game {
         this.player = new Player(this.scene, this.camera, this.renderer.domElement);
         this.enemyManager = new EnemyManager(this.scene, this.particles);
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
+
+        // Conectar proveedor de altura de suelo para plataformas 3D
+        if (this.player) this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
+        if (this.enemyManager) this.enemyManager.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
 
         // Controles táctiles móviles estilo Free Fire con botón de giro y habilidad
         this.touchControls = new TouchControlsManager(this.player, this);
@@ -571,21 +571,6 @@ class Game {
                 nextBtn.textContent = 'CONTINUAR AL CARIBE COLOMBIANO ➔';
             } else {
                 nextBtn.textContent = '¡VICTORIA TOTAL! REPETIR ARENA 🏆';
-            }
-        }
-
-        if (modal) modal.classList.add('open');
-        this.updateHUD();
-    }
-
-        if (titleEl) titleEl.textContent = cfg.name.toUpperCase();
-        if (nextBtn) {
-            if (currentWorld === 'forest') {
-                nextBtn.textContent = 'CONTINUAR AL MUNDO 2: TEMPLO DEL VOLCÁN ➔';
-            } else if (currentWorld === 'volcano') {
-                nextBtn.textContent = 'CONTINUAR AL MUNDO 3: CUMBRES HELADAS ➔';
-            } else {
-                nextBtn.textContent = '¡VICTORIA TOTAL! REPETIR AVENTURA 🏆';
             }
         }
 
@@ -1532,6 +1517,13 @@ class Game {
     updateHeroShowcaseCard() {
         const charId = storage.getSelectedCharacter() || 'chucho';
         const char = CHARACTERS_DATA[charId] || CHARACTERS_DATA.chucho;
+        if (!char) return;
+
+        const animalLabel = (char.animalName || char.animal || 'Fauna Colombiana').toUpperCase();
+        const roleLabel = (char.role || char.archetype || 'Guerrero').toUpperCase();
+        const heroName = (char.name || 'Ninja').toUpperCase();
+        const avatarIcon = char.icon || char.avatar || '🐻';
+        const skillName = (char.skill && char.skill.name) || char.skillName || 'Poder Ninja';
 
         const roleEl = document.getElementById('menu-hero-role');
         const nameEl = document.getElementById('menu-hero-name');
@@ -1541,29 +1533,33 @@ class Game {
         const hudPlayerName = document.getElementById('hud-player-name');
         const touchSkillIcon = document.getElementById('touch-skill-icon');
 
-        if (roleEl) roleEl.textContent = `${char.animal.toUpperCase()} • ${char.archetype.toUpperCase()}`;
-        if (nameEl) nameEl.textContent = char.name.toUpperCase();
-        if (skillEl) skillEl.innerHTML = `<span class="skill-tag">HABILIDAD ESPECIAL</span> <span class="skill-name">💥 ${char.skillName}</span>`;
-        if (avatarEl) avatarEl.textContent = char.avatar;
-        if (hudAvatar) hudAvatar.textContent = char.avatar;
-        if (hudPlayerName) hudPlayerName.textContent = char.name;
+        if (roleEl) roleEl.textContent = `${animalLabel} • ${roleLabel}`;
+        if (nameEl) nameEl.textContent = heroName;
+        if (skillEl) skillEl.innerHTML = `<span class="skill-tag">HABILIDAD ESPECIAL</span> <span class="skill-name">💥 ${skillName}</span>`;
+        if (avatarEl) avatarEl.textContent = avatarIcon;
+        if (hudAvatar) hudAvatar.textContent = avatarIcon;
+        if (hudPlayerName) hudPlayerName.textContent = char.name || 'Ninja';
 
         if (touchSkillIcon) {
             const icons = { chucho: '💥', yari: '⚡', guaca: '🪶', capibu: '🛡️', ranaik: '🐸' };
             touchSkillIcon.textContent = icons[charId] || '✨';
         }
 
+        const spdPct = Math.min(100, Math.round(((char.stats && char.stats.speed) || 10) / 15 * 100));
+        const defPct = Math.min(100, Math.round((char.stats && char.stats.defense) || 80));
+        const jmpPct = Math.min(100, Math.round(((char.stats && (char.stats.jumpForce || char.stats.jump)) || 12) / 16 * 100));
+
         const spd = document.getElementById('bar-hero-speed');
         const def = document.getElementById('bar-hero-defense');
         const jmp = document.getElementById('bar-hero-jump');
-        if (spd) spd.style.width = `${char.stats.speed}%`;
-        if (def) def.style.width = `${char.stats.defense}%`;
-        if (jmp) jmp.style.width = `${char.stats.jump}%`;
+        if (spd) spd.style.width = `${spdPct}%`;
+        if (def) def.style.width = `${defPct}%`;
+        if (jmp) jmp.style.width = `${jmpPct}%`;
 
         // Monedas y Gemas en Menú
         const mCoins = document.getElementById('menu-coin-count');
         const mGems = document.getElementById('menu-gem-count');
-        if (mCoins) mCoins.textContent = storage.data.coins.toLocaleString();
+        if (mCoins) mCoins.textContent = (storage.data.coins || 0).toLocaleString();
         if (mGems) mGems.textContent = (storage.data.gems || 150).toLocaleString();
     }
 
@@ -1572,7 +1568,7 @@ class Game {
         if (!grid) return;
         grid.innerHTML = '';
 
-        const selectedId = storage.getSelectedCharacter();
+        const selectedId = storage.getSelectedCharacter() || 'chucho';
 
         Object.values(CHARACTERS_DATA).forEach(char => {
             if (char.id === 'el_invernal') return;
@@ -1580,15 +1576,26 @@ class Game {
             const isSelected = char.id === selectedId;
             const card = document.createElement('div');
             card.className = `animal-char-card ${isSelected ? 'selected' : ''}`;
+
+            const animalText = char.animalName || char.animal || 'Fauna Colombiana';
+            const roleText = char.role || char.archetype || 'Guerrero';
+            const iconText = char.icon || char.avatar || '🥷';
+            const skillTitle = (char.skill && char.skill.name) || char.skillName || 'Poder Ninja';
+            const skillDescText = (char.skill && char.skill.desc) || char.skillDesc || 'Habilidad de combate';
+
+            const spdPct = Math.min(100, Math.round(((char.stats && char.stats.speed) || 10) / 15 * 100));
+            const defPct = Math.min(100, Math.round((char.stats && char.stats.defense) || 80));
+            const jmpPct = Math.min(100, Math.round(((char.stats && (char.stats.jumpForce || char.stats.jump)) || 12) / 16 * 100));
+
             card.innerHTML = `
-                <div class="animal-card-avatar">${char.avatar}</div>
+                <div class="animal-card-avatar">${iconText}</div>
                 <div class="animal-card-name">${char.name}</div>
-                <div class="animal-card-role">${char.animal} • ${char.archetype}</div>
-                <div class="animal-card-skill-desc">⚡ <strong>${char.skillName}:</strong> ${char.skillDesc}</div>
+                <div class="animal-card-role">${animalText} • ${roleText}</div>
+                <div class="animal-card-skill-desc">⚡ <strong>${skillTitle}:</strong> ${skillDescText}</div>
                 <div class="animal-stats-bars">
-                    <div class="char-stat-row"><span>Velocidad</span> <div class="char-stat-track"><div style="width: ${char.stats.speed}%;"></div></div></div>
-                    <div class="char-stat-row"><span>Defensa</span> <div class="char-stat-track"><div style="width: ${char.stats.defense}%;"></div></div></div>
-                    <div class="char-stat-row"><span>Salto</span> <div class="char-stat-track"><div style="width: ${char.stats.jump}%;"></div></div></div>
+                    <div class="char-stat-row"><span>Velocidad</span> <div class="char-stat-track"><div style="width: ${spdPct}%;"></div></div></div>
+                    <div class="char-stat-row"><span>Defensa</span> <div class="char-stat-track"><div style="width: ${defPct}%;"></div></div></div>
+                    <div class="char-stat-row"><span>Salto</span> <div class="char-stat-track"><div style="width: ${jmpPct}%;"></div></div></div>
                 </div>
                 <button class="btn-select-char" data-char="${char.id}">${isSelected ? '✓ SELECCIONADO' : 'SELECCIONAR'}</button>
             `;
@@ -1599,7 +1606,7 @@ class Game {
                 sounds.playSlash('heavy');
                 this.updateHeroShowcaseCard();
                 this.renderCharactersGrid();
-                this.showBanner('¡HÉROE SELECCIONADO!', `${char.name} (${char.animal}) listo para el combate`);
+                this.showBanner('¡HÉROE SELECCIONADO!', `${char.name} (${animalText}) listo para el combate`);
             });
 
             grid.appendChild(card);
@@ -1724,9 +1731,11 @@ class Game {
         if (this.world && this.world.crates) {
             ctx.fillStyle = '#f59e0b';
             this.world.crates.forEach(c => {
-                if (c.isBroken) return;
-                const dx = (c.mesh.position.x - pPos.x) * scale;
-                const dy = (c.mesh.position.z - pPos.z) * scale;
+                if (!c || c.intact === false || c.isBroken) return;
+                const cPos = c.position || (c.mesh && c.mesh.position) || (c.group && c.group.position);
+                if (!cPos) return;
+                const dx = (cPos.x - pPos.x) * scale;
+                const dy = (cPos.z - pPos.z) * scale;
                 if (Math.hypot(dx, dy) < 55) {
                     ctx.beginPath();
                     ctx.arc(cx + dx, cy + dy, 2.5, 0, Math.PI * 2);
@@ -1935,10 +1944,61 @@ class Game {
 
         this.renderer.render(this.scene, this.camera);
     }
-}
 
-window.addEventListener('DOMContentLoaded', () => {
-    new Game();
+    // =========================================================================
+    // MÓDULO DE HISTORIAL Y AVANCES DEL JUGADOR
+    // =========================================================================
+
+    openHistoryModal() {
+        const modal = document.getElementById('history-modal');
+        if (!modal) return;
+
+        const stats = storage.getCareerStats();
+        const statMatches = document.getElementById('stat-matches-played');
+        const statWins = document.getElementById('stat-victories');
+        const statKills = document.getElementById('stat-total-kills');
+        const statLevels = document.getElementById('stat-levels-completed');
+        const statStars = document.getElementById('stat-stars-earned');
+        const statBosses = document.getElementById('stat-bosses-defeated');
+
+        if (statMatches) statMatches.textContent = stats.matchesPlayed || 0;
+        if (statWins) statWins.textContent = stats.victories || 0;
+        if (statKills) statKills.textContent = stats.totalKills || 0;
+        if (statLevels) statLevels.textContent = `${stats.levelsCompleted || 0} / 50`;
+        if (statStars) statStars.textContent = `${stats.starsEarned || 0} / 150`;
+        if (statBosses) statBosses.textContent = `${stats.bossesDefeated || 0} / 10`;
+
+        const listContainer = document.getElementById('matches-list-container');
+        if (listContainer) {
+            listContainer.innerHTML = '';
+            const history = storage.getMatchHistory();
+            if (!history || history.length === 0) {
+                listContainer.innerHTML = '<div class="history-empty-hint">🗡️ Aún no has registrado partidas. ¡Juega en la Aventura o Battle Royale para ver tus resultados aquí!</div>';
+            } else {
+                history.forEach(m => {
+                    const card = document.createElement('div');
+                    card.className = `match-history-card ${m.isVictory ? 'is-win' : 'is-loss'}`;
+                    const outcomeText = m.isVictory ? '🏆 VICTORIA' : '💀 DERROTA';
+                    const dateStr = m.date || (m.timestamp ? new Date(m.timestamp).toLocaleDateString() : 'Reciente');
+                    card.innerHTML = `
+                        <div class="match-card-header">
+                            <span class="match-mode-tag">${m.mode || 'Aventura'}</span>
+                            <span class="match-outcome-badge ${m.isVictory ? 'badge-win' : 'badge-loss'}">${outcomeText}</span>
+                        </div>
+                        <div class="match-card-body">
+                            <div class="match-map-title">${m.map || 'Colombia'}</div>
+                            <div class="match-hero-info">Héroe: <strong>${m.hero || 'Chucho'}</strong> • Bajas: <strong>${m.kills || 0}</strong> • ⭐ ${m.stars || 0}</div>
+                            <div class="match-rewards-row">🪙 +${m.coins || 0} | 💎 +${m.gems || 0} | ⏱️ ${m.duration ? m.duration + 's' : ''}</div>
+                        </div>
+                        <div class="match-card-date">${dateStr}</div>
+                    `;
+                    listContainer.appendChild(card);
+                });
+            }
+        }
+
+        modal.classList.add('open');
+    }
 
     // =========================================================================
     // MÓDULO DE CAMPAÑA INDIVIDUAL: 10 MUNDOS DE COLOMBIA (AVENTURA NINJA)
@@ -2368,5 +2428,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const b = hex & 255;
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
-
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+    new Game();
+});

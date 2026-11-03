@@ -855,9 +855,11 @@ export class World {
 
         this.crates.push({
             group: crateGroup,
+            mesh: crateGroup,
             position: pos.clone(),
             rewardType: rewardType,
-            intact: true
+            intact: true,
+            isBroken: false
         });
     }
 
@@ -1318,11 +1320,17 @@ export class World {
     }
 
     buildFloatingCoinsArc(startX, startY, startZ, count = 3) {
+        const spots = [];
         for (let i = 0; i < count; i++) {
             const coinZ = startZ - i * 1.6;
             const coinY = startY + Math.sin((i / (count - 1)) * Math.PI) * 1.5 + 0.8;
-            this.buildFloatingCoins([new THREE.Vector3(startX, coinY, coinZ)]);
+            spots.push(new THREE.Vector3(startX, coinY, coinZ));
         }
+        this.spawnFloatingParkourCoins(spots);
+    }
+
+    buildFloatingCoins(spots) {
+        this.spawnFloatingParkourCoins(spots);
     }
 
     // Props decorativos para los 10 biomas

@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=12.0">
+    <link rel="stylesheet" href="css/style.css?v=13.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -198,6 +198,35 @@
                 <div class="portal-status-pill" id="portal-status-pill">
                     <span class="portal-dot"></span>
                     <span id="portal-status-text">🔒 PORTAL SELLADO</span>
+                </div>
+            </div>
+
+            <!-- HUD de Campaña Aventura Ninja: 10 Mundos de Colombia -->
+            <div id="campaign-hud" class="mission-hud-card campaign-hud-card" style="display: none;">
+                <div class="mission-header">
+                    <span class="mission-badge-icon" id="camp-hud-world-badge">MUNDO 1</span>
+                    <span class="mission-world-title" id="camp-hud-level-title">EL CORAZÓN DEL AMAZONAS • NIVEL 1</span>
+                </div>
+                <div class="mission-tasks">
+                    <div class="mission-task-row" id="camp-obj-gems-wrap">
+                        <span class="task-icon">💎</span>
+                        <span class="task-desc">Gemas de Biodiversidad:</span>
+                        <span class="task-progress" id="camp-hud-gems-count">0 / 3</span>
+                    </div>
+                    <div class="mission-task-row" id="camp-hud-boss-wrap" style="display: none;">
+                        <span class="task-icon">👑</span>
+                        <span class="task-desc">Jefe Ancestral:</span>
+                        <span class="task-progress" id="camp-hud-boss-status">¡DERROTA AL TITÁN!</span>
+                    </div>
+                    <div class="mission-task-row">
+                        <span class="task-icon">⏱️</span>
+                        <span class="task-desc">Tiempo Restante:</span>
+                        <span class="task-progress" id="camp-hud-target-time">(Meta: 60s)</span>
+                    </div>
+                </div>
+                <div class="portal-status-pill">
+                    <span class="portal-dot"></span>
+                    <span>🏃 LLEGA A LA PUERTA SAGRADA</span>
                 </div>
             </div>
 
@@ -944,6 +973,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=12.0"></script>
+    <script type="module" src="js/main.js?v=13.0"></script>
 </body>
 </html>

@@ -597,3 +597,5 @@ class StorageEngine {
     }
 
 }
+
+export const storage = new StorageEngine();
