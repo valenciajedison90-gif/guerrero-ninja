@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Guerrero Ninja 3D - Aventura de Espadas y Combate</title>
+    <title>Ninja Colombia Arena - Aventura & Battle Royale</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Guerrero Ninja">
+    <meta name="apple-mobile-web-app-title" content="Ninja Colombia">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="css/style.css?v=8.0">
+    <link rel="stylesheet" href="css/style.css?v=9.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -31,33 +31,143 @@
     <!-- Canvas 3D de WebGL -->
     <canvas id="game-canvas"></canvas>
 
-    <!-- Interfaz de Usuario (HUD) para niños -->
-    <div id="hud-container">
-        <!-- Barra Superior -->
-        <div class="top-hud">
-            <!-- Tarjeta de Vida y Nivel del Ninja -->
-            <div class="player-card">
-                <div class="ninja-avatar">🥷</div>
-                <div class="stats-container">
-                    <div class="player-name-row">
-                        <span class="player-name">Ninja Guerrero</span>
-                        <span class="level-badge" id="player-level-badge">NVL 1</span>
-                    </div>
-                    <div class="health-bar-container">
-                        <div class="health-bar-fill" id="player-health-fill"></div>
-                        <span class="health-text" id="player-health-text">100 / 100</span>
-                    </div>
-                    <div class="xp-bar-container" title="Experiencia para subir de nivel">
-                        <div class="xp-bar-fill" id="player-xp-fill"></div>
+    <!-- ========================================================================= -->
+    <!-- MENÚ PRINCIPAL PROFESIONAL ESTILO FREE FIRE / CRASH BANDICOOT (REFERENCIA) -->
+    <!-- ========================================================================= -->
+    <div id="main-menu-overlay" class="menu-overlay-active">
+        <!-- Barra Superior del Menú -->
+        <header class="menu-top-header">
+            <!-- Perfil del Jugador -->
+            <div class="menu-profile-pill" id="menu-profile-btn" title="Perfil del Jugador">
+                <div class="menu-avatar-badge" id="menu-avatar-badge">🐻</div>
+                <div class="menu-profile-info">
+                    <div class="menu-player-name" id="menu-player-name">Ninja Colombia</div>
+                    <div class="menu-player-tier">
+                        <span class="rank-badge">ORO II</span>
+                        <span class="level-pill" id="menu-level-badge">LV 5</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Tarjeta de Misión del Mundo estilo Crash Bandicoot -->
+            <!-- Título Central / Logo del Juego -->
+            <div class="menu-logo-banner">
+                <div class="logo-top-tag">COLOMBIA BIODIVERSIDAD</div>
+                <h1 class="game-logo-title">NINJA COLOMBIA <span>ARENA</span></h1>
+            </div>
+
+            <!-- Monedas, Gemas y Ajustes -->
+            <div class="menu-currency-group">
+                <div class="currency-pill coin-pill">
+                    <span class="currency-icon">🪙</span>
+                    <span class="currency-value" id="menu-coin-count">2,500</span>
+                </div>
+                <div class="currency-pill gem-pill">
+                    <span class="currency-icon">💎</span>
+                    <span class="currency-value" id="menu-gem-count">150</span>
+                    <button class="btn-gem-plus" id="btn-add-gems" title="Recargar Gemas">+</button>
+                </div>
+                <button class="btn-menu-icon" id="btn-quick-sound" title="Alternar Sonido">🔊</button>
+            </div>
+        </header>
+
+        <!-- Contenedor Central del Menú -->
+        <div class="menu-body-layout">
+            <!-- Barra Lateral Izquierda de Navegación (Pill Buttons) -->
+            <nav class="menu-side-nav">
+                <button class="menu-nav-pill btn-play-highlight" id="btn-menu-play">
+                    <span class="nav-icon">▶</span>
+                    <span class="nav-label">JUGAR</span>
+                </button>
+                <button class="menu-nav-pill" id="btn-menu-characters">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-label">PERSONAJES</span>
+                </button>
+                <button class="menu-nav-pill" id="btn-menu-skins">
+                    <span class="nav-icon">👕</span>
+                    <span class="nav-label">SKINS</span>
+                </button>
+                <button class="menu-nav-pill" id="btn-menu-pass">
+                    <span class="nav-icon">👑</span>
+                    <span class="nav-label">PASE NINJA</span>
+                </button>
+                <button class="menu-nav-pill" id="btn-menu-shop">
+                    <span class="nav-icon">🛒</span>
+                    <span class="nav-label">TIENDA</span>
+                </button>
+                <button class="menu-nav-pill" id="btn-menu-settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-label">AJUSTES</span>
+                </button>
+            </nav>
+
+            <!-- Espacio Central: Visualización 3D Interactiva del Personaje Seleccionado -->
+            <div class="menu-hero-showcase-zone" id="hero-showcase-zone">
+                <div class="hero-swipe-hint"><span>⇄ Desliza para rotar al héroe</span></div>
+            </div>
+
+            <!-- Tarjeta Inferior de Información del Personaje Activo -->
+            <div class="menu-bottom-hero-card" id="menu-bottom-hero-card">
+                <div class="hero-card-role" id="menu-hero-role">OSO DE ANTEOJOS • EQUILIBRIO</div>
+                <div class="hero-card-name" id="menu-hero-name">CHUCHO</div>
+                <div class="hero-card-skill" id="menu-hero-skill">
+                    <span class="skill-tag">HABILIDAD ESPECIAL</span>
+                    <span class="skill-name">💥 Rugido Andino (Onda de choque)</span>
+                </div>
+                <div class="hero-card-stats-preview">
+                    <div class="mini-stat"><span>VEL</span> <div class="mini-bar"><div id="bar-hero-speed" style="width: 75%;"></div></div></div>
+                    <div class="mini-stat"><span>DEF</span> <div class="mini-bar"><div id="bar-hero-defense" style="width: 85%;"></div></div></div>
+                    <div class="mini-stat"><span>SALTO</span> <div class="mini-bar"><div id="bar-hero-jump" style="width: 70%;"></div></div></div>
+                </div>
+            </div>
+
+            <!-- Selector Inferior Derecho de Modo de Juego -->
+            <div class="menu-mode-selector-badge" id="btn-menu-mode" title="Cambiar Modo de Juego">
+                <div class="mode-badge-left">
+                    <span class="mode-tag">MODO SELECCIONADO</span>
+                    <div class="mode-title" id="menu-mode-title">BATTLE ROYALE (50 JUGADORES)</div>
+                    <div class="mode-sub" id="menu-mode-map-name">🗺️ Selva Amazónica</div>
+                </div>
+                <button class="btn-change-mode">CAMBIAR ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- INTERFAZ DURANTE LAS PARTIDAS (HUD DE COMBATE Y BATTLE ROYALE)             -->
+    <!-- ========================================================================= -->
+    <div id="hud-container">
+        <!-- Barra Superior del HUD de Combate -->
+        <div class="top-hud">
+            <!-- Minimapa Circular Radar estilo Free Fire (Arriba Izquierda) -->
+            <div class="hud-minimap-wrapper" id="hud-minimap-wrapper">
+                <div class="minimap-circle" id="hud-minimap">
+                    <canvas id="minimap-canvas" width="120" height="120"></canvas>
+                    <div class="minimap-player-arrow" id="minimap-player-arrow">▲</div>
+                    <div class="minimap-compass-n">N</div>
+                </div>
+                <!-- Barra de Vida y Nivel Integrada -->
+                <div class="player-mini-status">
+                    <div class="mini-avatar-tag" id="hud-mini-avatar">🐻</div>
+                    <div class="mini-status-bars">
+                        <div class="mini-name-row">
+                            <span class="player-name" id="hud-player-name">Chucho</span>
+                            <span class="hp-count-text" id="player-health-text">200 / 200</span>
+                        </div>
+                        <div class="health-bar-container">
+                            <div class="health-bar-fill" id="player-health-fill" style="width: 100%;"></div>
+                        </div>
+                        <div class="xp-bar-container" title="Experiencia">
+                            <div class="xp-bar-fill" id="player-xp-fill" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta Central de Misión / Zona Segura de Tormenta -->
             <div id="mission-hud" class="mission-hud-card">
                 <div class="mission-header">
-                    <span class="mission-badge-icon">📜</span>
-                    <span class="mission-world-title" id="hud-world-name">MUNDO 1: BOSQUE</span>
+                    <span class="mission-badge-icon">🌿</span>
+                    <span class="mission-world-title" id="hud-world-name">SELVA AMAZÓNICA</span>
                 </div>
                 <div class="mission-tasks" id="mission-tasks-list">
                     <!-- Tareas dinámicas -->
@@ -68,59 +178,75 @@
                 </div>
             </div>
 
-            <!-- Contador de Monedas y Botones de Acción -->
+            <!-- Panel Superior Derecho: Jugadores Vivos, Bajas y Utilidades -->
             <div class="top-right-group">
-                <div class="coin-counter">
-                    <span class="coin-icon">🪙</span>
-                    <span class="coin-amount" id="coin-count">60</span>
+                <!-- Contador de Jugadores Vivos y Bajas estilo Battle Royale -->
+                <div class="br-stats-cluster">
+                    <div class="br-stat-pill" title="Jugadores restantes en la arena">
+                        <span class="br-icon">👥</span>
+                        <span class="br-val" id="br-alive-count">50</span>
+                    </div>
+                    <div class="br-stat-pill kill-pill" title="Tus bajas en combate">
+                        <span class="br-icon">💀</span>
+                        <span class="br-val" id="br-kill-count">0</span>
+                    </div>
                 </div>
 
-                <!-- Badge de Sala Activa en el HUD -->
+                <!-- Contador de Monedas del Jugador -->
+                <div class="coin-counter">
+                    <span class="coin-icon">🪙</span>
+                    <span class="coin-amount" id="coin-count">2,500</span>
+                </div>
+
+                <!-- Badge de Sala Activa Multijugador -->
                 <div class="hud-room-badge" id="hud-room-badge" style="display: none;">
                     <span class="pulse-dot"></span>
                     <span>SALA: <strong id="hud-room-code">---</strong></span>
-                    <button class="btn-copy-mini" id="btn-copy-hud-code" title="Copiar código de sala">📋 Copiar</button>
+                    <button class="btn-copy-mini" id="btn-copy-hud-code" title="Copiar código de sala">📋</button>
                 </div>
 
-                <button class="btn-hud btn-multiplayer" id="btn-open-multiplayer">
-                    <span>🌐</span> SALAS
+                <!-- Botón Volver al Menú Principal -->
+                <button class="btn-hud btn-menu-return" id="btn-return-menu" title="Volver al Menú Principal">
+                    <span>🏠</span> MENÚ
                 </button>
 
-                <button class="btn-hud btn-maps" id="btn-open-maps" title="Cambiar de Mapa / Bioma">
+                <!-- Botón de Mapas / Biomas Colombianos -->
+                <button class="btn-hud btn-maps" id="btn-open-maps" title="Cambiar de Territorio Colombiano">
                     <span>🗺️</span> MAPAS
                 </button>
 
-                <button class="btn-hud btn-shop-main" id="btn-open-shop">
-                    <span>⛩️</span> TIENDA [T]
+                <!-- Botón de Tienda Ninja -->
+                <button class="btn-hud btn-shop-main" id="btn-open-shop" title="Abrir Tienda">
+                    <span>⛩️</span> TIENDA
                 </button>
 
-                <button class="btn-hud btn-boss-spawn" id="btn-spawn-boss" title="Invoca al Gran Jefe Samurái">
-                    <span>👹</span> JEFE
+                <!-- Botón de Invocar Villano El Invernal -->
+                <button class="btn-hud btn-boss-spawn" id="btn-spawn-boss" title="Invocar a El Invernal">
+                    <span>🐆</span> VILLANO
                 </button>
 
                 <button class="btn-hud" id="btn-toggle-touch" title="Alternar Controles Celular">
                     <span>📱</span>
                 </button>
 
-                <button class="btn-hud" id="btn-toggle-sound" title="Activar/Silenciar sonido">
+                <button class="btn-hud" id="btn-toggle-sound" title="Sonido">
                     <span id="sound-icon">🔊</span>
                 </button>
             </div>
         </div>
 
-        <!-- Centro: Combo flotante y Notificaciones -->
+        <!-- Centro: Combo Flotante y Banners de Evento -->
         <div class="center-hud">
             <div class="combo-text" id="combo-display">¡COMBO x2!</div>
             <div class="banner-overlay" id="banner-notification">
-                <div class="banner-title" id="banner-title">¡BIENVENIDO!</div>
-                <div class="banner-subtitle" id="banner-subtitle">¡Prepárate para combatir!</div>
+                <div class="banner-title" id="banner-title">¡BIENVENIDO A NINJA COLOMBIA ARENA!</div>
+                <div class="banner-subtitle" id="banner-subtitle">¡Explora la biodiversidad y conquista la arena!</div>
             </div>
         </div>
 
-        <!-- Barra Inferior: Hotbar para cambiar armas en batalla -->
+        <!-- Barra Inferior: Hotbar de Armas y Objetos -->
         <div class="bottom-hud">
             <div class="hotbar-container" id="hotbar-container">
-                <!-- Se generan dinámicamente las 5 ranuras -->
                 <div class="hotbar-slot active" data-slot="0">
                     <span class="slot-number">1</span>
                     <span class="slot-icon">🪵</span>
@@ -148,27 +274,31 @@
                 </div>
             </div>
 
-            <!-- Guía de controles para niños -->
+            <!-- Guía rápida de controles de teclado -->
             <div class="controls-hint">
                 <span><span class="key-badge">W A S D</span> Moverse</span>
-                <span><span class="key-badge">ESPACIO</span> Saltar</span>
+                <span><span class="key-badge">ESPACIO</span> Saltar / Doble Salto</span>
                 <span><span class="key-badge">CLIC</span> Atacar</span>
+                <span><span class="key-badge">E</span> Giro 360°</span>
+                <span><span class="key-badge">Q / R</span> Habilidad Especial</span>
+                <span><span class="key-badge">SHIFT</span> Impulso Dash</span>
                 <span><span class="key-badge">1 - 5</span> Cambiar Arma</span>
-                <span><span class="key-badge">T</span> Tienda</span>
             </div>
         </div>
     </div>
 
-    <!-- Controles Táctiles para Celular Estilo Free Fire -->
+    <!-- ========================================================================= -->
+    <!-- CONTROLES TÁCTILES PARA CELULAR ESTILO FREE FIRE                          -->
+    <!-- ========================================================================= -->
     <div id="mobile-touch-controls">
-        <!-- Zona Izquierda: Joystick Analógico Virtual -->
+        <!-- Zona Izquierda: Joystick Virtual Dinámico -->
         <div id="joystick-zone">
             <div id="joystick-base">
                 <div id="joystick-knob"></div>
             </div>
         </div>
 
-        <!-- Zona Derecha: Cluster de Botones de Acción Estilo Free Fire -->
+        <!-- Zona Derecha: Clúster Táctil de Botones de Acción Estilo Free Fire -->
         <div id="mobile-actions">
             <!-- Botón Cambio Rápido de Arma -->
             <button class="btn-touch-action btn-touch-switch" id="btn-touch-switch" title="Cambiar Arma">
@@ -180,6 +310,13 @@
             <button class="btn-touch-action btn-touch-dash" id="btn-touch-dash" title="Impulso Ninja">
                 <span class="touch-icon">⚡</span>
                 <span class="touch-label">DASH</span>
+            </button>
+
+            <!-- Botón de Habilidad Especial Única del Animal Héroe -->
+            <button class="btn-touch-action btn-touch-skill" id="btn-touch-skill" title="Habilidad Especial">
+                <div class="skill-cooldown-overlay" id="skill-cooldown-overlay"></div>
+                <span class="touch-icon" id="touch-skill-icon">💥</span>
+                <span class="touch-label">PODER</span>
             </button>
 
             <!-- Botón Salto -->
@@ -204,120 +341,349 @@
         </div>
     </div>
 
-    <!-- Modal de la Tienda de Armas -->
+    <!-- ========================================================================= -->
+    <!-- MODAL: SELECCIÓN DE PERSONAJES ANIMALES COLOMBIANOS                       -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="characters-modal">
+        <div class="modal-window-large">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">🐾</span>
+                    <div>
+                        <div class="modal-title">HÉROES NINJAS DE COLOMBIA</div>
+                        <div class="modal-subtitle">Elige tu animal representativo con habilidades y estadísticas únicas</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-characters">✕</button>
+            </div>
+            <div class="modal-body-characters" id="characters-grid-container">
+                <!-- Se inyecta dinámicamente con los 5 héroes: Chucho, Yarí, Guaca, Capibú, Ranaik -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: SKINS Y ACCESORIOS DESBLOQUEABLES                                  -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="skins-modal">
+        <div class="modal-window-large">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">👕</span>
+                    <div>
+                        <div class="modal-title">ARMARIO DE SKINS Y ATUENDOS NINJA</div>
+                        <div class="modal-subtitle">Personaliza a tus héroes con trajes tropicales y accesorios épicos</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-skins">✕</button>
+            </div>
+            <div class="modal-body-skins" id="skins-grid-container">
+                <!-- Inyectado dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: PASE NINJA (TEMPORADA BIODIVERSIDAD)                              -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="ninja-pass-modal">
+        <div class="modal-window-large">
+            <div class="modal-header pass-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">👑</span>
+                    <div>
+                        <div class="modal-title">PASE NINJA • TEMPORADA 1: BIODIVERSIDAD</div>
+                        <div class="modal-subtitle">Gana experiencia en partidas para desbloquear monedas, gemas y skins legendarias</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-pass">✕</button>
+            </div>
+            <div class="modal-body-pass">
+                <div class="pass-progress-header">
+                    <div class="pass-level-tag">NIVEL ACTUAL: <span id="pass-current-tier">NIVEL 3</span></div>
+                    <div class="pass-xp-info">EXP DEL PASE: 450 / 600 XP</div>
+                </div>
+                <div class="pass-tiers-track" id="pass-tiers-track">
+                    <!-- Tiers generados -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: SELECTOR DE MODOS DE JUEGO                                         -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="modes-modal">
+        <div class="modal-window-large">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">🎮</span>
+                    <div>
+                        <div class="modal-title">MODOS DE JUEGO</div>
+                        <div class="modal-subtitle">Selecciona cómo deseas competir y explorar Colombia</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-modes">✕</button>
+            </div>
+            <div class="modal-body-modes">
+                <div class="modes-selection-grid">
+                    <!-- Modo 1: Battle Royale -->
+                    <div class="mode-select-card active" data-mode="battle_royale">
+                        <div class="mode-banner-art br-art">
+                            <span class="mode-emoji-badge">🎯</span>
+                            <span class="mode-hot-badge">POPULAR</span>
+                        </div>
+                        <div class="mode-card-info">
+                            <div class="mode-card-title">Battle Royale</div>
+                            <div class="mode-card-players">👥 Hasta 50 Jugadores</div>
+                            <p class="mode-card-desc">Círculo de tormenta que se reduce, cajas sorpresa con '?', airdrops con paracaídas amarillos y cristales de energía.</p>
+                            <button class="btn-select-mode" data-mode="battle_royale">✓ SELECCIONADO</button>
+                        </div>
+                    </div>
+
+                    <!-- Modo 2: Aventura Ninja -->
+                    <div class="mode-select-card" data-mode="adventure">
+                        <div class="mode-banner-art adv-art">
+                            <span class="mode-emoji-badge">🏝️</span>
+                            <span class="mode-badge-pill">CAMPAÑA</span>
+                        </div>
+                        <div class="mode-card-info">
+                            <div class="mode-card-title">Aventura Ninja</div>
+                            <div class="mode-card-players">⭐ Progresión por Mundos</div>
+                            <p class="mode-card-desc">Estilo Crash Bandicoot: plataformas, misiones de recolección de café y gemas, y combate final contra El Invernal.</p>
+                            <button class="btn-select-mode" data-mode="adventure">SELECCIONAR</button>
+                        </div>
+                    </div>
+
+                    <!-- Modo 3: Equipos 4 vs 4 -->
+                    <div class="mode-select-card" data-mode="squads">
+                        <div class="mode-banner-art squad-art">
+                            <span class="mode-emoji-badge">🛡️</span>
+                            <span class="mode-badge-pill">COOPERATIVO</span>
+                        </div>
+                        <div class="mode-card-info">
+                            <div class="mode-card-title">Equipos 4 vs 4</div>
+                            <div class="mode-card-players">👥 Escuadrones Amistosos</div>
+                            <p class="mode-card-desc">Combina las habilidades de Chucho, Yarí, Guaca y Capibú para dominar la arena en equipo.</p>
+                            <button class="btn-select-mode" data-mode="squads">SELECCIONAR</button>
+                        </div>
+                    </div>
+
+                    <!-- Modo 4: Eventos Temporales -->
+                    <div class="mode-select-card" data-mode="events">
+                        <div class="mode-banner-art event-art">
+                            <span class="mode-emoji-badge">🌸</span>
+                            <span class="mode-badge-pill">ESPECIAL</span>
+                        </div>
+                        <div class="mode-card-info">
+                            <div class="mode-card-title">Eventos Temporales</div>
+                            <div class="mode-card-players">🎉 Festival de las Orquídeas</div>
+                            <p class="mode-card-desc">Retos semanales dedicados a la protección de los páramos y ríos de Colombia con recompensas exclusivas.</p>
+                            <button class="btn-select-mode" data-mode="events">SELECCIONAR</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: SELECTOR DE TERRITORIOS / BIOMAS DE COLOMBIA                       -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="maps-modal">
+        <div class="maps-window">
+            <div class="maps-header">
+                <div class="maps-title-group">
+                    <span style="font-size: 32px;">🗺️</span>
+                    <div>
+                        <div class="maps-title">TERRITORIOS DE COLOMBIA</div>
+                        <div style="font-size: 13px; color: #94a3b8;">Supera las misiones de cada región para viajar al siguiente bioma</div>
+                    </div>
+                </div>
+                <button class="shop-close-btn" id="btn-close-maps">✕</button>
+            </div>
+            <div class="maps-body">
+                <div class="maps-grid">
+                    <!-- Bioma 1: Selva Amazónica -->
+                    <div class="map-card active" id="map-card-selva" data-map="selva">
+                        <div class="map-banner map-selva-banner">
+                            <span class="map-badge">🌿 REGIÓN 1</span>
+                            <span class="map-emoji">🌴</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Selva Amazónica</div>
+                            <div class="map-mission-goals">📜 5 Furtivos • 3 Cristales • 6 Cajas ?</div>
+                            <div class="map-desc">Ríos caudalosos, puentes de bambú, ceibas gigantes y monolitos dorados ancestrales.</div>
+                            <button class="btn-select-map" data-map="selva">✓ EN JUEGO</button>
+                        </div>
+                    </div>
+
+                    <!-- Bioma 2: Eje Cafetero -->
+                    <div class="map-card" id="map-card-eje_cafetero" data-map="eje_cafetero">
+                        <div class="map-banner map-cafetero-banner">
+                            <span class="map-badge cafe">☕ REGIÓN 2</span>
+                            <span class="map-emoji">🏡</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Eje Cafetero</div>
+                            <div class="map-mission-goals">📜 6 Cazadores • 3 Sacos de Café • 4 Tótems</div>
+                            <div class="map-desc">Colinas verdes ondulantes, haciendas paisas tradicionales y cafetales en flor.</div>
+                            <button class="btn-select-map" data-map="eje_cafetero">VIAJAR AHORA ☕</button>
+                        </div>
+                    </div>
+
+                    <!-- Bioma 3: Páramo Andino -->
+                    <div class="map-card" id="map-card-paramo" data-map="paramo">
+                        <div class="map-banner map-paramo-banner">
+                            <span class="map-badge paramo">❄️ REGIÓN 3</span>
+                            <span class="map-emoji">🏔️</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Páramo Andino</div>
+                            <div class="map-mission-goals">📜 8 Esbirros Glaciales • 4 Frailejones • El Invernal</div>
+                            <div class="map-desc">Frailejones sagrados, niebla mística, lagunas cristalinas y cumbres nevadas.</div>
+                            <button class="btn-select-map" data-map="paramo">VIAJAR AHORA ❄️</button>
+                        </div>
+                    </div>
+
+                    <!-- Bioma 4: Caribe Colombiano -->
+                    <div class="map-card" id="map-card-caribe" data-map="caribe">
+                        <div class="map-banner map-caribe-banner">
+                            <span class="map-badge caribe">🌊 REGIÓN 4</span>
+                            <span class="map-emoji">🏖️</span>
+                        </div>
+                        <div class="map-content">
+                            <div class="map-name">Caribe Colombiano</div>
+                            <div class="map-mission-goals">📜 10 Corsarios • 4 Perlas • Batalla en Murallas</div>
+                            <div class="map-desc">Océano turquesa, palmeras de coco, arena dorada y murallas coloniales de piedra.</div>
+                            <button class="btn-select-map" data-map="caribe">VIAJAR AHORA 🌊</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: TIENDA NINJA Y ARSENAL COLOMBIANO                                  -->
+    <!-- ========================================================================= -->
     <div class="modal-overlay" id="shop-modal">
         <div class="shop-window">
             <div class="shop-header">
                 <div class="shop-title-group">
                     <span style="font-size: 32px;">⛩️</span>
                     <div>
-                        <div class="shop-title">TIENDA NINJA DEL SENSEI</div>
-                        <div style="font-size: 13px; color: #94a3b8;">¡Compra espadas legendarias y shurikens con tus monedas!</div>
+                        <div class="shop-title">TIENDA NINJA DE ARTESANÍAS Y ARMAS</div>
+                        <div style="font-size: 13px; color: #94a3b8;">¡Adquiere el Machete de Oro Cafetero, Shurikens de Orquídea y Espadas Épicas!</div>
                     </div>
                 </div>
                 <button class="shop-close-btn" id="btn-close-shop">✕</button>
             </div>
             <div class="shop-body" id="shop-items-grid">
-                <!-- Se rellena automáticamente con las armas desde weapons.js -->
+                <!-- Generado dinámicamente -->
             </div>
         </div>
     </div>
 
-    <!-- Modal de Selección de Modo y Salas Multijugador -->
-    <div class="modal-overlay open" id="multiplayer-modal">
+    <!-- ========================================================================= -->
+    <!-- MODAL: AJUSTES Y CONFIGURACIÓN                                           -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-window-small">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-header-icon">⚙️</span>
+                    <div>
+                        <div class="modal-title">AJUSTES DEL JUEGO</div>
+                        <div class="modal-subtitle">Audio, gráficos y controles</div>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-settings">✕</button>
+            </div>
+            <div class="modal-body-settings">
+                <div class="setting-row">
+                    <span>Efectos de Sonido</span>
+                    <button class="btn-toggle-setting active" id="btn-toggle-sfx">ACTIVADO</button>
+                </div>
+                <div class="setting-row">
+                    <span>Música Colombiana</span>
+                    <button class="btn-toggle-setting active" id="btn-toggle-music">ACTIVADA</button>
+                </div>
+                <div class="setting-row">
+                    <span>Controles Táctiles en Pantalla</span>
+                    <button class="btn-toggle-setting active" id="btn-toggle-touch-setting">AUTO</button>
+                </div>
+                <div class="setting-row">
+                    <span>Calidad Gráfica HD (60 FPS)</span>
+                    <button class="btn-toggle-setting active" id="btn-toggle-graphics">ALTA</button>
+                </div>
+                <div class="setting-row">
+                    <span>Control Parental & Seguridad</span>
+                    <span class="setting-badge-safe">✓ 100% SEGURO PARA NIÑOS</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: SALAS PRIVADAS Y MULTIJUGADOR                                      -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="multiplayer-modal">
         <div class="lobby-window">
             <div class="lobby-header">
                 <div class="lobby-title-group">
                     <span style="font-size: 38px;">🥷</span>
                     <div>
-                        <div class="lobby-title">DOJO NINJA - MODO DE JUEGO</div>
-                        <div style="font-size: 13px; color: #94a3b8;">¡Personaliza tu guerrero y juega solo o con amigos!</div>
+                        <div class="lobby-title">SALAS PRIVADAS MULTIJUGADOR</div>
+                        <div style="font-size: 13px; color: #94a3b8;">¡Invita a tus amigos con un código para jugar en equipo!</div>
                     </div>
                     <button class="btn-play-direct-mobile" id="btn-quick-start">⚔️ JUGAR YA</button>
                 </div>
-                <button class="shop-close-btn" id="btn-close-lobby" title="Cerrar ventana">✕</button>
+                <button class="shop-close-btn" id="btn-close-lobby" title="Cerrar">✕</button>
             </div>
 
-            <!-- Paso 1: Personalización del Ninja -->
-            <div class="lobby-section">
-                <div class="section-label">1. Elige tu Nombre Ninja y Color de Traje:</div>
-                <div class="ninja-customizer-row">
-                    <div class="name-input-box">
-                        <label>Nombre:</label>
-                        <input type="text" id="input-ninja-name" maxlength="14" value="Ninja Pro" placeholder="Tu nombre...">
-                    </div>
-                    <div class="color-palette-box">
-                        <label>Color de Traje:</label>
-                        <div class="color-palette" id="color-palette">
-                            <button class="color-dot active" data-color="0x1e293b" style="background: #1e293b;" title="Carbón Oscuro"></button>
-                            <button class="color-dot" data-color="0xd92323" style="background: #d92323;" title="Rojo Fuego"></button>
-                            <button class="color-dot" data-color="0x15803d" style="background: #15803d;" title="Verde Jade"></button>
-                            <button class="color-dot" data-color="0xf59e0b" style="background: #f59e0b;" title="Dorado Dragón"></button>
-                            <button class="color-dot" data-color="0x7e22ce" style="background: #7e22ce;" title="Púrpura Sombra"></button>
-                            <button class="color-dot" data-color="0x0284c7" style="background: #0284c7;" title="Azul Celestial"></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Paso 2: Elección de Modo -->
             <div class="lobby-section" id="lobby-modes-view">
-                <div class="section-label">2. ¿Cómo quieres jugar?</div>
                 <div class="modes-grid">
-                    <div class="mode-card" id="card-mode-solo">
-                        <div class="mode-icon">🎮</div>
-                        <div class="mode-name">Entrenamiento Solo</div>
-                        <div class="mode-desc">Juega en tu propio dojo contra muñecos y ninjas enemigos.</div>
-                        <button class="btn-mode btn-mode-solo" id="btn-start-solo">¡JUGAR SOLO!</button>
-                    </div>
-
                     <div class="mode-card highlight" id="card-mode-create">
                         <div class="mode-icon">🏠</div>
                         <div class="mode-name">Crear Sala Privada</div>
-                        <div class="mode-desc">Crea una sala y comparte el código con tus amigos para jugar juntos.</div>
+                        <div class="mode-desc">Crea una sala y comparte el código con tus amigos para entrar al mismo mapa.</div>
                         <button class="btn-mode btn-mode-create" id="btn-create-room">CREAR SALA</button>
                     </div>
 
                     <div class="mode-card" id="card-mode-join">
                         <div class="mode-icon">🔑</div>
                         <div class="mode-name">Unirse a una Sala</div>
-                        <div class="mode-desc">Introduce el código que te dio tu amigo para entrar a su batalla.</div>
+                        <div class="mode-desc">Introduce el código que te dio tu amigo para unirte a su partida.</div>
                         <button class="btn-mode btn-mode-join" id="btn-goto-join">UNIRSE CON CÓDIGO</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Subvista: Sala Creada (Código para compartir) -->
             <div class="lobby-section" id="lobby-created-view" style="display: none;">
                 <div class="room-success-banner">
                     <div class="success-icon">🎉</div>
                     <div class="success-title">¡Tu Sala Privada está lista!</div>
-                    <div class="success-desc">Comparte este código con tus amigos para que se unan a tu dojo:</div>
+                    <div class="success-desc">Comparte este código con tus amigos:</div>
                 </div>
-
                 <div class="code-share-container">
                     <div class="code-display" id="room-code-display">NINJA7</div>
                     <button class="btn-copy-code" id="btn-copy-lobby-code">📋 Copiar Código</button>
                 </div>
-
                 <div class="players-in-room-box">
-                    <div class="players-box-title">Ninjas en la Sala:</div>
-                    <div class="players-chips-container" id="lobby-players-list">
-                        <!-- Chips de jugadores -->
-                    </div>
+                    <div class="players-box-title">Héroes en la Sala:</div>
+                    <div class="players-chips-container" id="lobby-players-list"></div>
                 </div>
-
                 <div class="lobby-actions-row">
-                    <button class="btn-mode btn-mode-solo" id="btn-start-playing-room">⚔️ ¡ENTRAR AL DOJO Y COMBATIR!</button>
+                    <button class="btn-mode btn-mode-solo" id="btn-start-playing-room">⚔️ ¡ENTRAR AL BIOMA Y JUGAR!</button>
                 </div>
             </div>
 
-            <!-- Subvista: Unirse con Código -->
             <div class="lobby-section" id="lobby-join-view" style="display: none;">
                 <div class="section-label">Introduce el Código de la Sala:</div>
                 <div class="join-input-container">
-                    <input type="text" id="input-join-room-code" placeholder="EJ: NINJA7" maxlength="10">
-                    <button class="btn-mode btn-mode-create" id="btn-confirm-join">¡ENTRAR A LA SALA!</button>
+                    <input type="text" id="input-join-room-code" placeholder="EJ: COLOMBIA1" maxlength="12">
+                    <button class="btn-mode btn-mode-create" id="btn-confirm-join">¡ENTRAR AHORA!</button>
                 </div>
                 <div class="join-error-msg" id="join-error-msg" style="display: none;"></div>
                 <div style="margin-top: 15px;">
@@ -327,100 +693,44 @@
         </div>
     </div>
 
-    <!-- Modal de Selección de Mapas / Biomas 3D Orgánicos -->
-    <div class="modal-overlay" id="maps-modal">
-        <div class="maps-window">
-            <div class="maps-header">
-                <div class="maps-title-group">
-                    <span style="font-size: 32px;">🗺️</span>
-                    <div>
-                        <div class="maps-title">SELECTOR DE MUNDOS Y NIVELES</div>
-                        <div style="font-size: 13px; color: #94a3b8;">Supera las misiones de cada mundo para desbloquear el portal al siguiente</div>
-                    </div>
-                </div>
-                <button class="shop-close-btn" id="btn-close-maps">✕</button>
-            </div>
-            <div class="maps-body">
-                <div class="maps-grid">
-                    <!-- Mapa 1: Santuario del Bosque -->
-                    <div class="map-card active" id="map-card-forest" data-map="forest">
-                        <div class="map-banner map-forest-banner">
-                            <span class="map-badge">🌸 MUNDO 1</span>
-                            <span class="map-emoji">⛩️</span>
-                        </div>
-                        <div class="map-content">
-                            <div class="map-name">Santuario del Bosque Sagrado</div>
-                            <div class="map-mission-goals">📜 5 Ninjas • 3 Gemas • 6 Cajas</div>
-                            <div class="map-desc">Colinas zen, bambú, cerezos sakura y estanque koi cristalino.</div>
-                            <button class="btn-select-map" data-map="forest">✓ EN JUEGO</button>
-                        </div>
-                    </div>
-
-                    <!-- Mapa 2: Volcán Carmesí -->
-                    <div class="map-card" id="map-card-volcano" data-map="volcano">
-                        <div class="map-banner map-volcano-banner">
-                            <span class="map-badge fire">🔥 MUNDO 2</span>
-                            <span class="map-emoji">🌋</span>
-                        </div>
-                        <div class="map-content">
-                            <div class="map-name">Templo del Volcán Carmesí</div>
-                            <div class="map-mission-goals">📜 6 Ninjas • 3 Reliquias • 4 Tótems</div>
-                            <div class="map-desc">Terreno de basalto, ríos de lava ardiente fluida y géiseres térmicos.</div>
-                            <button class="btn-select-map" data-map="volcano">VIAJAR AHORA 🌋</button>
-                        </div>
-                    </div>
-
-                    <!-- Mapa 3: Cumbres Heladas -->
-                    <div class="map-card" id="map-card-snow" data-map="snow">
-                        <div class="map-banner map-snow-banner">
-                            <span class="map-badge ice">❄️ MUNDO 3</span>
-                            <span class="map-emoji">🏔️</span>
-                        </div>
-                        <div class="map-content">
-                            <div class="map-name">Cumbres Heladas del Dragón</div>
-                            <div class="map-mission-goals">📜 8 Ninjas • 4 Zafiros • Gran Jefe Samurái</div>
-                            <div class="map-desc">Montañas nevadas, agujas de hielo, ventisca y el Gran Samurái Warlord.</div>
-                            <button class="btn-select-map" data-map="snow">VIAJAR AHORA ❄️</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Nivel Superado / Victoria de Mundo estilo Crash Bandicoot -->
+    <!-- ========================================================================= -->
+    <!-- MODAL: NIVEL SUPERADO / VICTORIA DE MUNDO ESTILO CRASH BANDICOOT           -->
+    <!-- ========================================================================= -->
     <div class="modal-overlay" id="level-clear-modal">
         <div class="level-clear-window">
-            <div class="victory-ribbon">⭐ ¡NIVEL SUPERADO! ⭐</div>
-            <div class="victory-world-title" id="victory-world-title">SANTUARIO DEL BOSQUE SAGRADO</div>
+            <div class="victory-ribbon">⭐ ¡MISIÓN SUPERADA! ⭐</div>
+            <div class="victory-world-title" id="victory-world-title">SELVA AMAZÓNICA</div>
             <div class="victory-gems-row" id="victory-gems-row">
                 <span class="v-gem">💎</span>
                 <span class="v-gem">💎</span>
                 <span class="v-gem">💎</span>
             </div>
-            <p class="victory-desc" id="victory-desc">¡Has completado todos los desafíos y liberado este mundo!</p>
+            <p class="victory-desc" id="victory-desc">¡Has protegido la biodiversidad y desbloqueado el portal!</p>
             <div class="victory-rewards">
-                <span class="reward-pill">+100 Monedas Doradas 🪙</span>
-                <span class="reward-pill">+150 XP de Guerrero ⚡</span>
+                <span class="reward-pill">+150 Monedas 🪙</span>
+                <span class="reward-pill">+25 Gemas 💎</span>
+                <span class="reward-pill">+200 EXP Ninja ⚡</span>
             </div>
-            <button class="btn-victory-next" id="btn-next-world">CONTINUAR AL SIGUIENTE MUNDO ➔</button>
+            <button class="btn-victory-next" id="btn-next-world">CONTINUAR AL SIGUIENTE TERRITORIO ➔</button>
         </div>
     </div>
 
-    <!-- Modal de Instalación en Celular PWA -->
+    <!-- ========================================================================= -->
+    <!-- MODAL: INSTALACIÓN PWA PARA CELULAR                                       -->
+    <!-- ========================================================================= -->
     <div class="modal-overlay" id="pwa-install-modal">
         <div class="pwa-install-window">
             <div class="pwa-badge">⚡ APP OFICIAL PARA CELULAR</div>
-            <div class="pwa-icon-glow">🥷</div>
-            <h2 class="pwa-title">¡Instala Guerrero Ninja en tu Celular!</h2>
+            <div class="pwa-icon-glow">🐾</div>
+            <h2 class="pwa-title">¡Instala Ninja Colombia Arena!</h2>
             <p class="pwa-desc">
-                Juega a pantalla completa sin barras del navegador, con controles táctiles Free Fire ultra-fluidos a 60 FPS.
+                Juega a pantalla completa sin barras de navegación, con controles táctiles estilo Free Fire ultra-fluidos a 60 FPS.
             </p>
             
             <div class="pwa-ios-instructions" id="pwa-ios-guide" style="display: none;">
-                <div class="ios-step"><span class="ios-num">1</span> Toca el botón <strong>Compartir</strong> <span class="ios-icon">⬆️</span> en la barra inferior de Safari.</div>
-                <div class="ios-step"><span class="ios-num">2</span> Desplázate y presiona <strong>"Agregar a pantalla de inicio"</strong> <span class="ios-icon">➕</span>.</div>
-                <div class="ios-step"><span class="ios-num">3</span> ¡Ábrelo desde tu pantalla de inicio y a combatir!</div>
+                <div class="ios-step"><span class="ios-num">1</span> Toca el botón <strong>Compartir</strong> <span class="ios-icon">⬆️</span> en Safari.</div>
+                <div class="ios-step"><span class="ios-num">2</span> Elige <strong>"Agregar a pantalla de inicio"</strong> <span class="ios-icon">➕</span>.</div>
+                <div class="ios-step"><span class="ios-num">3</span> ¡Ábrelo desde tu pantalla de inicio y diviértete!</div>
             </div>
 
             <div class="pwa-actions">
@@ -431,6 +741,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=8.0"></script>
+    <script type="module" src="js/main.js?v=9.0"></script>
 </body>
 </html>

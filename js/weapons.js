@@ -6,8 +6,8 @@ export const WEAPONS = {
         id: 'bokken',
         name: 'Espada de Madera (Bokken)',
         cost: 0,
-        damage: 16,
-        attackSpeed: 0.26,
+        damage: 18,
+        attackSpeed: 0.24,
         range: 2.2,
         type: 'melee',
         element: 'wood',
@@ -15,6 +15,20 @@ export const WEAPONS = {
         icon: '🪵',
         color: 0xc8963e,
         glowColor: null
+    },
+    machete_dorado: {
+        id: 'machete_dorado',
+        name: 'Machete de Oro Cafetero',
+        cost: 120,
+        damage: 34,
+        attackSpeed: 0.22,
+        range: 2.6,
+        type: 'melee',
+        element: 'gold',
+        desc: '¡Tradicional machete forjado con oro de las cordilleras! Tajo amplio y veloz.',
+        icon: '🗡️',
+        color: 0xfacc15,
+        glowColor: 0xfbbf24
     },
     steel_katana: {
         id: 'steel_katana',
@@ -32,17 +46,17 @@ export const WEAPONS = {
     },
     shurikens: {
         id: 'shurikens',
-        name: 'Estrellas Ninja (Shurikens)',
+        name: 'Shurikens Flor de Orquídea',
         cost: 150,
-        damage: 24,
-        attackSpeed: 0.32,
-        range: 22.0,
+        damage: 26,
+        attackSpeed: 0.30,
+        range: 24.0,
         type: 'ranged',
         element: 'ninja',
-        desc: '¡Lanza estrellas afiladas a larga distancia contra los enemigos!',
-        icon: '⭐',
-        color: 0x4a5568,
-        glowColor: 0x81e6d9
+        desc: '¡Lanza estrellas afiladas con pétalos de orquídea a larga distancia!',
+        icon: '🌸',
+        color: 0xec4899,
+        glowColor: 0xf472b6
     },
     fire_katana: {
         id: 'fire_katana',

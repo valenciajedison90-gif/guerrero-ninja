@@ -1,20 +1,29 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=7.0';
-import { storage } from './storage.js?v=7.0';
-import { WEAPONS } from './weapons.js?v=7.0';
-import { ParticleSystem } from './particles.js?v=7.0';
-import { World, MAPS_CONFIG } from './world.js?v=7.0';
-import { Player } from './player.js?v=7.0';
-import { EnemyManager } from './enemies.js?v=7.0';
-import { MultiplayerManager } from './multiplayer.js?v=7.0';
-import { TouchControlsManager } from './touch.js?v=7.0';
+import { sounds } from './sound.js?v=9.0';
+import { storage } from './storage.js?v=9.0';
+import { WEAPONS } from './weapons.js?v=9.0';
+import { ParticleSystem } from './particles.js?v=9.0';
+import { World, MAPS_CONFIG } from './world.js?v=9.0';
+import { Player } from './player.js?v=9.0';
+import { EnemyManager } from './enemies.js?v=9.0';
+import { MultiplayerManager } from './multiplayer.js?v=9.0';
+import { TouchControlsManager } from './touch.js?v=9.0';
+import { CHARACTERS_DATA } from './characters.js?v=9.0';
 
 class Game {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
         this.clock = new THREE.Clock();
         this.portalVictoryTriggered = false;
+
+        // Estado del juego: Inicia en el Menú Principal (experiencia comercial)
+        this.state = 'MENU'; // 'MENU' | 'PLAYING'
+        this.alivePlayers = 50;
+        this.killCount = 0;
+        this.safeZoneRadius = 75;
+        this.battleRoyaleTimer = 0;
+        this.menuOrbitAngle = 0;
 
         // 1. Inicializar Three.js con antialiasing y nitidez HD
         this.setupRenderer();
@@ -27,12 +36,17 @@ class Game {
         this.enemyManager = new EnemyManager(this.scene, this.particles);
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
 
-        // Controles táctiles móviles estilo Free Fire con botón de giro
+        // Controles táctiles móviles estilo Free Fire con botón de giro y habilidad
         this.touchControls = new TouchControlsManager(this.player, this);
+
+        // Minimapa Radar Canvas
+        this.minimapCanvas = document.getElementById('minimap-canvas');
+        this.minimapCtx = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
 
         // Conectar eventos de combate del jugador
         this.player.onAttackCallback = (weaponId, combo, target) => this.handlePlayerAttack(weaponId, combo, target);
         this.player.onSpinAttackCallback = () => this.handlePlayerSpinAttack();
+        this.player.onSpecialSkillCallback = (charId, skill) => this.handleSpecialSkillVisuals(charId, skill);
 
         // Conectar proveedor de objetivos para Auto-Apuntado Asistido (Soft Aim Assist)
         this.player.setTargetsProvider(() => {
@@ -66,10 +80,14 @@ class Game {
         this.screenShakeDuration = 0;
         this.damagePopups = [];
 
-        // 3. Inicializar Interfaz de Usuario y Misiones
+        // 3. Inicializar Interfaz de Usuario, Menú y Misiones
         this.setupUI();
         this.updateHUD();
         this.updateMissionHUD();
+        this.updateHeroShowcaseCard();
+        this.renderCharactersGrid();
+        this.renderNinjaPass();
+        this.renderSkinsGrid();
 
         // 4. Iniciar bucle de animación
         this.animate = this.animate.bind(this);
@@ -345,6 +363,22 @@ class Game {
         } else if (enemy.type !== 'dummy') {
             storage.recordMissionEnemy(this.world.currentMapId);
         }
+
+        // Estadísticas de Battle Royale
+        if (enemy.type !== 'dummy') {
+            this.killCount++;
+            const killEl = document.getElementById('br-kill-count');
+            if (killEl) killEl.textContent = this.killCount;
+
+            this.alivePlayers = Math.max(1, this.alivePlayers - 1);
+            const aliveEl = document.getElementById('br-alive-count');
+            if (aliveEl) aliveEl.textContent = this.alivePlayers;
+
+            if (this.alivePlayers === 1) {
+                this.showBanner('¡BOOYAH! 🏆', '¡Eres el Campeón Supremo de Ninja Colombia Arena!');
+                sounds.playVictoryFanfare();
+            }
+        }
         this.updateMissionHUD();
 
         // Añadir XP y comprobar nivel
@@ -398,47 +432,57 @@ class Game {
     // =========================================================================
     updateMissionHUD() {
         const worldId = this.world.currentMapId;
-        const cfg = MAPS_CONFIG[worldId];
+        const cfg = MAPS_CONFIG[worldId] || MAPS_CONFIG.selva;
         const prog = storage.getWorldProgress(worldId);
 
         const titleEl = document.getElementById('hud-world-name');
         if (titleEl) {
-            titleEl.textContent = cfg.badge + ' - ' + cfg.name.toUpperCase();
+            titleEl.textContent = (cfg.badge || '🌿') + ' - ' + cfg.name.toUpperCase();
         }
 
         const tasksList = document.getElementById('mission-tasks-list');
         if (tasksList) {
             tasksList.innerHTML = '';
 
-            if (worldId === 'forest') {
+            if (worldId === 'selva' || worldId === 'forest') {
                 const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
                 const gDone = prog.gemsCollected >= prog.gemsTarget;
                 const cDone = prog.cratesBroken >= prog.cratesTarget;
 
                 tasksList.innerHTML = `
-                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">⚔️</span> <span>Ninjas: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Gemas Sagradas: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${cDone ? 'done' : ''}"><span class="m-icon">📦</span> <span>Cajas del Dojo: ${prog.cratesBroken}/${prog.cratesTarget}</span> <span>${cDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">🐾</span> <span>Furtivos de la Selva: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Cristales Biodiversidad: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${cDone ? 'done' : ''}"><span class="m-icon">📦</span> <span>Cajas Sorpresa ?: ${prog.cratesBroken}/${prog.cratesTarget}</span> <span>${cDone ? '✅' : '⏳'}</span></div>
                 `;
-            } else if (worldId === 'volcano') {
+            } else if (worldId === 'eje_cafetero' || worldId === 'volcano') {
                 const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
                 const gDone = prog.gemsCollected >= prog.gemsTarget;
                 const tDone = prog.totemsDestroyed >= prog.totemsTarget;
 
                 tasksList.innerHTML = `
-                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">⚔️</span> <span>Ninjas de Fuego: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Reliquias Magma: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${tDone ? 'done' : ''}"><span class="m-icon">🌋</span> <span>Tótems Destruidos: ${prog.totemsDestroyed}/${prog.totemsTarget}</span> <span>${tDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">☕</span> <span>Cazadores Cafeteros: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">🍒</span> <span>Granos de Café Oro: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${tDone ? 'done' : ''}"><span class="m-icon">🌋</span> <span>Tótems de Fuego: ${prog.totemsDestroyed}/${prog.totemsTarget}</span> <span>${tDone ? '✅' : '⏳'}</span></div>
                 `;
-            } else if (worldId === 'snow') {
+            } else if (worldId === 'paramo' || worldId === 'snow') {
                 const gDone = prog.gemsCollected >= prog.gemsTarget;
                 const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
                 const bDone = prog.bossDefeated;
 
                 tasksList.innerHTML = `
-                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Zafiros Glaciales: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">⚔️</span> <span>Ninjas Escarcha: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${bDone ? 'done' : ''}"><span class="m-icon">👹</span> <span>Gran Jefe Samurái: ${bDone ? 'Derrotado' : 'Pendiente'}</span> <span>${bDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">❄️</span> <span>Cristales del Páramo: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">🌫️</span> <span>Esbirros Glaciales: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${bDone ? 'done' : ''}"><span class="m-icon">🐆</span> <span>El Invernal (Villano): ${bDone ? 'Derrotado' : 'Acechando'}</span> <span>${bDone ? '✅' : '⏳'}</span></div>
+                `;
+            } else if (worldId === 'caribe') {
+                const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
+                const gDone = prog.gemsCollected >= prog.gemsTarget;
+                const bDone = prog.bossDefeated;
+
+                tasksList.innerHTML = `
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">🌊</span> <span>Corsarios del Caribe: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Perlas del Océano: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${bDone ? 'done' : ''}"><span class="m-icon">🏰</span> <span>Batalla en la Fortaleza: ${bDone ? 'Liberada' : 'Pendiente'}</span> <span>${bDone ? '✅' : '⏳'}</span></div>
                 `;
             }
         }
@@ -452,7 +496,7 @@ class Game {
             if (!this.world.portal || !this.world.portal.isActive) {
                 this.world.activatePortal();
                 sounds.playPortalActivate();
-                this.showBanner('¡PORTAL MÍSTICO ACTIVADO! ⛩️', '¡Cruza el portal para completar el mundo!');
+                this.showBanner('¡PORTAL ANCESTRAL ABIERTO! ⛩️', '¡Cruza el portal para liberar esta región!');
             }
             if (pill) pill.classList.add('unlocked');
             if (text) text.textContent = '⚡ ¡PORTAL ABIERTO! CRUZA AQUÍ';
@@ -467,18 +511,36 @@ class Game {
         this.portalVictoryTriggered = true;
 
         const currentWorld = this.world.currentMapId;
-        const cfg = MAPS_CONFIG[currentWorld];
+        const cfg = MAPS_CONFIG[currentWorld] || MAPS_CONFIG.selva;
 
         // Guardar progreso y recompensas
         storage.completeWorld(currentWorld);
-        storage.addCoins(100);
-        storage.addXP(150);
+        storage.addCoins(150);
+        storage.addGems(25);
+        storage.addXP(200);
         sounds.playVictoryFanfare();
 
         // Mostrar Modal de Victoria
         const modal = document.getElementById('level-clear-modal');
         const titleEl = document.getElementById('victory-world-title');
         const nextBtn = document.getElementById('btn-next-world');
+
+        if (titleEl) titleEl.textContent = cfg.name.toUpperCase();
+        if (nextBtn) {
+            if (currentWorld === 'selva' || currentWorld === 'forest') {
+                nextBtn.textContent = 'CONTINUAR AL EJE CAFETERO ➔';
+            } else if (currentWorld === 'eje_cafetero' || currentWorld === 'volcano') {
+                nextBtn.textContent = 'CONTINUAR AL PÁRAMO ANDINO ➔';
+            } else if (currentWorld === 'paramo' || currentWorld === 'snow') {
+                nextBtn.textContent = 'CONTINUAR AL CARIBE COLOMBIANO ➔';
+            } else {
+                nextBtn.textContent = '¡VICTORIA TOTAL! REPETIR ARENA 🏆';
+            }
+        }
+
+        if (modal) modal.classList.add('open');
+        this.updateHUD();
+    }
 
         if (titleEl) titleEl.textContent = cfg.name.toUpperCase();
         if (nextBtn) {
@@ -733,6 +795,146 @@ class Game {
         this.multiplayer.onPlayerJoined = (players) => {
             this.updateLobbyPlayersList(players);
         };
+
+        // =====================================================================
+        // CONTROLES DEL MENÚ PRINCIPAL PROFESIONAL (ESTILO REFERENCIA PITCH)
+        // =====================================================================
+        const btnPlay = document.getElementById('btn-menu-play');
+        if (btnPlay) btnPlay.addEventListener('click', () => this.startGame());
+
+        const btnReturnMenu = document.getElementById('btn-return-menu');
+        if (btnReturnMenu) btnReturnMenu.addEventListener('click', () => this.returnToMenu());
+
+        // Modal Personajes
+        const btnChars = document.getElementById('btn-menu-characters');
+        const charsModal = document.getElementById('characters-modal');
+        const btnCloseChars = document.getElementById('btn-close-characters');
+        if (btnChars && charsModal) {
+            btnChars.addEventListener('click', () => {
+                this.renderCharactersGrid();
+                charsModal.classList.add('open');
+            });
+        }
+        if (btnCloseChars && charsModal) {
+            btnCloseChars.addEventListener('click', () => charsModal.classList.remove('open'));
+        }
+
+        // Modal Skins
+        const btnSkins = document.getElementById('btn-menu-skins');
+        const skinsModal = document.getElementById('skins-modal');
+        const btnCloseSkins = document.getElementById('btn-close-skins');
+        if (btnSkins && skinsModal) {
+            btnSkins.addEventListener('click', () => {
+                this.renderSkinsGrid();
+                skinsModal.classList.add('open');
+            });
+        }
+        if (btnCloseSkins && skinsModal) {
+            btnCloseSkins.addEventListener('click', () => skinsModal.classList.remove('open'));
+        }
+
+        // Modal Pase Ninja
+        const btnPass = document.getElementById('btn-menu-pass');
+        const passModal = document.getElementById('ninja-pass-modal');
+        const btnClosePass = document.getElementById('btn-close-pass');
+        if (btnPass && passModal) {
+            btnPass.addEventListener('click', () => {
+                this.renderNinjaPass();
+                passModal.classList.add('open');
+            });
+        }
+        if (btnClosePass && passModal) {
+            btnClosePass.addEventListener('click', () => passModal.classList.remove('open'));
+        }
+
+        // Botón Tienda desde el Menú Principal
+        const btnMenuShop = document.getElementById('btn-menu-shop');
+        if (btnMenuShop) btnMenuShop.addEventListener('click', () => this.toggleShop());
+
+        // Modal Ajustes
+        const btnSettings = document.getElementById('btn-menu-settings');
+        const settingsModal = document.getElementById('settings-modal');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        if (btnSettings && settingsModal) {
+            btnSettings.addEventListener('click', () => settingsModal.classList.add('open'));
+        }
+        if (btnCloseSettings && settingsModal) {
+            btnCloseSettings.addEventListener('click', () => settingsModal.classList.remove('open'));
+        }
+
+        // Modal Selector de Modo
+        const btnMenuMode = document.getElementById('btn-menu-mode');
+        const modesModal = document.getElementById('modes-modal');
+        const btnCloseModes = document.getElementById('btn-close-modes');
+        if (btnMenuMode && modesModal) {
+            btnMenuMode.addEventListener('click', () => modesModal.classList.add('open'));
+        }
+        if (btnCloseModes && modesModal) {
+            btnCloseModes.addEventListener('click', () => modesModal.classList.remove('open'));
+        }
+
+        // Recargar Gemas
+        const btnAddGems = document.getElementById('btn-add-gems');
+        if (btnAddGems) {
+            btnAddGems.addEventListener('click', () => {
+                storage.addGems(50);
+                sounds.playGemCollect();
+                this.updateHUD();
+                this.updateHeroShowcaseCard();
+                this.showBanner('¡GEMAS RECARGADAS! 💎', '+50 Gemas de la Biodiversidad');
+            });
+        }
+
+        // Alternar Sonido desde el Menú
+        const btnQuickSound = document.getElementById('btn-quick-sound');
+        if (btnQuickSound) {
+            btnQuickSound.addEventListener('click', () => {
+                sounds.enabled = !sounds.enabled;
+                btnQuickSound.textContent = sounds.enabled ? '🔊' : '🔇';
+                const sIcon = document.getElementById('sound-icon');
+                if (sIcon) sIcon.textContent = sounds.enabled ? '🔊' : '🔇';
+            });
+        }
+
+        // Selección de Modos de Juego
+        const modeCards = document.querySelectorAll('.mode-select-card');
+        modeCards.forEach(mc => {
+            mc.addEventListener('click', () => {
+                const modeId = mc.getAttribute('data-mode');
+                modeCards.forEach(c => c.classList.remove('active'));
+                mc.classList.add('active');
+                storage.setSelectedMode(modeId);
+
+                const titles = {
+                    battle_royale: 'BATTLE ROYALE (50 JUGADORES)',
+                    adventure: 'AVENTURA NINJA (CAMPAÑA)',
+                    squads: 'EQUIPOS (4 VS 4)',
+                    events: 'EVENTO: FESTIVAL BIODIVERSIDAD'
+                };
+                const tEl = document.getElementById('menu-mode-title');
+                if (tEl) tEl.textContent = titles[modeId] || modeId;
+
+                sounds.playSlash('light');
+                this.showBanner('MODO CAMBIADO 🎮', titles[modeId] || modeId);
+                if (modesModal) modesModal.classList.remove('open');
+            });
+        });
+
+        // Botones de Ajustes
+        const toggleBtnSetting = (id, labelOn, labelOff) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    const isActive = btn.classList.toggle('active');
+                    btn.textContent = isActive ? labelOn : labelOff;
+                    sounds.playSlash('wood');
+                });
+            }
+        };
+        toggleBtnSetting('btn-toggle-sfx', 'ACTIVADO', 'SILENCIADO');
+        toggleBtnSetting('btn-toggle-music', 'ACTIVADA', 'DESACTIVADA');
+        toggleBtnSetting('btn-toggle-touch-setting', 'AUTO', 'FORZADO');
+        toggleBtnSetting('btn-toggle-graphics', 'ALTA (60 FPS)', 'BATERÍA (30 FPS)');
     }
 
     updateLobbyPlayersList(players) {
@@ -1061,10 +1263,325 @@ class Game {
         this.renderer.setPixelRatio(Math.min(dpr, 2.0));
     }
 
+    startGame() {
+        this.state = 'PLAYING';
+        sounds.playGameStart();
+        const menu = document.getElementById('main-menu-overlay');
+        if (menu) menu.classList.add('menu-hidden');
+
+        const hud = document.getElementById('hud-container');
+        if (hud) {
+            hud.style.opacity = '1';
+            hud.style.pointerEvents = 'auto';
+        }
+
+        const tc = document.getElementById('mobile-touch-controls');
+        if (tc && (this.isMobile || window.innerWidth <= 900)) {
+            tc.style.display = 'block';
+            document.body.classList.add('touch-enabled', 'touch-active');
+        }
+
+        this.player.mesh.position.set(0, 1.2, 0);
+        this.player.velocity.set(0, 0, 0);
+        this.showBanner('¡NINJA COLOMBIA ARENA!', '¡A luchar con honor y proteger la biodiversidad!');
+    }
+
+    returnToMenu() {
+        this.state = 'MENU';
+        const menu = document.getElementById('main-menu-overlay');
+        if (menu) menu.classList.remove('menu-hidden');
+
+        const hud = document.getElementById('hud-container');
+        if (hud) {
+            hud.style.opacity = '0';
+            hud.style.pointerEvents = 'none';
+        }
+
+        const tc = document.getElementById('mobile-touch-controls');
+        if (tc) tc.style.display = 'none';
+
+        this.player.mesh.position.set(0, 0, 0);
+        this.updateHeroShowcaseCard();
+    }
+
+    updateHeroShowcaseCard() {
+        const charId = storage.getSelectedCharacter() || 'chucho';
+        const char = CHARACTERS_DATA[charId] || CHARACTERS_DATA.chucho;
+
+        const roleEl = document.getElementById('menu-hero-role');
+        const nameEl = document.getElementById('menu-hero-name');
+        const skillEl = document.getElementById('menu-hero-skill');
+        const avatarEl = document.getElementById('menu-avatar-badge');
+        const hudAvatar = document.getElementById('hud-mini-avatar');
+        const hudPlayerName = document.getElementById('hud-player-name');
+        const touchSkillIcon = document.getElementById('touch-skill-icon');
+
+        if (roleEl) roleEl.textContent = `${char.animal.toUpperCase()} • ${char.archetype.toUpperCase()}`;
+        if (nameEl) nameEl.textContent = char.name.toUpperCase();
+        if (skillEl) skillEl.innerHTML = `<span class="skill-tag">HABILIDAD ESPECIAL</span> <span class="skill-name">💥 ${char.skillName}</span>`;
+        if (avatarEl) avatarEl.textContent = char.avatar;
+        if (hudAvatar) hudAvatar.textContent = char.avatar;
+        if (hudPlayerName) hudPlayerName.textContent = char.name;
+
+        if (touchSkillIcon) {
+            const icons = { chucho: '💥', yari: '⚡', guaca: '🪶', capibu: '🛡️', ranaik: '🐸' };
+            touchSkillIcon.textContent = icons[charId] || '✨';
+        }
+
+        const spd = document.getElementById('bar-hero-speed');
+        const def = document.getElementById('bar-hero-defense');
+        const jmp = document.getElementById('bar-hero-jump');
+        if (spd) spd.style.width = `${char.stats.speed}%`;
+        if (def) def.style.width = `${char.stats.defense}%`;
+        if (jmp) jmp.style.width = `${char.stats.jump}%`;
+
+        // Monedas y Gemas en Menú
+        const mCoins = document.getElementById('menu-coin-count');
+        const mGems = document.getElementById('menu-gem-count');
+        if (mCoins) mCoins.textContent = storage.data.coins.toLocaleString();
+        if (mGems) mGems.textContent = (storage.data.gems || 150).toLocaleString();
+    }
+
+    renderCharactersGrid() {
+        const grid = document.getElementById('characters-grid-container');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const selectedId = storage.getSelectedCharacter();
+
+        Object.values(CHARACTERS_DATA).forEach(char => {
+            if (char.id === 'el_invernal') return;
+
+            const isSelected = char.id === selectedId;
+            const card = document.createElement('div');
+            card.className = `animal-char-card ${isSelected ? 'selected' : ''}`;
+            card.innerHTML = `
+                <div class="animal-card-avatar">${char.avatar}</div>
+                <div class="animal-card-name">${char.name}</div>
+                <div class="animal-card-role">${char.animal} • ${char.archetype}</div>
+                <div class="animal-card-skill-desc">⚡ <strong>${char.skillName}:</strong> ${char.skillDesc}</div>
+                <div class="animal-stats-bars">
+                    <div class="char-stat-row"><span>Velocidad</span> <div class="char-stat-track"><div style="width: ${char.stats.speed}%;"></div></div></div>
+                    <div class="char-stat-row"><span>Defensa</span> <div class="char-stat-track"><div style="width: ${char.stats.defense}%;"></div></div></div>
+                    <div class="char-stat-row"><span>Salto</span> <div class="char-stat-track"><div style="width: ${char.stats.jump}%;"></div></div></div>
+                </div>
+                <button class="btn-select-char" data-char="${char.id}">${isSelected ? '✓ SELECCIONADO' : 'SELECCIONAR'}</button>
+            `;
+
+            card.addEventListener('click', () => {
+                storage.setSelectedCharacter(char.id);
+                this.player.switchCharacter(char.id);
+                sounds.playSlash('heavy');
+                this.updateHeroShowcaseCard();
+                this.renderCharactersGrid();
+                this.showBanner('¡HÉROE SELECCIONADO!', `${char.name} (${char.animal}) listo para el combate`);
+            });
+
+            grid.appendChild(card);
+        });
+    }
+
+    renderSkinsGrid() {
+        const grid = document.getElementById('skins-grid-container');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const skins = [
+            { id: 'chucho_guardian', name: 'Chucho Guardián del Páramo', hero: 'Chucho', icon: '🐻', cost: 'Desbloqueado', equipped: true },
+            { id: 'chucho_dorado', name: 'Chucho Armadura de Oro Quimbaya', hero: 'Chucho', icon: '✨', cost: '350 Gemas', equipped: false },
+            { id: 'yari_rayo', name: 'Yarí Ciber-Tigrillo Neón', hero: 'Yarí', icon: '⚡', cost: '250 Gemas', equipped: false },
+            { id: 'guaca_carnaval', name: 'Guaca Plumas del Carnaval', hero: 'Guaca', icon: '🎭', cost: 'Pase Nivel 5', equipped: false },
+            { id: 'capibu_cafetero', name: 'Capibú Poncho y Sombrero Vueltiao', hero: 'Capibú', icon: '🤠', cost: '180 Gemas', equipped: false },
+            { id: 'ranaik_esmeralda', name: 'Ranaik Guerrero Esmeralda', hero: 'Ranaik', icon: '💚', cost: 'Pase Nivel 10', equipped: false },
+        ];
+
+        skins.forEach(s => {
+            const card = document.createElement('div');
+            card.className = `animal-char-card ${s.equipped ? 'selected' : ''}`;
+            card.innerHTML = `
+                <div class="animal-card-avatar">${s.icon}</div>
+                <div class="animal-card-name">${s.name}</div>
+                <div class="animal-card-role">Héroe: ${s.hero}</div>
+                <div class="animal-card-skill-desc" style="min-height: 24px;">Atuendo con efectos visuales y estelas personalizadas.</div>
+                <button class="btn-select-char">${s.equipped ? '✓ EQUIPADA' : s.cost}</button>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    renderNinjaPass() {
+        const track = document.getElementById('pass-tiers-track');
+        if (!track) return;
+        track.innerHTML = '';
+
+        const tiers = [
+            { level: 1, name: '200 Monedas 🪙', icon: '🪙', unlocked: true },
+            { level: 2, name: '30 Gemas 💎', icon: '💎', unlocked: true },
+            { level: 3, name: 'Machete Dorado 🗡️', icon: '🗡️', unlocked: true },
+            { level: 4, name: '50 Gemas 💎', icon: '💎', unlocked: false },
+            { level: 5, name: 'Skin Guaca Carnaval 🎭', icon: '🦜', unlocked: false },
+            { level: 6, name: '500 Monedas 🪙', icon: '🪙', unlocked: false },
+            { level: 7, name: 'Shurikens Orquídea 🌸', icon: '🌸', unlocked: false },
+            { level: 8, name: 'Skin Ranaik Esmeralda 🐸', icon: '👑', unlocked: false },
+        ];
+
+        tiers.forEach(t => {
+            const card = document.createElement('div');
+            card.className = `pass-tier-card ${t.unlocked ? 'unlocked' : ''}`;
+            card.innerHTML = `
+                <div class="pass-tier-num">NIVEL ${t.level}</div>
+                <div class="pass-tier-icon">${t.icon}</div>
+                <div class="pass-tier-name">${t.name}</div>
+                <span class="pass-tier-badge" style="background: ${t.unlocked ? '#10b981' : '#475569'};">${t.unlocked ? '✓ RECLAMADO' : 'BLOQUEADO'}</span>
+            `;
+            track.appendChild(card);
+        });
+    }
+
+    handleSpecialSkillVisuals(characterId, skill) {
+        sounds.playSpecialSkill(characterId);
+        const playerPos = this.player.mesh.position.clone();
+
+        if (characterId === 'chucho') {
+            this.triggerScreenShake(0.35, 0.25);
+            this.particles.createShockwave(playerPos, 0xf59e0b, 10);
+            this.enemyManager.enemies.forEach(e => {
+                const dist = playerPos.distanceTo(e.mesh.position);
+                if (dist < 10) {
+                    const pushDir = new THREE.Vector3().subVectors(e.mesh.position, playerPos).normalize();
+                    e.mesh.position.addScaledVector(pushDir, 5.0);
+                    this.enemyManager.damageEnemy(e, 35, true, pushDir, (def) => this.handleEnemyDefeated(def));
+                }
+            });
+            this.showBanner('¡RUGIDO ANDINO! 💥', '¡Onda sísmica derriba y aleja a los enemigos!');
+        } else if (characterId === 'yari') {
+            this.particles.createShockwave(playerPos, 0x06b6d4, 6);
+            this.showBanner('¡CARRERA DEL TRUENO! ⚡', '¡Velocidad extrema y agilidad felina activadas!');
+        } else if (characterId === 'guaca') {
+            this.particles.createShockwave(playerPos, 0xec4899, 7);
+            this.showBanner('¡PLANEO TROPICAL! 🪶', '¡Vuelo suave sobre los obstáculos y enemigos!');
+        } else if (characterId === 'capibu') {
+            this.particles.createShockwave(playerPos, 0xb45309, 5);
+            this.showBanner('¡ARMADURA DE LODO! 🛡️', '¡Resistencia reforzada: 60% menos daño!');
+        } else if (characterId === 'ranaik') {
+            this.particles.createShockwave(playerPos, 0x10b981, 6);
+            this.showBanner('¡SALTO ELÁSTICO! 🐸', '¡Súper salto acrobático sagrado!');
+        }
+    }
+
+    updateMinimap() {
+        if (!this.minimapCtx || !this.player || !this.player.mesh) return;
+        const ctx = this.minimapCtx;
+        const w = 120;
+        const h = 120;
+        const cx = w / 2;
+        const cy = h / 2;
+        const scale = 1.25;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const pPos = this.player.mesh.position;
+
+        // Círculo de Zona Segura (Tormenta Battle Royale)
+        ctx.save();
+        ctx.beginPath();
+        const safeR = (this.safeZoneRadius || 50) * scale;
+        const safeCenterX = cx + (0 - pPos.x) * scale;
+        const safeCenterY = cy + (0 - pPos.z) * scale;
+        ctx.arc(safeCenterX, safeCenterY, Math.max(10, safeR), 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.restore();
+
+        // Cajas Sorpresa en el radar (puntos dorados)
+        if (this.world && this.world.crates) {
+            ctx.fillStyle = '#f59e0b';
+            this.world.crates.forEach(c => {
+                if (c.isBroken) return;
+                const dx = (c.mesh.position.x - pPos.x) * scale;
+                const dy = (c.mesh.position.z - pPos.z) * scale;
+                if (Math.hypot(dx, dy) < 55) {
+                    ctx.beginPath();
+                    ctx.arc(cx + dx, cy + dy, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Enemigos en el radar (puntos rojos)
+        if (this.enemyManager && this.enemyManager.enemies) {
+            this.enemyManager.enemies.forEach(e => {
+                if (e.health <= 0) return;
+                const dx = (e.mesh.position.x - pPos.x) * scale;
+                const dy = (e.mesh.position.z - pPos.z) * scale;
+                if (Math.hypot(dx, dy) < 55) {
+                    ctx.fillStyle = e.type === 'boss' ? '#ec4899' : '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(cx + dx, cy + dy, e.type === 'boss' ? 4 : 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Jugador en el centro (punto verde brillante)
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Flecha de orientación del jugador
+        const arrowEl = document.getElementById('minimap-player-arrow');
+        if (arrowEl) {
+            const rotY = this.player.mesh.rotation.y;
+            arrowEl.style.transform = `translate(-50%, -50%) rotate(${-rotY}rad)`;
+        }
+    }
+
     animate() {
         requestAnimationFrame(this.animate);
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
+
+        // Si está en el Menú Principal, rotar cámara alrededor del héroe 3D
+        if (this.state === 'MENU') {
+            this.menuOrbitAngle += delta * 0.35;
+            const camDist = 5.2;
+            const camHeight = 1.8;
+            this.camera.position.set(
+                Math.sin(this.menuOrbitAngle) * camDist,
+                camHeight,
+                Math.cos(this.menuOrbitAngle) * camDist
+            );
+            this.camera.lookAt(0, 1.2, 0);
+
+            if (this.player && this.player.mesh) {
+                this.player.mesh.position.set(0, 0, 0);
+            }
+
+            this.world.update(delta);
+            this.renderer.render(this.scene, this.camera);
+            return;
+        }
+
+        // Simulación Battle Royale en partida
+        if (storage.getSelectedMode() === 'battle_royale') {
+            this.battleRoyaleTimer += delta;
+            if (this.battleRoyaleTimer > 15) {
+                this.battleRoyaleTimer = 0;
+                if (this.alivePlayers > 3) {
+                    this.alivePlayers = Math.max(3, this.alivePlayers - Math.floor(Math.random() * 3 + 1));
+                    const aliveEl = document.getElementById('br-alive-count');
+                    if (aliveEl) aliveEl.textContent = this.alivePlayers;
+                }
+                if (this.safeZoneRadius > 25) {
+                    this.safeZoneRadius -= 5;
+                    this.showBanner('¡LA ZONA SEGURA SE REDUCE! ⚠️', 'Permanece dentro del círculo azul');
+                }
+            }
+        }
+        this.updateMinimap();
 
         // 1. Actualizar jugador
         this.player.update(delta);

@@ -17,6 +17,7 @@ export class TouchControlsManager {
         this.btnSpin = document.getElementById('btn-touch-spin');
         this.btnJump = document.getElementById('btn-touch-jump');
         this.btnDash = document.getElementById('btn-touch-dash');
+        this.btnSkill = document.getElementById('btn-touch-skill');
         this.btnSwitch = document.getElementById('btn-touch-switch');
         this.weaponIconEl = document.getElementById('touch-weapon-icon');
 
@@ -328,6 +329,23 @@ export class TouchControlsManager {
 
             this.btnSwitch.addEventListener('touchstart', doSwitch, { passive: false });
             this.btnSwitch.addEventListener('mousedown', doSwitch);
+        }
+
+        // F) Botón de Habilidad Especial del Personaje Animal Colombiano (Rugido, Trueno, Planeo, Escudo, Salto)
+        if (this.btnSkill) {
+            const doSkill = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                vibrateShort();
+                this.btnSkill.classList.add('pressed');
+                if (this.player && this.player.activateSpecialSkill) {
+                    this.player.activateSpecialSkill();
+                }
+                setTimeout(() => this.btnSkill.classList.remove('pressed'), 200);
+            };
+
+            this.btnSkill.addEventListener('touchstart', doSkill, { passive: false });
+            this.btnSkill.addEventListener('mousedown', doSkill);
         }
     }
 

@@ -18,36 +18,46 @@ export class EnemyManager {
         }
     }
 
-    spawnInitialEnemies(worldId = 'forest') {
+    spawnInitialEnemies(worldId = 'selva') {
         this.clearEnemies();
 
         // 1. Muñeco de entrenamiento
         this.spawnDummy(new THREE.Vector3(0, 0, -9));
 
-        if (worldId === 'forest') {
-            // Mundo 1: Ninjas de las Sombras y Acróbatas
-            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0);
-            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1);
-            this.spawnShadowNinja(new THREE.Vector3(0, 0, -18), 2);
+        if (worldId === 'selva' || worldId === 'forest') {
+            // Selva Amazónica: Furtivos de la jungla y acróbatas
+            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0x14532d);
+            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0x14532d);
+            this.spawnShadowNinja(new THREE.Vector3(0, 0, -18), 2, 0x166534);
             this.spawnAcrobatNinja(new THREE.Vector3(-18, 0, -14), 3);
             this.spawnAcrobatNinja(new THREE.Vector3(18, 0, -14), 4);
-        } else if (worldId === 'volcano') {
-            // Mundo 2: Ninjas Ígneos de Fuego y Acróbatas
-            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0xff3b00);
-            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0xff3b00);
-            this.spawnShadowNinja(new THREE.Vector3(-18, 0, -12), 2, 0xff3b00);
-            this.spawnShadowNinja(new THREE.Vector3(18, 0, -12), 3, 0xff3b00);
+        } else if (worldId === 'eje_cafetero' || worldId === 'volcano') {
+            // Eje Cafetero: Cazadores y acróbatas con colores café/ámbar
+            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0xb45309);
+            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0xb45309);
+            this.spawnShadowNinja(new THREE.Vector3(-18, 0, -12), 2, 0xd97706);
+            this.spawnShadowNinja(new THREE.Vector3(18, 0, -12), 3, 0xd97706);
             this.spawnAcrobatNinja(new THREE.Vector3(-8, 0, 20), 4);
             this.spawnAcrobatNinja(new THREE.Vector3(8, 0, 20), 5);
-        } else if (worldId === 'snow') {
-            // Mundo 3: Guerreros Glaciales y el Gran Jefe Samurái Warlord
+        } else if (worldId === 'paramo' || worldId === 'snow') {
+            // Páramo Andino: Esbirros Glaciales de la Niebla y El Invernal
             this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0x38bdf8);
             this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0x38bdf8);
-            this.spawnShadowNinja(new THREE.Vector3(-16, 0, -12), 2, 0x38bdf8);
-            this.spawnShadowNinja(new THREE.Vector3(16, 0, -12), 3, 0x38bdf8);
+            this.spawnShadowNinja(new THREE.Vector3(-16, 0, -12), 2, 0x6366f1);
+            this.spawnShadowNinja(new THREE.Vector3(16, 0, -12), 3, 0x6366f1);
             this.spawnAcrobatNinja(new THREE.Vector3(-8, 0, 18), 4);
             this.spawnAcrobatNinja(new THREE.Vector3(8, 0, 18), 5);
-            // Gran Jefe en el templo
+            // El Invernal acechando en el santuario del Páramo
+            this.spawnBoss(new THREE.Vector3(0, 0, -22));
+        } else if (worldId === 'caribe') {
+            // Caribe Colombiano: Corsarios y el Gran Jefe El Invernal en la fortaleza
+            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0x0284c7);
+            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0x0284c7);
+            this.spawnShadowNinja(new THREE.Vector3(-16, 0, -12), 2, 0x0f766e);
+            this.spawnShadowNinja(new THREE.Vector3(16, 0, -12), 3, 0x0f766e);
+            this.spawnAcrobatNinja(new THREE.Vector3(-8, 0, 18), 4);
+            this.spawnAcrobatNinja(new THREE.Vector3(8, 0, 18), 5);
+            // El Invernal acechando la fortaleza del Caribe
             this.spawnBoss(new THREE.Vector3(0, 0, -22));
         }
     }
@@ -435,17 +445,19 @@ export class EnemyManager {
     }
 
     // =========================================================================
-    // 4. GRAN JEFE SAMURÁI WARLORD (MUNDO 3)
+    // 4. VILLANO PRINCIPAL: EL INVERNAL (TRAFICANTE DE BIODIVERSIDAD)
     // =========================================================================
     spawnBoss(pos) {
         const group = new THREE.Group();
         group.position.copy(pos);
         group.scale.set(1.45, 1.45, 1.45);
 
-        const armorMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, metalness: 0.7, roughness: 0.25 });
-        const darkArmorMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.3 });
+        // Estética ciber-villano felino morado oscuro con energía magenta/violeta
+        const armorMat = new THREE.MeshStandardMaterial({ color: 0x3b0764, metalness: 0.8, roughness: 0.25 });
+        const darkArmorMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.85, roughness: 0.2 });
         const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.15 });
-        const bladeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95, roughness: 0.1 });
+        const energyMat = new THREE.MeshStandardMaterial({ color: 0xd946ef, emissive: 0xa855f7, emissiveIntensity: 0.6, metalness: 0.8, roughness: 0.1 });
+        const maskMat = new THREE.MeshStandardMaterial({ color: 0x581c87, roughness: 0.3 });
 
         const torsoGroup = new THREE.Group();
         torsoGroup.position.y = 1.45;
@@ -456,7 +468,12 @@ export class EnemyManager {
         cuirass.castShadow = true;
         torsoGroup.add(cuirass);
 
-        // Casco Kabuto tradicional con cresta dorada
+        // Cinturón dorado
+        const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 0.12, 20), goldMat);
+        belt.position.y = -0.16;
+        torsoGroup.add(belt);
+
+        // Cabeza con máscara felina y cuernos de cristal de energía
         const headGroup = new THREE.Group();
         headGroup.position.y = 0.82;
         torsoGroup.add(headGroup);
@@ -465,24 +482,31 @@ export class EnemyManager {
         kabutoDome.scale.set(1.05, 1.0, 1.15);
         headGroup.add(kabutoDome);
 
-        const crescentHornL = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 8), goldMat);
+        // Menpo felino
+        const menpo = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.32, 12), maskMat);
+        menpo.rotation.x = Math.PI;
+        menpo.position.set(0, -0.06, 0.28);
+        headGroup.add(menpo);
+
+        // Cuernos cristalinos de energía morada
+        const crescentHornL = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 8), energyMat);
         crescentHornL.position.set(-0.25, 0.5, 0.18);
         crescentHornL.rotation.z = 0.5;
         headGroup.add(crescentHornL);
 
-        const crescentHornR = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 8), goldMat);
+        const crescentHornR = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 8), energyMat);
         crescentHornR.position.set(0.25, 0.5, 0.18);
         crescentHornR.rotation.z = -0.5;
         headGroup.add(crescentHornR);
 
-        // Ojos de fuego
+        // Ojos morados fulgurantes
         [-0.14, 0.14].forEach(eyeX => {
-            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0xd946ef }));
             eye.position.set(eyeX, 0.04, 0.38);
             headGroup.add(eye);
         });
 
-        // Brazo derecho con Nodachi de 2.4 metros
+        // Brazo derecho con Katana de Energía de la Selva
         const rightArmPivot = new THREE.Group();
         rightArmPivot.position.set(0.66, 0.42, 0);
         torsoGroup.add(rightArmPivot);
@@ -491,7 +515,7 @@ export class EnemyManager {
         rightElbowPivot.position.set(0, -0.45, 0);
         rightArmPivot.add(rightElbowPivot);
 
-        const nodachi = new THREE.Mesh(new THREE.BoxGeometry(0.09, 2.4, 0.04), bladeMat);
+        const nodachi = new THREE.Mesh(new THREE.BoxGeometry(0.09, 2.4, 0.04), energyMat);
         nodachi.position.set(0, 0.2, 0.6);
         nodachi.rotation.x = Math.PI / 3;
         rightElbowPivot.add(nodachi);
@@ -530,7 +554,7 @@ export class EnemyManager {
         const enemy = {
             mesh: group,
             type: 'boss',
-            name: 'Gran Samurái de las Sombras (JEFE)',
+            name: 'El Invernal (Traficante de Biodiversidad)',
             health: 280,
             maxHealth: 280,
             healthBar: healthBar,

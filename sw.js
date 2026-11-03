@@ -1,15 +1,16 @@
-// sw.js - Service Worker para Guerrero Ninja 3D (Soporte Offline e Instalación PWA)
-const CACHE_NAME = 'guerrero-ninja-v8.0';
+// sw.js - Service Worker para Ninja Colombia Arena (Soporte Offline e Instalación PWA)
+const CACHE_NAME = 'ninja-colombia-arena-v9.0';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=8.0',
+  './css/style.css?v=9.0',
   './lib/three.module.js',
   './lib/peerjs.min.js',
-  './js/main.js?v=8.0',
+  './js/main.js?v=9.0',
   './js/player.js',
+  './js/characters.js',
   './js/enemies.js',
   './js/world.js',
   './js/touch.js',
@@ -50,17 +51,21 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Red primero, con respaldo de caché
+  // Ignorar peticiones WebRTC / PeerJS de señalización
+  if (event.request.url.includes('peerjs') && event.request.url.includes('http')) {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
-      .then((response) => {
-        if (response && response.status === 200 && event.request.method === 'GET') {
-          const responseToCache = response.clone();
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+            cache.put(event.request, responseClone);
           });
         }
-        return response;
+        return networkResponse;
       })
       .catch(() => {
         return caches.match(event.request);

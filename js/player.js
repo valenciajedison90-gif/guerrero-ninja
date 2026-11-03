@@ -1,7 +1,9 @@
-// js/player.js - Controlador del Jugador, Cinemática Articular Natural y Ataque de Giro
+// js/player.js - Controlador del Jugador y Animales Ninja Colombianos
 import * as THREE from 'three';
 import { sounds } from './sound.js?v=6.0';
 import { WEAPONS } from './weapons.js?v=6.0';
+import { AnimalCharacterBuilder, CHARACTERS_DATA } from './characters.js';
+import { storage } from './storage.js';
 
 export class Player {
     constructor(scene, camera, domElement) {
@@ -9,9 +11,16 @@ export class Player {
         this.camera = camera;
         this.domElement = domElement;
 
-        // Atributos de combate
-        this.maxHealth = 100;
-        this.health = 100;
+        // Identidad del personaje animal colombiano
+        this.characterId = storage.getSelectedCharacter() || 'chucho';
+        const charData = CHARACTERS_DATA[this.characterId] || CHARACTERS_DATA.chucho;
+
+        // Atributos de combate dinámicos por animal
+        this.maxHealth = charData.stats.health;
+        this.health = this.maxHealth;
+        this.baseSpeed = charData.stats.speed;
+        this.jumpForce = charData.stats.jumpForce;
+
         this.attackCooldown = 0;
         this.attackCombo = 0;
         this.comboResetTimer = 0;
@@ -22,11 +31,17 @@ export class Player {
         this.spinCooldown = 0;
         this.onAttackCallback = null;
         this.onSpinAttackCallback = null;
+        this.onSpecialSkillCallback = null;
 
-        // Salto y Doble Salto (Estilo plataformas)
+        // Habilidad Especial Única
+        this.specialCooldownTimer = 0;
+        this.isGliding = false;
+        this.glideTimer = 0;
+        this.mudShieldTimer = 0;
+
+        // Salto y Doble Salto
         this.jumpCount = 0;
         this.maxJumps = 2;
-        this.jumpForce = 13.5;
         this.isGrounded = true;
 
         // Movimiento y física
@@ -66,11 +81,11 @@ export class Player {
 
         this.suitColor = 0x1e293b;
 
-        // Construir modelo humanoide anatómico ultra-suave
+        // Construir modelo 3D del animal colombiano seleccionado
         this.mesh = new THREE.Group();
         this.mesh.name = 'player';
-        this.buildRealisticNinjaModel();
         this.scene.add(this.mesh);
+        this.buildAnimalModel(this.characterId);
 
         // Arma activa
         this.currentWeaponId = 'bokken';
@@ -106,255 +121,77 @@ export class Player {
         };
     }
 
-    buildRealisticNinjaModel() {
-        // Materiales con iluminación PBR suave y sombreado liso
-        this.suitMat = new THREE.MeshStandardMaterial({
-            color: this.suitColor,
-            roughness: 0.45,
-            metalness: 0.15
-        });
-        const suitMat = this.suitMat;
-        const clothAccentMat = new THREE.MeshStandardMaterial({
-            color: 0xd92323,
-            roughness: 0.4
-        });
-        const skinMat = new THREE.MeshStandardMaterial({
-            color: 0xfbd0a1,
-            roughness: 0.35
-        });
-        const armorMat = new THREE.MeshStandardMaterial({
-            color: 0x334155,
-            metalness: 0.65,
-            roughness: 0.28
-        });
-        const metalGoldMat = new THREE.MeshStandardMaterial({
-            color: 0xf59e0b,
-            metalness: 0.85,
-            roughness: 0.2
-        });
-        const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
-        const eyeHighlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    buildAnimalModel(characterId = 'chucho') {
+        this.characterId = characterId;
+        const charData = CHARACTERS_DATA[characterId] || CHARACTERS_DATA.chucho;
 
-        // 1. Torso Humanoide Anatómico (V-Taper atlético)
-        this.torso = new THREE.Group();
-        this.torso.position.y = 1.35;
-        this.mesh.add(this.torso);
+        while (this.mesh.children.length > 0) {
+            this.mesh.remove(this.mesh.children[0]);
+        }
 
-        // Pecho superior / Pectorales (Cilindro de alta resolución para curvas suaves)
-        const chestGeom = new THREE.CylinderGeometry(0.42, 0.34, 0.55, 24);
-        const chest = new THREE.Mesh(chestGeom, suitMat);
-        chest.position.y = 0.15;
-        chest.castShadow = true;
-        chest.receiveShadow = true;
-        this.torso.add(chest);
+        const built = AnimalCharacterBuilder.build(characterId);
+        this.modelGroup = built.group;
+        this.torso = built.torso;
+        this.head = built.head;
+        this.leftArmPivot = built.leftArmPivot;
+        this.leftElbowPivot = built.leftElbowPivot;
+        this.rightArmPivot = built.rightArmPivot;
+        this.rightElbowPivot = built.rightElbowPivot;
+        this.leftLegPivot = built.leftLegPivot;
+        this.leftKneePivot = built.leftKneePivot;
+        this.rightLegPivot = built.rightLegPivot;
+        this.rightKneePivot = built.rightKneePivot;
+        this.weaponHolder = built.weaponHolder;
+        this.bandanaTail1 = built.bandanaTail1;
+        this.bandanaTail2 = built.bandanaTail2;
 
-        // Abdomen / Cintura atlética
-        const absGeom = new THREE.CylinderGeometry(0.34, 0.30, 0.45, 24);
-        const abs = new THREE.Mesh(absGeom, suitMat);
-        abs.position.y = -0.25;
-        abs.castShadow = true;
-        abs.receiveShadow = true;
-        this.torso.add(abs);
+        this.mesh.add(this.modelGroup);
 
-        // Cinturón Shinobi Obi tradicional con hebilla dorada
-        const obiGeom = new THREE.CylinderGeometry(0.32, 0.32, 0.16, 24);
-        const obi = new THREE.Mesh(obiGeom, clothAccentMat);
-        obi.position.y = -0.42;
-        obi.castShadow = true;
-        this.torso.add(obi);
+        this.maxHealth = charData.stats.health;
+        this.health = this.maxHealth;
+        this.baseSpeed = charData.stats.speed;
+        this.jumpForce = charData.stats.jumpForce;
 
-        const buckleGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16);
-        const buckle = new THREE.Mesh(buckleGeom, metalGoldMat);
-        buckle.rotation.x = Math.PI / 2;
-        buckle.position.set(0, -0.42, 0.32);
-        this.torso.add(buckle);
+        if (this.currentWeaponId) {
+            this.equipWeapon(this.currentWeaponId);
+        }
+    }
 
-        // 2. Cabeza Esculpida y Máscara Ninja (Cowl)
-        this.head = new THREE.Group();
-        this.head.position.y = 0.68;
-        this.torso.add(this.head);
+    switchCharacter(characterId) {
+        if (!CHARACTERS_DATA[characterId]) return;
+        this.buildAnimalModel(characterId);
+    }
 
-        // Cúpula esférica de la máscara de tela
-        const cowlGeom = new THREE.SphereGeometry(0.38, 24, 20);
-        cowlGeom.scale(1.0, 1.12, 1.08);
-        const cowl = new THREE.Mesh(cowlGeom, suitMat);
-        cowl.castShadow = true;
-        this.head.add(cowl);
+    activateSpecialSkill() {
+        if (this.specialCooldownTimer > 0) return false;
+        const charData = CHARACTERS_DATA[this.characterId] || CHARACTERS_DATA.chucho;
+        this.specialCooldownTimer = charData.skill.cooldown;
 
-        // Apertura facial de piel
-        const faceOpeningGeom = new THREE.CylinderGeometry(0.24, 0.22, 0.18, 16, 1, false, -Math.PI * 0.35, Math.PI * 0.7);
-        const faceSkin = new THREE.Mesh(faceOpeningGeom, skinMat);
-        faceSkin.position.set(0, 0.02, 0.18);
-        this.head.add(faceSkin);
+        sounds.playSlash('heavy');
 
-        // Ojos estilo anime
-        [-0.10, 0.10].forEach(eyeX => {
-            const eyeGroup = new THREE.Group();
-            eyeGroup.position.set(eyeX, 0.04, 0.38);
+        if (this.characterId === 'chucho') {
+            this.velocity.y = 5.0;
+        } else if (this.characterId === 'yari') {
+            this.dash();
+            this.dashTimer = 0.35;
+        } else if (this.characterId === 'guaca') {
+            this.velocity.y = 15.0;
+            this.isGliding = true;
+            this.glideTimer = 3.2;
+        } else if (this.characterId === 'capibu') {
+            this.mudShieldTimer = 6.0;
+        } else if (this.characterId === 'ranaik') {
+            this.velocity.y = 20.0;
+            if (this.moveDirection.lengthSq() > 0.01) {
+                this.velocity.x = this.moveDirection.x * 22.0;
+                this.velocity.z = this.moveDirection.z * 22.0;
+            }
+        }
 
-            const eyeSclera = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 12), eyeHighlightMat);
-            eyeSclera.scale.set(1.1, 0.65, 0.3);
-            eyeGroup.add(eyeSclera);
-
-            const pupil = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12), eyePupilMat);
-            pupil.rotation.x = Math.PI / 2;
-            pupil.position.z = 0.02;
-            eyeGroup.add(pupil);
-
-            this.head.add(eyeGroup);
-        });
-
-        // Protector de frente ninja metálico curvado (Hitai-ate)
-        const plateGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.14, 24, 1, true, -Math.PI * 0.32, Math.PI * 0.64);
-        const plate = new THREE.Mesh(plateGeom, armorMat);
-        plate.position.y = 0.16;
-        this.head.add(plate);
-
-        // Bandana roja envolvente
-        const bandWrapGeom = new THREE.CylinderGeometry(0.365, 0.365, 0.16, 24, 1, true, -Math.PI * 0.55, Math.PI * 1.1);
-        const bandWrap = new THREE.Mesh(bandWrapGeom, clothAccentMat);
-        bandWrap.position.y = 0.16;
-        this.head.add(bandWrap);
-
-        // Emblema dorado en el centro del protector
-        const emblem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12), metalGoldMat);
-        emblem.rotation.x = Math.PI / 2;
-        emblem.position.set(0, 0.16, 0.38);
-        this.head.add(emblem);
-
-        // Cintas de la bandana ondeando al viento
-        this.bandanaTail1 = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.65, 0.02), clothAccentMat);
-        this.bandanaTail1.position.set(-0.08, 0.08, -0.38);
-        this.bandanaTail1.rotation.x = 0.35;
-        this.head.add(this.bandanaTail1);
-
-        this.bandanaTail2 = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.55, 0.02), clothAccentMat);
-        this.bandanaTail2.position.set(0.08, 0.12, -0.38);
-        this.bandanaTail2.rotation.x = 0.45;
-        this.head.add(this.bandanaTail2);
-
-        // 3. Brazo Izquierdo con Codo Articulado
-        this.leftArmPivot = new THREE.Group();
-        this.leftArmPivot.position.set(-0.48, 0.35, 0);
-        this.torso.add(this.leftArmPivot);
-
-        const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), armorMat);
-        this.leftArmPivot.add(lShoulder);
-
-        const lUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.38, 16), suitMat);
-        lUpperArm.position.y = -0.19;
-        lUpperArm.castShadow = true;
-        this.leftArmPivot.add(lUpperArm);
-
-        // Articulación del Codo Izquierdo
-        this.leftElbowPivot = new THREE.Group();
-        this.leftElbowPivot.position.set(0, -0.38, 0);
-        this.leftArmPivot.add(this.leftElbowPivot);
-
-        const lElbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), armorMat);
-        this.leftElbowPivot.add(lElbowJoint);
-
-        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.38, 16), clothAccentMat);
-        lForearm.position.y = -0.19;
-        lForearm.castShadow = true;
-        this.leftElbowPivot.add(lForearm);
-
-        const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), skinMat);
-        lHand.position.y = -0.40;
-        this.leftElbowPivot.add(lHand);
-
-        // 4. Brazo Derecho con Codo Articulado y Anclaje de Arma
-        this.rightArmPivot = new THREE.Group();
-        this.rightArmPivot.position.set(0.48, 0.35, 0);
-        this.torso.add(this.rightArmPivot);
-
-        const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), armorMat);
-        this.rightArmPivot.add(rShoulder);
-
-        const rUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.38, 16), suitMat);
-        rUpperArm.position.y = -0.19;
-        rUpperArm.castShadow = true;
-        this.rightArmPivot.add(rUpperArm);
-
-        // Articulación del Codo Derecho
-        this.rightElbowPivot = new THREE.Group();
-        this.rightElbowPivot.position.set(0, -0.38, 0);
-        this.rightArmPivot.add(this.rightElbowPivot);
-
-        const rElbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), armorMat);
-        this.rightElbowPivot.add(rElbowJoint);
-
-        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.38, 16), clothAccentMat);
-        rForearm.position.y = -0.19;
-        rForearm.castShadow = true;
-        this.rightElbowPivot.add(rForearm);
-
-        const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), skinMat);
-        rHand.position.y = -0.40;
-        this.rightElbowPivot.add(rHand);
-
-        // Anclaje de arma en la mano derecha
-        this.weaponHolder = new THREE.Group();
-        this.weaponHolder.position.set(0, -0.40, 0.08);
-        this.weaponHolder.rotation.x = Math.PI / 2;
-        this.rightElbowPivot.add(this.weaponHolder);
-
-        // 5. Piernas Humanoides Anatómicas con Rodillas Articuladas
-        // Pierna Izquierda
-        this.leftLegPivot = new THREE.Group();
-        this.leftLegPivot.position.set(-0.20, -0.45, 0);
-        this.torso.add(this.leftLegPivot);
-
-        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.44, 16), suitMat);
-        lThigh.position.y = -0.22;
-        lThigh.castShadow = true;
-        this.leftLegPivot.add(lThigh);
-
-        // Articulación de la Rodilla Izquierda
-        this.leftKneePivot = new THREE.Group();
-        this.leftKneePivot.position.set(0, -0.44, 0);
-        this.leftLegPivot.add(this.leftKneePivot);
-
-        const lKneeJoint = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), armorMat);
-        this.leftKneePivot.add(lKneeJoint);
-
-        const lCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.44, 16), clothAccentMat);
-        lCalf.position.y = -0.22;
-        lCalf.castShadow = true;
-        this.leftKneePivot.add(lCalf);
-
-        const lFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }));
-        lFoot.scale.set(0.9, 0.6, 1.4);
-        lFoot.position.set(0, -0.44, 0.05);
-        this.leftKneePivot.add(lFoot);
-
-        // Pierna Derecha
-        this.rightLegPivot = new THREE.Group();
-        this.rightLegPivot.position.set(0.20, -0.45, 0);
-        this.torso.add(this.rightLegPivot);
-
-        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.44, 16), suitMat);
-        rThigh.position.y = -0.22;
-        rThigh.castShadow = true;
-        this.rightLegPivot.add(rThigh);
-
-        // Articulación de la Rodilla Derecha
-        this.rightKneePivot = new THREE.Group();
-        this.rightKneePivot.position.set(0, -0.44, 0);
-        this.rightLegPivot.add(this.rightKneePivot);
-
-        const rKneeJoint = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), armorMat);
-        this.rightKneePivot.add(rKneeJoint);
-
-        const rCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.44, 16), clothAccentMat);
-        rCalf.position.y = -0.22;
-        rCalf.castShadow = true;
-        this.rightKneePivot.add(rCalf);
-
-        const rFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }));
-        rFoot.scale.set(0.9, 0.6, 1.4);
-        rFoot.position.set(0, -0.44, 0.05);
-        this.rightKneePivot.add(rFoot);
+        if (this.onSpecialSkillCallback) {
+            this.onSpecialSkillCallback(this.characterId, charData.skill);
+        }
+        return true;
     }
 
     equipWeapon(weaponId) {
@@ -423,8 +260,11 @@ export class Player {
             if (key === 'f' || key === 'j') {
                 this.triggerAttack();
             }
-            if (key === 'e' || key === 'q') {
+            if (key === 'e') {
                 this.triggerSpinAttack();
+            }
+            if (key === 'q' || key === 'r') {
+                this.activateSpecialSkill();
             }
         });
 
@@ -640,15 +480,13 @@ export class Player {
         // Invulnerabilidad (i-frames) durante el dash ninja
         if (this.dashTimer > 0) return;
 
+        // Escudo de Lodo de Capibú absorbe 60% del impacto
+        if (this.mudShieldTimer > 0) {
+            amount = Math.round(amount * 0.4);
+        }
+
         this.health = Math.max(0, this.health - amount);
         sounds.playHit(false);
-
-        if (this.suitMat) {
-            this.suitMat.color.setHex(0xff3333);
-            setTimeout(() => {
-                if (this.suitMat) this.suitMat.color.setHex(this.suitColor);
-            }, 120);
-        }
 
         if (this.health <= 0) {
             this.respawn();
@@ -668,10 +506,19 @@ export class Player {
     }
 
     update(delta) {
-        // Enfriamiento de ataque, combo y giro
+        // Enfriamiento de ataque, combo, giro y habilidad especial
         if (this.attackCooldown > 0) this.attackCooldown -= delta;
         if (this.spinCooldown > 0) this.spinCooldown -= delta;
         if (this.dashCooldown > 0) this.dashCooldown -= delta;
+        if (this.specialCooldownTimer > 0) this.specialCooldownTimer -= delta;
+        if (this.mudShieldTimer > 0) this.mudShieldTimer -= delta;
+
+        // Planeo de Guaca
+        if (this.isGliding) {
+            this.glideTimer -= delta;
+            this.velocity.y = Math.max(-1.6, this.velocity.y);
+            if (this.glideTimer <= 0) this.isGliding = false;
+        }
 
         if (this.comboResetTimer > 0) {
             this.comboResetTimer -= delta;

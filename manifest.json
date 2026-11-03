@@ -1,7 +1,7 @@
 {
-  "name": "Guerrero Ninja 3D - Aventura de Espadas y Combate",
-  "short_name": "Guerrero Ninja",
-  "description": "Videojuego 3D de acción ninja, espadas mágicas, acrobacias y batallas multijugador.",
+  "name": "Ninja Colombia Arena - Aventura & Battle Royale",
+  "short_name": "Ninja Colombia",
+  "description": "Videojuego infantil 3D de aventura, plataformas y Battle Royale con héroes de la fauna colombiana.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "landscape",

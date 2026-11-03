@@ -1,77 +1,99 @@
-// js/world.js - Escenarios Orgánicos Multi-Mapa con Misiones estilo Crash Bandicoot
-// Incluye: Cajas de madera destructibles, Gemas Sagradas, Tótems de fuego y Portal Dimensional Místico
+// js/world.js - Escenarios y Territorios de Colombia: NINJA COLOMBIA ARENA
+// 4 Biomas Auténticos: Selva Amazónica, Eje Cafetero, Páramo Andino y Caribe Colombiano
+// Incluye: Cajas Sorpresa con '?', Airdrops con Paracaídas, Cristales de Biodiversidad y Portales Precolombinos
+
 import * as THREE from 'three';
 
 export const MAPS_CONFIG = {
-    forest: {
-        id: 'forest',
-        name: 'Santuario del Bosque Sagrado',
-        badge: '🌸 MUNDO 1',
-        desc: 'Colinas zen, bambú, cerezos sakura, pagoda dojo y estanque koi cristalino.',
-        missionTitle: 'Misión del Bosque Sagrado',
-        missionDesc: 'Derrota a 5 ninjas, recoge 3 gemas sagradas y rompe 6 cajas para activar el portal.',
+    selva: {
+        id: 'selva',
+        name: 'Selva Amazónica',
+        badge: '🌴 AMAZONAS',
+        desc: 'Ceibas gigantes, río Amazonas cristalino, puentes de bambú, orquídeas y ruinas doradas.',
+        missionTitle: 'Misión del Amazonas',
+        missionDesc: 'Derrota 6 cazadores furtivos, recoge 3 Cristales de Biodiversidad y abre 6 Cajas Sorpresa.',
+        bgColor: 0x38bdf8,
+        fogColor: 0xbae6fd,
+        fogDensity: 0.012,
+        sunColor: 0xfef08a,
+        gemColor: 0xa855f7 // Púrpura Biodiversidad
+    },
+    eje_cafetero: {
+        id: 'eje_cafetero',
+        name: 'Eje Cafetero',
+        badge: '☕ EJE CAFETERO',
+        desc: 'Colinas verdes ondulantes, arbustos de café con cerezas rojas, hacienda tradicional paisa y canastos.',
+        missionTitle: 'Misión Cafetera',
+        missionDesc: 'Derrota 7 esbirros, recoge 4 Cristales de Biodiversidad y abre 6 Cajas Sorpresa de café.',
         bgColor: 0x7dd3fc,
-        fogColor: 0x7dd3fc,
-        fogDensity: 0.014,
-        sunColor: 0xfffbeb,
-        gemColor: 0x10b981 // Esmeralda
+        fogColor: 0xa7f3d0,
+        fogDensity: 0.013,
+        sunColor: 0xffedd5,
+        gemColor: 0xa855f7
     },
-    volcano: {
-        id: 'volcano',
-        name: 'Templo del Volcán Carmesí',
-        badge: '🔥 MUNDO 2',
-        desc: 'Islas de basalto volcánico, ríos de lava ardiente animados, columnas de obsidiana y géiseres térmicos.',
-        missionTitle: 'Misión del Volcán Carmesí',
-        missionDesc: 'Derrota a 6 ninjas, recoge 3 reliquias de magma y destruye 4 tótems de fuego.',
-        bgColor: 0x220c0c,
-        fogColor: 0x2e1111,
-        fogDensity: 0.016,
-        sunColor: 0xff7733,
-        gemColor: 0xef4444 // Rubí
-    },
-    snow: {
-        id: 'snow',
-        name: 'Cumbres Heladas del Dragón',
-        badge: '❄️ MUNDO 3',
-        desc: 'Montañas nevadas, agujas de hielo cristalino, pinos con escarcha, pabellón helado y ventisca.',
-        missionTitle: 'Misión Final del Dragón',
-        missionDesc: 'Recoge 4 zafiros glaciales, vence a 8 ninjas y derrota al Gran Jefe Samurái.',
+    paramo: {
+        id: 'paramo',
+        name: 'Páramo Andino & Nevado',
+        badge: '🏔️ PÁRAMO',
+        desc: 'Frailejones emblemáticos, arroyos de deshielo, neblina fresca y la cumbre del volcán nevado.',
+        missionTitle: 'Misión de las Cumbres Andinas',
+        missionDesc: 'Derrota 8 esbirros helados, recoge 4 Cristales de Biodiversidad y abre 8 Cajas Sorpresa.',
         bgColor: 0xcfe8f9,
-        fogColor: 0xcfe8f9,
+        fogColor: 0xdbeafe,
         fogDensity: 0.015,
-        sunColor: 0xf1f5f9,
-        gemColor: 0x38bdf8 // Zafiro
+        sunColor: 0xf8fafc,
+        gemColor: 0xa855f7
+    },
+    caribe: {
+        id: 'caribe',
+        name: 'Caribe Colombiano',
+        badge: '🏖️ CARIBE',
+        desc: 'Playas doradas, mar turquesa animado, palmeras de coco altas y murallas históricas de Cartagena.',
+        missionTitle: 'Misión de las Costas del Caribe',
+        missionDesc: 'Derrota 10 esbirros, recoge 5 Cristales de Biodiversidad y derrota a El Invernal.',
+        bgColor: 0x38bdf8,
+        fogColor: 0x7dd3fc,
+        fogDensity: 0.011,
+        sunColor: 0xfef9c3,
+        gemColor: 0xa855f7
     }
 };
+
+// Aliases retrocompatibles
+MAPS_CONFIG.forest = MAPS_CONFIG.selva;
+MAPS_CONFIG.volcano = MAPS_CONFIG.eje_cafetero;
+MAPS_CONFIG.snow = MAPS_CONFIG.paramo;
 
 export class World {
     constructor(scene) {
         this.scene = scene;
-        this.currentMapId = 'forest';
+        this.currentMapId = 'selva';
         this.trampolines = [];
         this.floatingCoins = [];
         this.crates = [];
         this.missionGems = [];
+        this.airdrops = [];
         this.totems = [];
         this.portal = null;
         this.animatedUpdaters = [];
 
-        // Contenedor dinámico del mapa activo
         this.mapRoot = new THREE.Group();
         this.mapRoot.name = 'mapRoot';
         this.scene.add(this.mapRoot);
 
-        // Construir el mapa inicial
-        this.loadMap('forest');
+        this.loadMap('selva');
     }
 
     setMap(mapId) {
-        if (!MAPS_CONFIG[mapId]) return;
-        this.currentMapId = mapId;
-        this.loadMap(mapId);
+        const canonicalId = mapId === 'forest' ? 'selva' : (mapId === 'volcano' ? 'eje_cafetero' : (mapId === 'snow' ? 'paramo' : mapId));
+        if (!MAPS_CONFIG[canonicalId]) return;
+        this.currentMapId = canonicalId;
+        this.loadMap(canonicalId);
     }
 
     loadMap(mapId) {
+        const canonicalId = mapId === 'forest' ? 'selva' : (mapId === 'volcano' ? 'eje_cafetero' : (mapId === 'snow' ? 'paramo' : mapId));
+
         while (this.mapRoot.children.length > 0) {
             const child = this.mapRoot.children[0];
             this.mapRoot.remove(child);
@@ -82,12 +104,12 @@ export class World {
         this.floatingCoins = [];
         this.crates = [];
         this.missionGems = [];
+        this.airdrops = [];
         this.totems = [];
         this.portal = null;
         this.animatedUpdaters = [];
 
-        // Ajustar cielo y niebla
-        const cfg = MAPS_CONFIG[mapId];
+        const cfg = MAPS_CONFIG[canonicalId] || MAPS_CONFIG.selva;
         if (this.scene.background && this.scene.background.setHex) {
             this.scene.background.setHex(cfg.bgColor);
         } else {
@@ -101,13 +123,14 @@ export class World {
             this.scene.fog = new THREE.FogExp2(cfg.fogColor, cfg.fogDensity);
         }
 
-        // Generar bioma correspondiente
-        if (mapId === 'volcano') {
-            this.buildVolcanoMap();
-        } else if (mapId === 'snow') {
-            this.buildSnowMap();
+        if (canonicalId === 'eje_cafetero') {
+            this.buildEjeCafetero();
+        } else if (canonicalId === 'paramo') {
+            this.buildParamoAndino();
+        } else if (canonicalId === 'caribe') {
+            this.buildCaribeColombiano();
         } else {
-            this.buildForestMap();
+            this.buildSelvaAmazonica();
         }
     }
 
@@ -126,462 +149,589 @@ export class World {
     }
 
     // =========================================================================
-    // MAPA 1: SANTUARIO DEL BOSQUE SAGRADO (MUNDO 1)
+    // 1. BIOMA: SELVA AMAZÓNICA
     // =========================================================================
-    buildForestMap() {
-        const islandGeom = new THREE.CylinderGeometry(58, 62, 2.5, 48);
-        const islandMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.85 });
-        const island = new THREE.Mesh(islandGeom, islandMat);
-        island.position.y = -1.25;
-        island.receiveShadow = true;
-        this.mapRoot.add(island);
+    buildSelvaAmazonica() {
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.85 });
+        const groundGeom = new THREE.CylinderGeometry(56, 58, 2.2, 36);
+        const ground = new THREE.Mesh(groundGeom, groundMat);
+        ground.position.y = -1.1;
+        ground.receiveShadow = true;
+        this.mapRoot.add(ground);
 
-        // Colinas orgánicas
-        const hillPositions = [
-            [-22, -18, 14, 1.8],
-            [25, -16, 12, 1.6],
-            [-28, 15, 10, 1.4],
-            [26, 20, 13, 1.5]
-        ];
-        hillPositions.forEach(([hx, hz, rad, height]) => {
-            const hill = new THREE.Mesh(
-                new THREE.SphereGeometry(rad, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.4),
-                new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.9 })
-            );
-            hill.position.set(hx, -height * 0.3, hz);
-            hill.scale.set(1.2, height / rad, 1.2);
-            hill.receiveShadow = true;
-            this.mapRoot.add(hill);
-        });
-
-        // Tatami central
-        const arenaGeom = new THREE.CylinderGeometry(18, 18, 0.06, 36);
-        const arenaMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.9 });
-        const arenaMesh = new THREE.Mesh(arenaGeom, arenaMat);
-        arenaMesh.position.y = 0.03;
-        arenaMesh.receiveShadow = true;
-        this.mapRoot.add(arenaMesh);
-
-        const ringGeom = new THREE.TorusGeometry(18, 0.28, 8, 36);
-        const ringMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.7 });
-        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
-        ringMesh.rotation.x = Math.PI / 2;
-        ringMesh.position.y = 0.04;
-        this.mapRoot.add(ringMesh);
-
-        // Estanque Koi animado
-        const pondGroup = new THREE.Group();
-        pondGroup.position.set(-18, 0, 16);
-        const pondBed = new THREE.Mesh(
-            new THREE.CylinderGeometry(7.5, 6.5, 0.4, 24),
-            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 })
-        );
-        pondBed.position.y = -0.15;
-        pondGroup.add(pondBed);
-
+        // Río Amazonas curvilíneo con agua animada
+        const riverGroup = new THREE.Group();
         const waterMat = new THREE.MeshStandardMaterial({
-            color: 0x38bdf8,
-            roughness: 0.1,
-            metalness: 0.3,
+            color: 0x0284c7,
+            roughness: 0.15,
+            metalness: 0.35,
             transparent: true,
             opacity: 0.82
         });
-        const waterMesh = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 0.08, 24), waterMat);
-        waterMesh.position.y = 0.01;
-        pondGroup.add(waterMesh);
+        const river = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 8.5, 0.08, 28), waterMat);
+        river.position.set(0, 0.02, 0);
+        riverGroup.add(river);
 
-        // Rocas de borde
-        for (let i = 0; i < 12; i++) {
-            const angle = (i / 12) * Math.PI * 2;
-            const rx = Math.cos(angle) * (7.2 + Math.sin(i * 3) * 0.4);
-            const rz = Math.sin(angle) * (7.2 + Math.cos(i * 2) * 0.4);
+        // Rocas de río
+        for (let i = 0; i < 14; i++) {
+            const angle = (i / 14) * Math.PI * 2;
+            const rx = Math.cos(angle) * (8.5 + (i % 2) * 0.5);
+            const rz = Math.sin(angle) * (8.5 + (i % 2) * 0.5);
             const rock = new THREE.Mesh(
-                new THREE.DodecahedronGeometry(0.5 + (i % 3) * 0.2, 1),
-                new THREE.MeshStandardMaterial({ color: 0x71717a, roughness: 0.8 })
+                new THREE.DodecahedronGeometry(0.55 + (i % 3) * 0.2, 1),
+                new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 })
             );
-            rock.position.set(rx, 0.15, rz);
-            rock.scale.set(1.2, 0.7, 1.0);
-            pondGroup.add(rock);
+            rock.position.set(rx, 0.2, rz);
+            riverGroup.add(rock);
         }
-        this.mapRoot.add(pondGroup);
+        this.mapRoot.add(riverGroup);
 
         this.animatedUpdaters.push((delta, time) => {
-            waterMesh.position.y = 0.01 + Math.sin(time * 2.0) * 0.02;
+            river.position.y = 0.02 + Math.sin(time * 2.2) * 0.02;
         });
 
-        // Dojo Pagoda
-        this.buildDojo(new THREE.Vector3(0, 0, -32));
+        // Ceibas gigantes del Amazonas
+        const ceibaSpots = [
+            [-22, -18], [22, -18], [-28, 12], [26, 14],
+            [-14, 28], [16, 28], [-38, -6], [38, -6]
+        ];
+        ceibaSpots.forEach(([cx, cz]) => {
+            this.buildCeibaTree(new THREE.Vector3(cx, 0, cz));
+        });
 
-        // Arcos laterales
-        this.buildToriiGate(new THREE.Vector3(-28, 0, 0), Math.PI / 2);
-        this.buildToriiGate(new THREE.Vector3(28, 0, 0), -Math.PI / 2);
+        // Puentes colgantes de bambú
+        this.buildBambooBridge(new THREE.Vector3(0, 0, 0));
 
-        // Portal Místico Dimensional en la entrada principal
+        // Monolito precolombino dorado
+        this.buildPrecolumbianMonolith(new THREE.Vector3(0, 0, -32));
+
+        // Portal Místico de la Selva
         this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x10b981);
 
-        // Cerezos
-        const treeSpots = [
-            [-16, -14], [16, -14], [-26, 6], [24, 8],
-            [-10, 26], [14, 26], [-35, -18], [35, -18]
+        // Trampolines de lianas
+        this.buildTrampoline(new THREE.Vector3(-14, 0, 4));
+        this.buildTrampoline(new THREE.Vector3(14, 0, -4));
+
+        // Cajas Sorpresa con '?'
+        const crateSpots = [
+            new THREE.Vector3(-7, 0.45, -7),
+            new THREE.Vector3(7, 0.45, -7),
+            new THREE.Vector3(-9, 0.45, 9),
+            new THREE.Vector3(9, 0.45, 9),
+            new THREE.Vector3(-18, 0.45, -2),
+            new THREE.Vector3(18, 0.45, 2)
         ];
-        treeSpots.forEach(([tx, tz]) => {
-            this.buildCherryTree(new THREE.Vector3(tx, 0, tz));
+        crateSpots.forEach((pos, idx) => {
+            this.buildCrate(pos, idx % 2 === 0 ? 'fruit' : 'coffee');
         });
 
-        // Bambú
-        this.buildBambooGrove(new THREE.Vector3(24, 0, -18));
-        this.buildBambooGrove(new THREE.Vector3(-26, 0, -8));
+        // Airdrop con paracaídas amarillo en el claro de la selva
+        this.buildAirdrop(new THREE.Vector3(0, 0.55, -16));
 
-        // Farolillos
-        const lanternSpots = [
-            [-8, -8], [8, -8], [-8, 8], [8, 8],
-            [-20, 0], [20, 0], [0, -22]
+        // Cristales de Energía de la Biodiversidad
+        const gemSpots = [
+            new THREE.Vector3(-15, 1.3, -15),
+            new THREE.Vector3(15, 1.3, -15),
+            new THREE.Vector3(0, 1.4, -26)
         ];
-        lanternSpots.forEach(([lx, lz]) => {
-            this.buildLantern(new THREE.Vector3(lx, 0, lz));
+        gemSpots.forEach((pos, idx) => {
+            this.buildBiodiversityCrystal(pos, `selva_crystal_${idx + 1}`);
         });
 
-        // Trampolines
+        this.spawnFloatingParkourCoins([
+            new THREE.Vector3(-5, 1.2, 0),
+            new THREE.Vector3(0, 1.2, 0),
+            new THREE.Vector3(5, 1.2, 0)
+        ]);
+    }
+
+    // =========================================================================
+    // 2. BIOMA: EJE CAFETERO
+    // =========================================================================
+    buildEjeCafetero() {
+        const grassMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.8 });
+        const ground = new THREE.Mesh(new THREE.CylinderGeometry(56, 58, 2.2, 36), grassMat);
+        ground.position.y = -1.1;
+        ground.receiveShadow = true;
+        this.mapRoot.add(ground);
+
+        // Colinas verdes ondulantes de café
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const hill = new THREE.Mesh(
+                new THREE.SphereGeometry(12, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.45),
+                new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.85 })
+            );
+            hill.position.set(Math.cos(angle) * 36, -3.5, Math.sin(angle) * 36);
+            this.mapRoot.add(hill);
+        }
+
+        // Arbustos de café con granos rojos
+        const coffeeSpots = [
+            [-18, -12], [-14, -16], [-10, -20],
+            [18, -12], [14, -16], [10, -20],
+            [-22, 8], [-18, 14], [-24, 18],
+            [22, 8], [18, 14], [24, 18]
+        ];
+        coffeeSpots.forEach(([cx, cz]) => {
+            this.buildCoffeeBush(new THREE.Vector3(cx, 0, cz));
+        });
+
+        // Hacienda Paisa tradicional con tejado de teja de barro rojo y balcones
+        this.buildPaisaHacienda(new THREE.Vector3(0, 0, -30));
+
+        // Portal Místico Cafetero
+        this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0xf59e0b);
+
+        // Trampolines de costales de café
         this.buildTrampoline(new THREE.Vector3(-12, 0, 0));
         this.buildTrampoline(new THREE.Vector3(12, 0, 0));
-        this.buildTrampoline(new THREE.Vector3(0, 0, 14));
 
-        // CAJAS DE MADERA DESTRUCTIBLES ESTILO CRASH BANDICOOT (6 Cajas en Mundo 1)
+        // Cajas Sorpresa con '?' de café y frutas
         const crateSpots = [
-            new THREE.Vector3(-6, 0.45, -6),
-            new THREE.Vector3(6, 0.45, -6),
-            new THREE.Vector3(-6, 0.45, 6),
-            new THREE.Vector3(6, 0.45, 6),
-            new THREE.Vector3(-14, 0.45, 8),
-            new THREE.Vector3(14, 0.45, -8)
+            new THREE.Vector3(-8, 0.45, -6),
+            new THREE.Vector3(8, 0.45, -6),
+            new THREE.Vector3(-10, 0.45, 10),
+            new THREE.Vector3(10, 0.45, 10),
+            new THREE.Vector3(0, 0.45, 12),
+            new THREE.Vector3(-18, 0.45, 2)
+        ];
+        crateSpots.forEach((pos, idx) => {
+            this.buildCrate(pos, idx % 2 === 0 ? 'coffee' : 'coins');
+        });
+
+        // Airdrop con paracaídas amarillo entre los cafetales
+        this.buildAirdrop(new THREE.Vector3(0, 0.55, -14));
+
+        // Cristales de Energía de la Biodiversidad
+        const gemSpots = [
+            new THREE.Vector3(-16, 1.3, -12),
+            new THREE.Vector3(16, 1.3, -12),
+            new THREE.Vector3(-16, 1.3, 16),
+            new THREE.Vector3(16, 1.3, 16)
+        ];
+        gemSpots.forEach((pos, idx) => {
+            this.buildBiodiversityCrystal(pos, `cafetero_crystal_${idx + 1}`);
+        });
+
+        this.spawnFloatingParkourCoins([
+            new THREE.Vector3(-6, 1.2, 0),
+            new THREE.Vector3(0, 1.2, 0),
+            new THREE.Vector3(6, 1.2, 0)
+        ]);
+    }
+
+    // =========================================================================
+    // 3. BIOMA: PÁRAMO ANDINO & NEVADO
+    // =========================================================================
+    buildParamoAndino() {
+        const paramoMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 });
+        const ground = new THREE.Mesh(new THREE.CylinderGeometry(56, 58, 2.2, 36), paramoMat);
+        ground.position.y = -1.1;
+        ground.receiveShadow = true;
+        this.mapRoot.add(ground);
+
+        // Cumbre del Volcán Nevado al fondo
+        const nevadoMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+        const mountain = new THREE.Mesh(new THREE.ConeGeometry(38, 28, 16), nevadoMat);
+        mountain.position.set(0, 10, -58);
+        this.mapRoot.add(mountain);
+
+        // Frailejones emblemáticos
+        const frailejonSpots = [
+            [-14, -10], [-18, -14], [-12, -22], [-20, -26],
+            [14, -10], [18, -14], [12, -22], [20, -26],
+            [-22, 6], [-16, 12], [-24, 18], [-18, 24],
+            [22, 6], [16, 12], [24, 18], [18, 24]
+        ];
+        frailejonSpots.forEach(([fx, fz]) => {
+            this.buildFrailejon(new THREE.Vector3(fx, 0, fz));
+        });
+
+        // Santuario Andino de Piedra
+        this.buildAndeanShrine(new THREE.Vector3(0, 0, -30));
+
+        // Portal Místico Andino
+        this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x06b6d4);
+
+        // Géiseres y manantiales termales
+        this.buildThermalSpring(new THREE.Vector3(-12, 0, 0));
+        this.buildThermalSpring(new THREE.Vector3(12, 0, 0));
+
+        // Cajas Sorpresa con '?'
+        const crateSpots = [
+            new THREE.Vector3(-8, 0.45, -6),
+            new THREE.Vector3(8, 0.45, -6),
+            new THREE.Vector3(-10, 0.45, 10),
+            new THREE.Vector3(10, 0.45, 10),
+            new THREE.Vector3(0, 0.45, 14),
+            new THREE.Vector3(-16, 0.45, 0),
+            new THREE.Vector3(16, 0.45, 0),
+            new THREE.Vector3(0, 0.45, -14)
+        ];
+        crateSpots.forEach((pos, idx) => {
+            this.buildCrate(pos, idx % 2 === 0 ? 'fruit' : 'coffee');
+        });
+
+        // Airdrop con paracaídas amarillo en el valle del páramo
+        this.buildAirdrop(new THREE.Vector3(0, 0.55, 6));
+
+        // Cristales de Energía de la Biodiversidad
+        const gemSpots = [
+            new THREE.Vector3(-16, 1.4, -16),
+            new THREE.Vector3(16, 1.4, -16),
+            new THREE.Vector3(-16, 1.4, 16),
+            new THREE.Vector3(16, 1.4, 16)
+        ];
+        gemSpots.forEach((pos, idx) => {
+            this.buildBiodiversityCrystal(pos, `paramo_crystal_${idx + 1}`);
+        });
+    }
+
+    // =========================================================================
+    // 4. BIOMA: CARIBE COLOMBIANO
+    // =========================================================================
+    buildCaribeColombiano() {
+        const sandMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.9 });
+        const ground = new THREE.Mesh(new THREE.CylinderGeometry(56, 58, 2.2, 36), sandMat);
+        ground.position.y = -1.1;
+        ground.receiveShadow = true;
+        this.mapRoot.add(ground);
+
+        // Océano Caribe con olas turquesas animadas
+        const seaGroup = new THREE.Group();
+        const seaMat = new THREE.MeshStandardMaterial({
+            color: 0x06b6d4,
+            roughness: 0.1,
+            metalness: 0.4,
+            transparent: true,
+            opacity: 0.85
+        });
+        const sea = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 0.08, 32), seaMat);
+        sea.position.set(0, 0.03, -12);
+        seaGroup.add(sea);
+        this.mapRoot.add(seaGroup);
+
+        this.animatedUpdaters.push((delta, time) => {
+            sea.position.y = 0.03 + Math.sin(time * 2.5) * 0.03;
+        });
+
+        // Palmeras de coco altas
+        const palmSpots = [
+            [-22, -18], [-18, -24], [22, -18], [18, -24],
+            [-26, 8], [-22, 16], [26, 8], [22, 16],
+            [-12, 26], [12, 26]
+        ];
+        palmSpots.forEach(([px, pz]) => {
+            this.buildCoconutPalm(new THREE.Vector3(px, 0, pz));
+        });
+
+        // Murallas históricas de piedra coralina de Cartagena
+        this.buildCartagenaFortress(new THREE.Vector3(0, 0, -32));
+
+        // Portal Místico Caribeño
+        this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x0284c7);
+
+        // Trampolines de red de pesca
+        this.buildTrampoline(new THREE.Vector3(-14, 0, 0));
+        this.buildTrampoline(new THREE.Vector3(14, 0, 0));
+
+        // Cajas Sorpresa con '?'
+        const crateSpots = [
+            new THREE.Vector3(-8, 0.45, -6),
+            new THREE.Vector3(8, 0.45, -6),
+            new THREE.Vector3(-12, 0.45, 10),
+            new THREE.Vector3(12, 0.45, 10),
+            new THREE.Vector3(-18, 0.45, -2),
+            new THREE.Vector3(18, 0.45, 2),
+            new THREE.Vector3(0, 0.45, 14),
+            new THREE.Vector3(0, 0.45, -2)
         ];
         crateSpots.forEach((pos, idx) => {
             this.buildCrate(pos, idx % 2 === 0 ? 'fruit' : 'coins');
         });
 
-        // GEMAS SAGRADAS DE MISIÓN (3 Gemas Esmeralda en Mundo 1)
-        this.buildMissionGem(new THREE.Vector3(-18, 1.8, 16), 0x10b981, 1); // Junto al estanque
-        this.buildMissionGem(new THREE.Vector3(24, 2.2, -18), 0x10b981, 2); // En el bambú
-        this.buildMissionGem(new THREE.Vector3(0, 7.5, 14), 0x10b981, 3);   // Sobre el trampolín central
+        // Airdrop con paracaídas amarillo en la playa
+        this.buildAirdrop(new THREE.Vector3(0, 0.55, 6));
 
-        // Monedas parkour
-        this.spawnFloatingParkourCoins([
-            new THREE.Vector3(-12, 7.5, 0),
-            new THREE.Vector3(-12, 10.5, 0),
-            new THREE.Vector3(12, 7.5, 0),
-            new THREE.Vector3(12, 10.5, 0),
-            new THREE.Vector3(0, 10.8, 14),
-            new THREE.Vector3(-28, 7.4, 0),
-            new THREE.Vector3(28, 7.4, 0),
-            new THREE.Vector3(0, 5.8, -15),
-            new THREE.Vector3(0, 10.2, -24)
-        ]);
+        // Cristales de Energía de la Biodiversidad
+        const gemSpots = [
+            new THREE.Vector3(-16, 1.4, -14),
+            new THREE.Vector3(16, 1.4, -14),
+            new THREE.Vector3(-18, 1.4, 16),
+            new THREE.Vector3(18, 1.4, 16),
+            new THREE.Vector3(0, 1.4, -26)
+        ];
+        gemSpots.forEach((pos, idx) => {
+            this.buildBiodiversityCrystal(pos, `caribe_crystal_${idx + 1}`);
+        });
     }
 
     // =========================================================================
-    // MAPA 2: TEMPLO DEL VOLCÁN CARMESÍ (MUNDO 2)
+    // ELEMENTOS ARQUITECTÓNICOS Y VEGETACIÓN COLOMBIANA
     // =========================================================================
-    buildVolcanoMap() {
-        const islandGeom = new THREE.CylinderGeometry(58, 62, 3.0, 48);
-        const basaltMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.95 });
-        const island = new THREE.Mesh(islandGeom, basaltMat);
-        island.position.y = -1.5;
-        island.receiveShadow = true;
-        this.mapRoot.add(island);
 
-        // Arena central
-        const arenaGeom = new THREE.CylinderGeometry(18, 18, 0.08, 36);
-        const arenaMat = new THREE.MeshStandardMaterial({ color: 0x292524, roughness: 0.9 });
-        const arenaMesh = new THREE.Mesh(arenaGeom, arenaMat);
-        arenaMesh.position.y = 0.04;
-        arenaMesh.receiveShadow = true;
-        this.mapRoot.add(arenaMesh);
+    // Árbol de Ceiba Amazónica
+    buildCeibaTree(pos) {
+        const tree = new THREE.Group();
+        tree.position.copy(pos);
 
-        const ringGeom = new THREE.TorusGeometry(18, 0.35, 8, 36);
-        const ringMat = new THREE.MeshStandardMaterial({
-            color: 0x7f1d1d,
-            roughness: 0.6,
-            emissive: 0x991b1b,
-            emissiveIntensity: 0.3
-        });
-        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
-        ringMesh.rotation.x = Math.PI / 2;
-        ringMesh.position.y = 0.05;
-        this.mapRoot.add(ringMesh);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x52525b, roughness: 0.9 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.7 });
 
-        // Río de lava ardiente animada
-        const lavaGeom = new THREE.RingGeometry(24, 33, 48, 1, -Math.PI * 0.65, Math.PI * 1.3);
-        const lavaMat = new THREE.MeshStandardMaterial({
-            color: 0xff4500,
-            emissive: 0xff2200,
-            emissiveIntensity: 0.85,
-            roughness: 0.3
-        });
-        const lavaRiver = new THREE.Mesh(lavaGeom, lavaMat);
-        lavaRiver.rotation.x = -Math.PI / 2;
-        lavaRiver.position.y = 0.02;
-        this.mapRoot.add(lavaRiver);
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 1.1, 5.2, 12), trunkMat);
+        trunk.position.y = 2.6;
+        trunk.castShadow = true;
+        tree.add(trunk);
 
-        // Estanque de magma
-        const lavaPool = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 8.5, 0.1, 24), lavaMat);
-        lavaPool.position.set(-18, 0.02, 16);
-        this.mapRoot.add(lavaPool);
-
-        // Burbujas animadas
-        const bubbles = [];
-        for (let i = 0; i < 8; i++) {
-            const b = new THREE.Mesh(
-                new THREE.SphereGeometry(0.35 + Math.random() * 0.3, 10, 10),
-                new THREE.MeshBasicMaterial({ color: 0xffea00 })
-            );
-            const bAngle = Math.random() * Math.PI * 2;
-            const bDist = Math.random() * 6.5;
-            b.position.set(-18 + Math.cos(bAngle) * bDist, 0.05, 16 + Math.sin(bAngle) * bDist);
-            b.userData = { speed: 1.5 + Math.random() * 2.0, phase: Math.random() * Math.PI * 2 };
-            this.mapRoot.add(b);
-            bubbles.push(b);
+        for (let r = 0; r < 4; r++) {
+            const angle = (r / 4) * Math.PI * 2;
+            const root = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.6, 1.2), trunkMat);
+            root.position.set(Math.cos(angle) * 0.9, 0.8, Math.sin(angle) * 0.9);
+            root.rotation.y = angle;
+            tree.add(root);
         }
 
-        this.animatedUpdaters.push((delta, time) => {
-            lavaMat.emissiveIntensity = 0.75 + Math.sin(time * 3.2) * 0.25;
-            bubbles.forEach(b => {
-                const wave = Math.sin(time * b.userData.speed + b.userData.phase);
-                b.scale.setScalar(Math.max(0.2, (wave + 1) * 0.6));
-                b.position.y = 0.05 + Math.max(0, wave * 0.4);
-            });
-        });
+        const foliage = new THREE.Mesh(new THREE.SphereGeometry(3.6, 16, 14), leafMat);
+        foliage.scale.set(1.4, 0.75, 1.4);
+        foliage.position.y = 5.6;
+        foliage.castShadow = true;
+        tree.add(foliage);
 
-        // Columnas de basalto
-        const columnSpots = [
-            [-30, -10, 8], [-34, -4, 11], [-28, 4, 7],
-            [32, -8, 9], [35, 2, 12], [28, 10, 7],
-            [-14, 28, 6], [16, 28, 8], [0, 34, 10]
-        ];
-        columnSpots.forEach(([cx, cz, ch]) => {
-            this.buildBasaltColumn(new THREE.Vector3(cx, ch / 2, cz), ch);
-        });
-
-        // Gran Santuario del Volcán
-        this.buildVolcanoShrine(new THREE.Vector3(0, 0, -32));
-
-        // Portal Místico del Fuego
-        this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0xef4444);
-
-        // Géiseres de vapor
-        this.buildThermalGeyser(new THREE.Vector3(-12, 0, 0));
-        this.buildThermalGeyser(new THREE.Vector3(12, 0, 0));
-        this.buildThermalGeyser(new THREE.Vector3(0, 0, 14));
-
-        // TÓTEMS DE FUEGO DESTRUCTIBLES (4 Tótems en Mundo 2)
-        this.buildFireTotem(new THREE.Vector3(-18, 0, -14));
-        this.buildFireTotem(new THREE.Vector3(18, 0, -14));
-        this.buildFireTotem(new THREE.Vector3(-15, 0, 20));
-        this.buildFireTotem(new THREE.Vector3(15, 0, 20));
-
-        // CAJAS DESTRUCTIBLES EN VOLCÁN
-        [
-            new THREE.Vector3(-8, 0.45, -5),
-            new THREE.Vector3(8, 0.45, -5),
-            new THREE.Vector3(-22, 0.45, 0),
-            new THREE.Vector3(22, 0.45, 0)
-        ].forEach(pos => this.buildCrate(pos, 'coins'));
-
-        // GEMAS DE MISIÓN: RELIQUIAS DE MAGMA (3 Reliquias en Mundo 2)
-        this.buildMissionGem(new THREE.Vector3(-12, 8.5, 0), 0xef4444, 1);
-        this.buildMissionGem(new THREE.Vector3(12, 8.5, 0), 0xef4444, 2);
-        this.buildMissionGem(new THREE.Vector3(0, 8.5, 14), 0xef4444, 3);
-
-        this.spawnFloatingParkourCoins([
-            new THREE.Vector3(-12, 11.5, 0),
-            new THREE.Vector3(12, 11.5, 0),
-            new THREE.Vector3(0, 11.5, 14),
-            new THREE.Vector3(-30, 9.0, -10),
-            new THREE.Vector3(32, 10.0, -8),
-            new THREE.Vector3(0, 6.5, -15),
-            new THREE.Vector3(0, 11.0, -24)
-        ]);
+        this.mapRoot.add(tree);
     }
 
-    // =========================================================================
-    // MAPA 3: CUMBRES HELADAS DEL DRAGÓN (MUNDO 3)
-    // =========================================================================
-    buildSnowMap() {
-        const islandGeom = new THREE.CylinderGeometry(58, 62, 2.5, 48);
-        const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.85 });
-        const island = new THREE.Mesh(islandGeom, snowMat);
-        island.position.y = -1.25;
-        island.receiveShadow = true;
-        this.mapRoot.add(island);
+    // Arbusto de Café con granos rojos
+    buildCoffeeBush(pos) {
+        const bush = new THREE.Group();
+        bush.position.copy(pos);
 
-        // Ventisqueros de nieve
-        const driftSpots = [
-            [-20, -16, 13, 2.0],
-            [22, -18, 14, 2.2],
-            [-26, 14, 11, 1.8],
-            [24, 18, 12, 1.9]
-        ];
-        driftSpots.forEach(([dx, dz, rad, h]) => {
-            const drift = new THREE.Mesh(
-                new THREE.SphereGeometry(rad, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.4),
-                new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.9 })
-            );
-            drift.position.set(dx, -h * 0.3, dz);
-            drift.scale.set(1.25, h / rad, 1.25);
-            this.mapRoot.add(drift);
-        });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
+        const berryMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.3, emissive: 0x991b1b, emissiveIntensity: 0.3 });
 
-        // Tatami de hielo
-        const arenaGeom = new THREE.CylinderGeometry(18, 18, 0.06, 36);
-        const iceMat = new THREE.MeshStandardMaterial({
-            color: 0xbae6fd,
-            roughness: 0.15,
-            metalness: 0.4,
-            transparent: true,
-            opacity: 0.92
-        });
-        const arenaMesh = new THREE.Mesh(arenaGeom, iceMat);
-        arenaMesh.position.y = 0.03;
-        arenaMesh.receiveShadow = true;
-        this.mapRoot.add(arenaMesh);
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1.2, 14, 12), leafMat);
+        body.position.y = 1.1;
+        body.scale.set(1.1, 0.9, 1.1);
+        bush.add(body);
 
-        const ringGeom = new THREE.TorusGeometry(18, 0.3, 8, 36);
-        const ringMat = new THREE.MeshStandardMaterial({
-            color: 0x0284c7,
-            roughness: 0.4,
-            emissive: 0x38bdf8,
-            emissiveIntensity: 0.25
-        });
-        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
-        ringMesh.rotation.x = Math.PI / 2;
-        ringMesh.position.y = 0.04;
-        this.mapRoot.add(ringMesh);
-
-        // Templo del Dragón de Hielo
-        this.buildIceTemple(new THREE.Vector3(0, 0, -32));
-
-        // Portal Místico Glacial
-        this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x38bdf8);
-
-        // Pinos nevados
-        const pineSpots = [
-            [-16, -14], [16, -14], [-24, 10], [24, 10],
-            [-12, 26], [12, 26], [-34, -18], [34, -18],
-            [-32, 2], [32, 2]
-        ];
-        pineSpots.forEach(([px, pz]) => {
-            this.buildSnowPine(new THREE.Vector3(px, 0, pz));
-        });
-
-        // Agujas de hielo cristalino
-        const crystalSpots = [
-            [-22, 0, -6], [22, 0, -6],
-            [-18, 0, 18], [18, 0, 18]
-        ];
-        crystalSpots.forEach(([cx, cz, cy]) => {
-            this.buildIceSpire(new THREE.Vector3(cx, 0, cy || cz));
-        });
-
-        // Trampolines de hielo
-        this.buildIceTrampoline(new THREE.Vector3(-12, 0, 0));
-        this.buildIceTrampoline(new THREE.Vector3(12, 0, 0));
-        this.buildIceTrampoline(new THREE.Vector3(0, 0, 14));
-
-        // CAJAS DESTRUCTIBLES EN NIEVE
-        [
-            new THREE.Vector3(-7, 0.45, -7),
-            new THREE.Vector3(7, 0.45, -7),
-            new THREE.Vector3(-7, 0.45, 7),
-            new THREE.Vector3(7, 0.45, 7)
-        ].forEach(pos => this.buildCrate(pos, 'fruit'));
-
-        // GEMAS DE MISIÓN: ZAFIROS GLACIALES (4 Zafiros en Mundo 3)
-        this.buildMissionGem(new THREE.Vector3(-22, 6.5, -6), 0x38bdf8, 1);
-        this.buildMissionGem(new THREE.Vector3(22, 6.5, -6), 0x38bdf8, 2);
-        this.buildMissionGem(new THREE.Vector3(0, 8.2, 14), 0x38bdf8, 3);
-        this.buildMissionGem(new THREE.Vector3(0, 8.5, -24), 0x38bdf8, 4);
-
-        // Ventisca animada continua (copos de nieve 60 FPS)
-        const snowFlakes = [];
-        const flakeGeom = new THREE.SphereGeometry(0.12, 6, 6);
-        const flakeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
-
-        for (let i = 0; i < 50; i++) {
-            const flake = new THREE.Mesh(flakeGeom, flakeMat);
-            flake.position.set(
-                (Math.random() - 0.5) * 80,
-                Math.random() * 25,
-                (Math.random() - 0.5) * 80
-            );
-            flake.userData = {
-                fallSpeed: 2.2 + Math.random() * 2.0,
-                driftSpeed: 1.0 + Math.random() * 1.2,
-                driftPhase: Math.random() * Math.PI * 2
-            };
-            this.mapRoot.add(flake);
-            snowFlakes.push(flake);
+        for (let b = 0; b < 12; b++) {
+            const angle = (b / 12) * Math.PI * 2;
+            const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), berryMat);
+            cherry.position.set(Math.cos(angle) * 1.05, 0.8 + (b % 3) * 0.25, Math.sin(angle) * 1.05);
+            bush.add(cherry);
         }
 
-        this.animatedUpdaters.push((delta, time) => {
-            snowFlakes.forEach(f => {
-                f.position.y -= f.userData.fallSpeed * delta;
-                f.position.x += Math.sin(time * f.userData.driftSpeed + f.userData.driftPhase) * delta * 1.5;
-                if (f.position.y < 0.2) {
-                    f.position.y = 22 + Math.random() * 3;
-                    f.position.x = (Math.random() - 0.5) * 80;
-                    f.position.z = (Math.random() - 0.5) * 80;
-                }
-            });
+        this.mapRoot.add(bush);
+    }
+
+    // Frailejón del Páramo Andino
+    buildFrailejon(pos) {
+        const f = new THREE.Group();
+        f.position.copy(pos);
+
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.95 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.9 });
+        const flowerMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 1.8, 12), stemMat);
+        stem.position.y = 0.9;
+        f.add(stem);
+
+        for (let l = 0; l < 8; l++) {
+            const angle = (l / 8) * Math.PI * 2;
+            const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 8), leafMat);
+            leaf.position.set(Math.cos(angle) * 0.4, 1.8, Math.sin(angle) * 0.4);
+            leaf.rotation.x = Math.PI / 3;
+            leaf.rotation.y = angle;
+            f.add(leaf);
+        }
+
+        const flower = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), flowerMat);
+        flower.position.y = 2.05;
+        f.add(flower);
+
+        this.mapRoot.add(f);
+    }
+
+    // Palmera de Coco del Caribe
+    buildCoconutPalm(pos) {
+        const palm = new THREE.Group();
+        palm.position.copy(pos);
+
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
+        const frondMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.6 });
+
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.45, 6.5, 12), trunkMat);
+        trunk.position.set(0.3, 3.25, 0);
+        trunk.rotation.z = 0.08;
+        palm.add(trunk);
+
+        for (let fr = 0; fr < 6; fr++) {
+            const angle = (fr / 6) * Math.PI * 2;
+            const frond = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 3.2), frondMat);
+            frond.position.set(Math.cos(angle) * 1.4, 6.4, Math.sin(angle) * 1.4);
+            frond.rotation.x = 0.35;
+            frond.rotation.y = angle;
+            palm.add(frond);
+        }
+
+        this.mapRoot.add(palm);
+    }
+
+    // Hacienda Paisa tradicional
+    buildPaisaHacienda(pos) {
+        const h = new THREE.Group();
+        h.position.copy(pos);
+
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+        const tileRoofMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.8 });
+        const woodTrimMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.6 });
+
+        const base = new THREE.Mesh(new THREE.BoxGeometry(22, 1.2, 14), wallMat);
+        base.position.y = 0.6;
+        h.add(base);
+
+        const walls = new THREE.Mesh(new THREE.BoxGeometry(19, 5.2, 11), wallMat);
+        walls.position.y = 3.6;
+        h.add(walls);
+
+        const balcony = new THREE.Mesh(new THREE.BoxGeometry(17, 0.8, 1.4), woodTrimMat);
+        balcony.position.set(0, 4.0, 5.8);
+        h.add(balcony);
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(17, 3.6, 4), tileRoofMat);
+        roof.rotation.y = Math.PI / 4;
+        roof.position.y = 7.8;
+        roof.scale.set(1.15, 1.0, 0.85);
+        h.add(roof);
+
+        this.mapRoot.add(h);
+    }
+
+    // Murallas de Cartagena
+    buildCartagenaFortress(pos) {
+        const fort = new THREE.Group();
+        fort.position.copy(pos);
+
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.9 });
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.8, 6), stoneMat);
+        wall.position.y = 2.4;
+        fort.add(wall);
+
+        [-13, 13].forEach(gx => {
+            const sentry = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 6.2, 12), stoneMat);
+            sentry.position.set(gx, 3.1, 0);
+            fort.add(sentry);
+
+            const dome = new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 10), stoneMat);
+            dome.position.set(gx, 6.2, 0);
+            fort.add(dome);
         });
 
-        this.spawnFloatingParkourCoins([
-            new THREE.Vector3(-12, 7.5, 0),
-            new THREE.Vector3(-12, 10.5, 0),
-            new THREE.Vector3(12, 7.5, 0),
-            new THREE.Vector3(12, 10.5, 0),
-            new THREE.Vector3(0, 10.5, 14),
-            new THREE.Vector3(0, 6.0, -15),
-            new THREE.Vector3(0, 10.5, -24)
-        ]);
+        this.mapRoot.add(fort);
+    }
+
+    buildPrecolumbianMonolith(pos) {
+        const mono = new THREE.Group();
+        mono.position.copy(pos);
+        const goldStoneMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.6, metalness: 0.4 });
+
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 8.5, 3.5), goldStoneMat);
+        pillar.position.y = 4.25;
+        mono.add(pillar);
+
+        const maskFace = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.2, 0.6), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8 }));
+        maskFace.position.set(0, 5.2, 1.8);
+        mono.add(maskFace);
+
+        this.mapRoot.add(mono);
+    }
+
+    buildAndeanShrine(pos) {
+        const shrine = new THREE.Group();
+        shrine.position.copy(pos);
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 });
+
+        const base = new THREE.Mesh(new THREE.BoxGeometry(22, 1.8, 14), stoneMat);
+        base.position.y = 0.9;
+        shrine.add(base);
+
+        const walls = new THREE.Mesh(new THREE.BoxGeometry(18, 5.5, 10), stoneMat);
+        walls.position.y = 4.2;
+        shrine.add(walls);
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(16, 3.8, 4), stoneMat);
+        roof.rotation.y = Math.PI / 4;
+        roof.position.y = 8.2;
+        shrine.add(roof);
+
+        this.mapRoot.add(shrine);
+    }
+
+    buildBambooBridge(pos) {
+        const bridge = new THREE.Group();
+        bridge.position.copy(pos);
+
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.18, 18), woodMat);
+        deck.position.y = 0.15;
+        bridge.add(deck);
+
+        [-1.6, 1.6].forEach(rx => {
+            const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 18, 8), woodMat);
+            rope.rotation.x = Math.PI / 2;
+            rope.position.set(rx, 1.0, 0);
+            bridge.add(rope);
+        });
+
+        this.mapRoot.add(bridge);
     }
 
     // =========================================================================
-    // CAJAS DE MADERA DESTRUCTIBLES ESTILO CRASH BANDICOOT
+    // OBJETOS DEL JUEGO: CAJAS '?', AIRDROPS Y CRISTALES DE BIODIVERSIDAD
     // =========================================================================
+
     buildCrate(pos, rewardType = 'coins') {
         const crateGroup = new THREE.Group();
         crateGroup.position.copy(pos);
 
-        const woodMat = new THREE.MeshStandardMaterial({
-            color: 0xb45309,
-            roughness: 0.8
-        });
-        const trimMat = new THREE.MeshStandardMaterial({
-            color: 0x78350f,
-            roughness: 0.6
-        });
-        const sealMat = new THREE.MeshBasicMaterial({
-            color: rewardType === 'fruit' ? 0xef4444 : 0xfacc15
-        });
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.75 });
+        const metalTrimMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.7, roughness: 0.3 });
 
-        // Cuerpo cúbico de madera
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), woodMat);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.92, 0.92), woodMat);
         box.castShadow = true;
-        box.receiveShadow = true;
         crateGroup.add(box);
 
-        // Marcos de refuerzo
-        const trimTop = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.08, 0.94), trimMat);
-        trimTop.position.y = 0.42;
+        const trimTop = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.96), metalTrimMat);
+        trimTop.position.y = 0.44;
         crateGroup.add(trimTop);
 
-        const trimBottom = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.08, 0.94), trimMat);
-        trimBottom.position.y = -0.42;
+        const trimBottom = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.96), metalTrimMat);
+        trimBottom.position.y = -0.44;
         crateGroup.add(trimBottom);
 
-        // Sello frontal (manzana/fruto o moneda)
-        const seal = new THREE.Mesh(new THREE.CircleGeometry(0.22, 8), sealMat);
-        seal.position.set(0, 0, 0.46);
-        crateGroup.add(seal);
+        // Signo de interrogación '?' dorado en cada cara
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 96px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', 64, 64);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const qMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+
+        const qFront = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.65), qMat);
+        qFront.position.set(0, 0, 0.47);
+        crateGroup.add(qFront);
+
+        const qBack = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.65), qMat);
+        qBack.rotation.y = Math.PI;
+        qBack.position.set(0, 0, -0.47);
+        crateGroup.add(qBack);
 
         this.mapRoot.add(crateGroup);
 
@@ -593,102 +743,63 @@ export class World {
         });
     }
 
-    checkCrateHits(hitPos, hitRadius, onBreak) {
-        for (let i = this.crates.length - 1; i >= 0; i--) {
-            const crate = this.crates[i];
-            if (!crate.intact) continue;
+    buildAirdrop(pos) {
+        const dropGroup = new THREE.Group();
+        dropGroup.position.copy(pos);
 
-            const dist = Math.hypot(hitPos.x - crate.position.x, hitPos.z - crate.position.z);
-            const distY = Math.abs(hitPos.y - crate.position.y);
+        const crateMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.5, roughness: 0.4 });
+        const canopyMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+        const beaconMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
 
-            if (dist < hitRadius && distY < 1.8) {
-                crate.intact = false;
-                this.mapRoot.remove(crate.group);
-                this.disposeObject(crate.group);
-                this.crates.splice(i, 1);
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.1, 1.3), crateMat);
+        crate.position.y = 0.55;
+        dropGroup.add(crate);
 
-                // Fragmentos de madera volando
-                this.spawnWoodSplinters(crate.position);
+        const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.22, 12), beaconMat);
+        beacon.position.y = 1.15;
+        dropGroup.add(beacon);
 
-                if (onBreak) {
-                    onBreak(crate);
-                }
-            }
-        }
+        const parachute = new THREE.Mesh(
+            new THREE.SphereGeometry(2.4, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
+            canopyMat
+        );
+        parachute.position.y = 4.2;
+        parachute.rotation.x = Math.PI;
+        dropGroup.add(parachute);
+
+        this.mapRoot.add(dropGroup);
+        this.airdrops.push({ group: dropGroup, beacon: beacon });
     }
 
-    spawnWoodSplinters(pos) {
-        const splinterMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.7 });
-        for (let j = 0; j < 7; j++) {
-            const shard = new THREE.Mesh(
-                new THREE.BoxGeometry(0.18, 0.08, 0.25),
-                splinterMat
-            );
-            shard.position.copy(pos).add(new THREE.Vector3(
-                (Math.random() - 0.5) * 0.5,
-                Math.random() * 0.5,
-                (Math.random() - 0.5) * 0.5
-            ));
-            shard.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-            this.mapRoot.add(shard);
-
-            const shardVel = new THREE.Vector3(
-                (Math.random() - 0.5) * 6,
-                4 + Math.random() * 4,
-                (Math.random() - 0.5) * 6
-            );
-
-            const updater = (delta) => {
-                shardVel.y -= 25.0 * delta;
-                shard.position.addScaledVector(shardVel, delta);
-                shard.rotation.x += 4 * delta;
-                if (shard.position.y < 0) {
-                    this.mapRoot.remove(shard);
-                    this.disposeObject(shard);
-                    const idx = this.animatedUpdaters.indexOf(updater);
-                    if (idx !== -1) this.animatedUpdaters.splice(idx, 1);
-                }
-            };
-            this.animatedUpdaters.push(updater);
-        }
-    }
-
-    // =========================================================================
-    // GEMAS SAGRADAS DE MISIÓN
-    // =========================================================================
-    buildMissionGem(pos, colorHex, gemId) {
+    buildBiodiversityCrystal(pos, gemId) {
         const gemGroup = new THREE.Group();
         gemGroup.position.copy(pos);
 
-        const gemGeom = new THREE.OctahedronGeometry(0.55, 0);
-        gemGeom.scale(1.0, 1.4, 1.0);
-
-        const gemMat = new THREE.MeshStandardMaterial({
-            color: colorHex,
-            emissive: colorHex,
-            emissiveIntensity: 0.6,
-            metalness: 0.3,
+        const crystalMat = new THREE.MeshStandardMaterial({
+            color: 0xc084fc,
+            emissive: 0x9333ea,
+            emissiveIntensity: 0.7,
             roughness: 0.15,
-            transparent: true,
-            opacity: 0.9
+            metalness: 0.8
         });
-        const gemMesh = new THREE.Mesh(gemGeom, gemMat);
-        gemMesh.castShadow = true;
-        gemGroup.add(gemMesh);
 
-        // Anillo de brillo etéreo
+        const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), crystalMat);
+        crystal.position.y = 0.5;
+        gemGroup.add(crystal);
+
         const aura = new THREE.Mesh(
-            new THREE.TorusGeometry(0.7, 0.04, 8, 24),
-            new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.6 })
+            new THREE.TorusGeometry(0.85, 0.05, 8, 20),
+            new THREE.MeshBasicMaterial({ color: 0xd8b4fe, transparent: true, opacity: 0.75 })
         );
         aura.rotation.x = Math.PI / 2;
+        aura.position.y = 0.5;
         gemGroup.add(aura);
 
         this.mapRoot.add(gemGroup);
 
         this.missionGems.push({
             group: gemGroup,
-            mesh: gemMesh,
+            mesh: crystal,
             aura: aura,
             position: pos.clone(),
             baseY: pos.y,
@@ -697,157 +808,62 @@ export class World {
         });
     }
 
-    checkMissionGems(playerPos, onCollect) {
-        for (let i = this.missionGems.length - 1; i >= 0; i--) {
-            const g = this.missionGems[i];
-            if (g.collected) continue;
-
-            const dist = g.group.position.distanceTo(playerPos);
-            if (dist < 1.7) {
-                g.collected = true;
-                this.mapRoot.remove(g.group);
-                this.disposeObject(g.group);
-                this.missionGems.splice(i, 1);
-
-                if (onCollect) {
-                    onCollect(g.gemId, g.position);
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // TÓTEMS DE FUEGO DESTRUCTIBLES (MUNDO 2)
-    // =========================================================================
-    buildFireTotem(pos) {
-        const totemGroup = new THREE.Group();
-        totemGroup.position.copy(pos);
-
-        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.9 });
-        const fireMat = new THREE.MeshStandardMaterial({
-            color: 0xff3b00,
-            emissive: 0xff5500,
-            emissiveIntensity: 0.9
-        });
-
-        // Pilar del tótem
-        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 2.4, 8), stoneMat);
-        pillar.position.y = 1.2;
-        pillar.castShadow = true;
-        totemGroup.add(pillar);
-
-        // Cabeza con orbe de fuego
-        const head = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5, 0), stoneMat);
-        head.position.y = 2.6;
-        totemGroup.add(head);
-
-        const flame = new THREE.Mesh(new THREE.OctahedronGeometry(0.35, 0), fireMat);
-        flame.position.y = 3.2;
-        totemGroup.add(flame);
-
-        this.mapRoot.add(totemGroup);
-
-        this.totems.push({
-            group: totemGroup,
-            position: pos.clone(),
-            flame: flame,
-            intact: true
-        });
-    }
-
-    checkTotemHits(hitPos, hitRadius, onBreak) {
-        for (let i = this.totems.length - 1; i >= 0; i--) {
-            const totem = this.totems[i];
-            if (!totem.intact) continue;
-
-            const dist = Math.hypot(hitPos.x - totem.position.x, hitPos.z - totem.position.z);
-            if (dist < hitRadius) {
-                totem.intact = false;
-                this.mapRoot.remove(totem.group);
-                this.disposeObject(totem.group);
-                this.totems.splice(i, 1);
-
-                this.spawnWoodSplinters(totem.position);
-
-                if (onBreak) {
-                    onBreak(totem);
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // PORTAL MÍSTICO DIMENSIONAL 3D
-    // =========================================================================
     buildMysticPortal(pos, rotY, themeColor) {
         const portalGroup = new THREE.Group();
         portalGroup.position.copy(pos);
         portalGroup.rotation.y = rotY;
 
-        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8 });
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
+        const goldStoneMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, metalness: 0.7, roughness: 0.3 });
 
-        // Columnas del portal
-        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 7.5, 16), stoneMat);
+        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 7.5, 16), goldStoneMat);
         p1.position.set(-3.2, 3.75, 0);
         portalGroup.add(p1);
 
-        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 7.5, 16), stoneMat);
+        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 7.5, 16), goldStoneMat);
         p2.position.set(3.2, 3.75, 0);
         portalGroup.add(p2);
 
-        // Viga superior arqueada
-        const arch = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.7, 0.8), goldMat);
-        arch.position.y = 7.6;
-        portalGroup.add(arch);
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.8, 0.9), goldStoneMat);
+        lintel.position.set(0, 7.6, 0);
+        portalGroup.add(lintel);
 
-        // Anillo rúnico giratorio central
-        const ringGeom = new THREE.TorusGeometry(2.8, 0.16, 12, 32);
-        const ringMat = new THREE.MeshStandardMaterial({
-            color: themeColor,
-            emissive: themeColor,
-            emissiveIntensity: 0.3,
-            roughness: 0.3
-        });
-        const ring = new THREE.Mesh(ringGeom, ringMat);
-        ring.position.y = 3.6;
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(2.4, 0.16, 16, 32),
+            new THREE.MeshStandardMaterial({ color: themeColor, emissive: themeColor, emissiveIntensity: 0.6 })
+        );
+        ring.position.set(0, 3.8, 0);
         portalGroup.add(ring);
 
-        // Vórtice dimensional interior
-        const vortexGeom = new THREE.CircleGeometry(2.6, 24);
         const vortexMat = new THREE.MeshBasicMaterial({
             color: themeColor,
-            side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.25
+            opacity: 0.45,
+            side: THREE.DoubleSide
         });
-        const vortex = new THREE.Mesh(vortexGeom, vortexMat);
-        vortex.position.y = 3.6;
+        const vortex = new THREE.Mesh(new THREE.CircleGeometry(2.35, 32), vortexMat);
+        vortex.position.set(0, 3.8, 0);
         portalGroup.add(vortex);
 
-        // Haz de luz vertical celestial (se enciende cuando la misión está completa)
-        const beamGeom = new THREE.CylinderGeometry(2.2, 2.2, 45, 20, 1, true);
         const beamMat = new THREE.MeshBasicMaterial({
             color: themeColor,
             transparent: true,
             opacity: 0.0,
             side: THREE.DoubleSide
         });
-        const beam = new THREE.Mesh(beamGeom, beamMat);
-        beam.position.y = 22.5;
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 35, 18, 1, true), beamMat);
+        beam.position.set(0, 18, 0);
         portalGroup.add(beam);
 
         this.mapRoot.add(portalGroup);
 
         this.portal = {
             group: portalGroup,
+            position: pos.clone(),
             ring: ring,
             vortex: vortex,
+            vortexMat: vortexMat,
             beam: beam,
             beamMat: beamMat,
-            ringMat: ringMat,
-            vortexMat: vortexMat,
-            position: pos.clone(),
             isActive: false,
             themeColor: themeColor
         };
@@ -856,328 +872,14 @@ export class World {
     activatePortal() {
         if (!this.portal || this.portal.isActive) return;
         this.portal.isActive = true;
-
-        // Iluminación intensa del portal
+        this.portal.vortexMat.opacity = 0.85;
         this.portal.beamMat.opacity = 0.55;
-        this.portal.vortexMat.opacity = 0.75;
-        this.portal.ringMat.emissiveIntensity = 1.2;
     }
 
     checkPortalEntry(playerPos) {
         if (!this.portal || !this.portal.isActive) return false;
         const dist = Math.hypot(playerPos.x - this.portal.position.x, playerPos.z - this.portal.position.z);
-        return dist < 2.5 && playerPos.y < 3.0;
-    }
-
-    // =========================================================================
-    // ARQUITECTURA Y ELEMENTOS TRADICIONALES
-    // =========================================================================
-    buildDojo(pos) {
-        const dojoGroup = new THREE.Group();
-        dojoGroup.position.copy(pos);
-
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 });
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.9 });
-        const roofMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
-        const redTrimMat = new THREE.MeshStandardMaterial({ color: 0xd92323, roughness: 0.6 });
-
-        const base = new THREE.Mesh(new THREE.BoxGeometry(22, 1.2, 14), woodMat);
-        base.position.y = 0.6;
-        base.castShadow = true;
-        base.receiveShadow = true;
-        dojoGroup.add(base);
-
-        const walls = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 12), wallMat);
-        walls.position.y = 3.6;
-        walls.castShadow = true;
-        dojoGroup.add(walls);
-
-        const colGeom = new THREE.CylinderGeometry(0.35, 0.4, 5, 12);
-        const colOffsets = [
-            [-9.5, -5.5], [9.5, -5.5], [-9.5, 5.5], [9.5, 5.5],
-            [0, -5.5], [-4.8, -5.5], [4.8, -5.5]
-        ];
-        colOffsets.forEach(([cx, cz]) => {
-            const col = new THREE.Mesh(colGeom, redTrimMat);
-            col.position.set(cx, 3.6, cz);
-            col.castShadow = true;
-            dojoGroup.add(col);
-        });
-
-        const roof1 = new THREE.Mesh(new THREE.ConeGeometry(17, 3.2, 4), roofMat);
-        roof1.rotation.y = Math.PI / 4;
-        roof1.position.y = 7.2;
-        roof1.scale.set(1.1, 1, 0.85);
-        roof1.castShadow = true;
-        dojoGroup.add(roof1);
-
-        const upperWall = new THREE.Mesh(new THREE.BoxGeometry(10, 2.5, 7), wallMat);
-        upperWall.position.y = 8.5;
-        dojoGroup.add(upperWall);
-
-        const roof2 = new THREE.Mesh(new THREE.ConeGeometry(9.5, 2.5, 4), roofMat);
-        roof2.rotation.y = Math.PI / 4;
-        roof2.position.y = 10.5;
-        roof2.scale.set(1.1, 1, 0.85);
-        roof2.castShadow = true;
-        dojoGroup.add(roof2);
-
-        this.mapRoot.add(dojoGroup);
-    }
-
-    buildVolcanoShrine(pos) {
-        const shrine = new THREE.Group();
-        shrine.position.copy(pos);
-
-        const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9 });
-        const rubyMat = new THREE.MeshStandardMaterial({
-            color: 0x991b1b,
-            emissive: 0xef4444,
-            emissiveIntensity: 0.5,
-            roughness: 0.3
-        });
-        const ironRoofMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.4, metalness: 0.7 });
-
-        const base = new THREE.Mesh(new THREE.BoxGeometry(22, 1.8, 14), darkStoneMat);
-        base.position.y = 0.9;
-        shrine.add(base);
-
-        const walls = new THREE.Mesh(new THREE.BoxGeometry(19, 5.5, 11), darkStoneMat);
-        walls.position.y = 4.2;
-        shrine.add(walls);
-
-        [-9, -4.5, 0, 4.5, 9].forEach(cx => {
-            const col = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 5.5, 10), ironRoofMat);
-            col.position.set(cx, 4.2, -5.2);
-            shrine.add(col);
-        });
-
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(17, 3.8, 4), ironRoofMat);
-        roof.rotation.y = Math.PI / 4;
-        roof.position.y = 8.2;
-        roof.scale.set(1.1, 1, 0.85);
-        shrine.add(roof);
-
-        const ruby = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), rubyMat);
-        ruby.position.y = 11.2;
-        shrine.add(ruby);
-
-        this.mapRoot.add(shrine);
-    }
-
-    buildIceTemple(pos) {
-        const temple = new THREE.Group();
-        temple.position.copy(pos);
-
-        const snowBlockMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.8 });
-        const iceTileMat = new THREE.MeshStandardMaterial({
-            color: 0x38bdf8,
-            roughness: 0.2,
-            metalness: 0.4,
-            transparent: true,
-            opacity: 0.9
-        });
-        const frostTrimMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 });
-
-        const base = new THREE.Mesh(new THREE.BoxGeometry(22, 1.4, 14), snowBlockMat);
-        base.position.y = 0.7;
-        temple.add(base);
-
-        const walls = new THREE.Mesh(new THREE.BoxGeometry(19, 5.2, 11), snowBlockMat);
-        walls.position.y = 4.0;
-        temple.add(walls);
-
-        [-9, -4.5, 0, 4.5, 9].forEach(cx => {
-            const col = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 5.2, 12), frostTrimMat);
-            col.position.set(cx, 4.0, -5.2);
-            temple.add(col);
-        });
-
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(17, 3.4, 4), iceTileMat);
-        roof.rotation.y = Math.PI / 4;
-        roof.position.y = 7.6;
-        roof.scale.set(1.1, 1, 0.85);
-        temple.add(roof);
-
-        const snowCap = new THREE.Mesh(new THREE.ConeGeometry(16.2, 1.2, 4), snowBlockMat);
-        snowCap.rotation.y = Math.PI / 4;
-        snowCap.position.y = 8.6;
-        temple.add(snowCap);
-
-        this.mapRoot.add(temple);
-    }
-
-    buildToriiGate(pos, rotY) {
-        const torii = new THREE.Group();
-        torii.position.copy(pos);
-        torii.rotation.y = rotY;
-
-        const redMat = new THREE.MeshStandardMaterial({ color: 0xd92323, roughness: 0.5 });
-        const blackMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.6 });
-
-        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 6.5, 12), redMat);
-        p1.position.set(-2.8, 3.25, 0);
-        p1.castShadow = true;
-        torii.add(p1);
-
-        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 6.5, 12), redMat);
-        p2.position.set(2.8, 3.25, 0);
-        p2.castShadow = true;
-        torii.add(p2);
-
-        const topBeam = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.55, 0.65), redMat);
-        topBeam.position.y = 6.4;
-        topBeam.castShadow = true;
-        torii.add(topBeam);
-
-        const roofCap = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.25, 0.8), blackMat);
-        roofCap.position.y = 6.7;
-        roofCap.castShadow = true;
-        torii.add(roofCap);
-
-        const subBeam = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.35, 0.45), redMat);
-        subBeam.position.y = 5.3;
-        torii.add(subBeam);
-
-        this.mapRoot.add(torii);
-    }
-
-    buildCherryTree(pos) {
-        const tree = new THREE.Group();
-        tree.position.copy(pos);
-
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
-        const blossomMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.8 });
-
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 4.0, 8), trunkMat);
-        trunk.position.y = 2.0;
-        trunk.rotation.z = (Math.random() - 0.5) * 0.15;
-        trunk.castShadow = true;
-        tree.add(trunk);
-
-        const foliageOffsets = [
-            [0, 4.2, 0, 2.2],
-            [-1.1, 3.8, 0.8, 1.6],
-            [1.2, 4.0, -0.6, 1.7],
-            [0.5, 5.0, 0.3, 1.5],
-            [-0.7, 4.6, -0.8, 1.4]
-        ];
-        foliageOffsets.forEach(([fx, fy, fz, size]) => {
-            const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 1), blossomMat);
-            foliage.position.set(fx, fy, fz);
-            foliage.castShadow = true;
-            tree.add(foliage);
-        });
-
-        this.mapRoot.add(tree);
-    }
-
-    buildBambooGrove(pos) {
-        const grove = new THREE.Group();
-        grove.position.copy(pos);
-
-        const bambooMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.6 });
-        const ringMat = new THREE.MeshStandardMaterial({ color: 0x4d7c0f, roughness: 0.8 });
-
-        for (let i = 0; i < 9; i++) {
-            const bx = (Math.random() - 0.5) * 4.5;
-            const bz = (Math.random() - 0.5) * 4.5;
-            const stalkH = 5.5 + Math.random() * 3.5;
-
-            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, stalkH, 8), bambooMat);
-            stalk.position.set(bx, stalkH / 2, bz);
-            stalk.rotation.z = (Math.random() - 0.5) * 0.08;
-            grove.add(stalk);
-
-            for (let y = 1.2; y < stalkH; y += 1.4) {
-                const joint = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.03, 6, 8), ringMat);
-                joint.rotation.x = Math.PI / 2;
-                joint.position.set(bx, y, bz);
-                grove.add(joint);
-            }
-        }
-        this.mapRoot.add(grove);
-    }
-
-    buildBasaltColumn(pos, height) {
-        const col = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.4, 1.5, height, 6),
-            new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.9 })
-        );
-        col.position.copy(pos);
-        col.rotation.y = (pos.x * 0.3);
-        this.mapRoot.add(col);
-    }
-
-    buildSnowPine(pos) {
-        const pine = new THREE.Group();
-        pine.position.copy(pos);
-
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.9 });
-        const foliageMat = new THREE.MeshStandardMaterial({ color: 0x1e3a2e, roughness: 0.8 });
-        const snowMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.85 });
-
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3.5, 8), trunkMat);
-        trunk.position.y = 1.75;
-        pine.add(trunk);
-
-        const tiers = [
-            { y: 3.2, r: 2.4, h: 2.2 },
-            { y: 4.6, r: 1.8, h: 1.9 },
-            { y: 5.8, r: 1.2, h: 1.6 }
-        ];
-
-        tiers.forEach(t => {
-            const foliage = new THREE.Mesh(new THREE.ConeGeometry(t.r, t.h, 8), foliageMat);
-            foliage.position.y = t.y;
-            pine.add(foliage);
-
-            const snow = new THREE.Mesh(new THREE.ConeGeometry(t.r * 1.02, t.h * 0.45, 8), snowMat);
-            snow.position.y = t.y + t.h * 0.28;
-            pine.add(snow);
-        });
-
-        this.mapRoot.add(pine);
-    }
-
-    buildIceSpire(pos) {
-        const spire = new THREE.Mesh(
-            new THREE.ConeGeometry(1.2, 6.5, 6),
-            new THREE.MeshStandardMaterial({
-                color: 0x38bdf8,
-                emissive: 0x0284c7,
-                emissiveIntensity: 0.35,
-                roughness: 0.1,
-                metalness: 0.3,
-                transparent: true,
-                opacity: 0.85
-            })
-        );
-        spire.position.set(pos.x, 3.25, pos.z);
-        this.mapRoot.add(spire);
-    }
-
-    buildLantern(pos) {
-        const lantern = new THREE.Group();
-        lantern.position.copy(pos);
-
-        const stoneMat = new THREE.MeshStandardMaterial({ color: 0x71717a, roughness: 0.9 });
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 2.2, 6), stoneMat);
-        pole.position.y = 1.1;
-        lantern.add(pole);
-
-        const lightBox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), glowMat);
-        lightBox.position.y = 2.4;
-        lantern.add(lightBox);
-
-        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.65, 0.35, 4), stoneMat);
-        cap.position.y = 2.85;
-        cap.rotation.y = Math.PI / 4;
-        lantern.add(cap);
-
-        this.mapRoot.add(lantern);
+        return dist < 2.8;
     }
 
     buildTrampoline(pos) {
@@ -1186,7 +888,7 @@ export class World {
 
         const frame = new THREE.Mesh(
             new THREE.CylinderGeometry(1.6, 1.8, 0.3, 16),
-            new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 })
+            new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.6 })
         );
         frame.position.y = 0.15;
         pad.add(frame);
@@ -1196,76 +898,41 @@ export class World {
             new THREE.MeshStandardMaterial({
                 color: 0xef4444,
                 roughness: 0.3,
-                emissive: 0xb91c1c,
-                emissiveIntensity: 0.4
+                emissive: 0xdc2626,
+                emissiveIntensity: 0.5
             })
         );
         canvas.position.y = 0.18;
         pad.add(canvas);
 
-        const emblem = new THREE.Mesh(
-            new THREE.RingGeometry(0.2, 0.6, 4),
-            new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide })
-        );
-        emblem.rotation.x = -Math.PI / 2;
-        emblem.position.y = 0.35;
-        pad.add(emblem);
-
         this.mapRoot.add(pad);
         this.trampolines.push({ position: pos, radius: 1.5, boostForce: 21.0 });
     }
 
-    buildThermalGeyser(pos) {
-        const geyser = new THREE.Group();
-        geyser.position.copy(pos);
+    buildThermalSpring(pos) {
+        const spring = new THREE.Group();
+        spring.position.copy(pos);
 
-        const vent = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.5, 1.9, 0.4, 16),
-            new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.9 })
+        const pool = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.8, 2.0, 0.3, 16),
+            new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 })
         );
-        vent.position.y = 0.2;
-        geyser.add(vent);
+        pool.position.y = 0.15;
+        spring.add(pool);
 
-        const magmaVent = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.2, 1.2, 0.42, 16),
-            new THREE.MeshStandardMaterial({
-                color: 0xff3b00,
-                emissive: 0xff4500,
-                emissiveIntensity: 0.9
-            })
-        );
-        magmaVent.position.y = 0.22;
-        geyser.add(magmaVent);
-
-        this.mapRoot.add(geyser);
-        this.trampolines.push({ position: pos, radius: 1.5, boostForce: 22.0 });
-    }
-
-    buildIceTrampoline(pos) {
-        const icePad = new THREE.Group();
-        icePad.position.copy(pos);
-
-        const frame = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.6, 1.8, 0.3, 16),
-            new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 })
-        );
-        frame.position.y = 0.15;
-        icePad.add(frame);
-
-        const canvas = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.35, 1.35, 0.32, 16),
+        const water = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.5, 1.5, 0.32, 16),
             new THREE.MeshStandardMaterial({
                 color: 0x38bdf8,
                 emissive: 0x0284c7,
-                emissiveIntensity: 0.6,
-                roughness: 0.2
+                emissiveIntensity: 0.6
             })
         );
-        canvas.position.y = 0.18;
-        icePad.add(canvas);
+        water.position.y = 0.18;
+        spring.add(water);
 
-        this.mapRoot.add(icePad);
-        this.trampolines.push({ position: pos, radius: 1.5, boostForce: 21.5 });
+        this.mapRoot.add(spring);
+        this.trampolines.push({ position: pos, radius: 1.5, boostForce: 22.0 });
     }
 
     spawnFloatingParkourCoins(spots) {
@@ -1287,10 +954,74 @@ export class World {
             this.floatingCoins.push({
                 mesh: mesh,
                 baseY: pos.y,
-                value: 15,
+                value: 20,
                 collected: false
             });
         });
+    }
+
+    checkCrateHits(hitPos, hitRadius, onBreak) {
+        for (let i = this.crates.length - 1; i >= 0; i--) {
+            const crate = this.crates[i];
+            if (!crate.intact) continue;
+
+            const dist = Math.hypot(hitPos.x - crate.position.x, hitPos.z - crate.position.z);
+            const distY = Math.abs(hitPos.y - crate.position.y);
+
+            if (dist < hitRadius && distY < 1.8) {
+                crate.intact = false;
+                this.mapRoot.remove(crate.group);
+                this.disposeObject(crate.group);
+                this.crates.splice(i, 1);
+
+                this.spawnWoodSplinters(crate.position);
+
+                if (onBreak) {
+                    onBreak(crate);
+                }
+            }
+        }
+    }
+
+    checkTotemHits(hitPos, hitRadius, onBreak) {
+        return false;
+    }
+
+    checkMissionGems(playerPos, onCollect) {
+        for (let i = this.missionGems.length - 1; i >= 0; i--) {
+            const g = this.missionGems[i];
+            if (g.collected) continue;
+
+            const dist = g.group.position.distanceTo(playerPos);
+            if (dist < 1.8) {
+                g.collected = true;
+                this.mapRoot.remove(g.group);
+                this.disposeObject(g.group);
+                this.missionGems.splice(i, 1);
+
+                if (onCollect) {
+                    onCollect(g.gemId, g.position);
+                }
+            }
+        }
+    }
+
+    spawnWoodSplinters(pos) {
+        const splinterGroup = new THREE.Group();
+        splinterGroup.position.copy(pos);
+
+        const mat = new THREE.MeshStandardMaterial({ color: 0xb45309 });
+        for (let i = 0; i < 8; i++) {
+            const sp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.08), mat);
+            sp.position.set((Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6);
+            splinterGroup.add(sp);
+        }
+
+        this.mapRoot.add(splinterGroup);
+        setTimeout(() => {
+            this.mapRoot.remove(splinterGroup);
+            this.disposeObject(splinterGroup);
+        }, 800);
     }
 
     // =========================================================================
@@ -1299,21 +1030,20 @@ export class World {
     update(delta) {
         const time = performance.now() * 0.003;
 
-        // 1. Animaciones de bioma
         for (let i = 0; i < this.animatedUpdaters.length; i++) {
             this.animatedUpdaters[i](delta, time);
         }
 
-        // 2. Animar gemas sagradas de misión (rotación y flotación)
+        // Cristales de biodiversidad
         for (let i = 0; i < this.missionGems.length; i++) {
             const g = this.missionGems[i];
             if (g.collected) continue;
             g.mesh.rotation.y += 0.035;
             g.aura.rotation.z += 0.02;
-            g.group.position.y = g.baseY + Math.sin(time * 2.5 + i) * 0.3;
+            g.group.position.y = g.baseY + Math.sin(time * 2.5 + i) * 0.25;
         }
 
-        // 3. Animar portal dimensional
+        // Portal dimensional
         if (this.portal) {
             this.portal.ring.rotation.z += (this.portal.isActive ? 0.05 : 0.015);
             this.portal.vortex.rotation.z -= (this.portal.isActive ? 0.04 : 0.01);
@@ -1322,20 +1052,12 @@ export class World {
             }
         }
 
-        // 4. Animar tótems de fuego
-        for (let i = 0; i < this.totems.length; i++) {
-            const t = this.totems[i];
-            if (!t.intact) continue;
-            t.flame.rotation.y += 0.04;
-            t.flame.scale.setScalar(0.9 + Math.sin(time * 5 + i) * 0.15);
-        }
-
-        // 5. Animar monedas flotantes
+        // Monedas
         for (let i = 0; i < this.floatingCoins.length; i++) {
             const c = this.floatingCoins[i];
             if (c.collected) continue;
             c.mesh.rotation.z += 0.04;
-            c.mesh.position.y = c.baseY + Math.sin(time + i) * 0.35;
+            c.mesh.position.y = c.baseY + Math.sin(time + i) * 0.3;
         }
     }
 
