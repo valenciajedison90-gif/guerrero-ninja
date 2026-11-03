@@ -1,21 +1,22 @@
-// js/main.js - Bucle Principal del Juego, Combate, Lógica de Tienda y Enlace de Sistemas
+// js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=6.0';
-import { storage } from './storage.js?v=6.0';
-import { WEAPONS } from './weapons.js?v=6.0';
-import { ParticleSystem } from './particles.js?v=6.0';
-import { World, MAPS_CONFIG } from './world.js?v=6.0';
-import { Player } from './player.js?v=6.0';
-import { EnemyManager } from './enemies.js?v=6.0';
-import { MultiplayerManager } from './multiplayer.js?v=6.0';
-import { TouchControlsManager } from './touch.js?v=6.0';
+import { sounds } from './sound.js?v=7.0';
+import { storage } from './storage.js?v=7.0';
+import { WEAPONS } from './weapons.js?v=7.0';
+import { ParticleSystem } from './particles.js?v=7.0';
+import { World, MAPS_CONFIG } from './world.js?v=7.0';
+import { Player } from './player.js?v=7.0';
+import { EnemyManager } from './enemies.js?v=7.0';
+import { MultiplayerManager } from './multiplayer.js?v=7.0';
+import { TouchControlsManager } from './touch.js?v=7.0';
 
 class Game {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
         this.clock = new THREE.Clock();
+        this.portalVictoryTriggered = false;
 
-        // 1. Inicializar Three.js
+        // 1. Inicializar Three.js con antialiasing y nitidez HD
         this.setupRenderer();
         this.setupSceneAndLights();
 
@@ -26,39 +27,41 @@ class Game {
         this.enemyManager = new EnemyManager(this.scene, this.particles);
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
 
-        // Controles táctiles móviles estilo Free Fire
+        // Controles táctiles móviles estilo Free Fire con botón de giro
         this.touchControls = new TouchControlsManager(this.player, this);
 
         // Conectar eventos de combate del jugador
         this.player.onAttackCallback = (weaponId, combo) => this.handlePlayerAttack(weaponId, combo);
+        this.player.onSpinAttackCallback = () => this.handlePlayerSpinAttack();
 
-        // 3. Inicializar Interfaz de Usuario
+        // 3. Inicializar Interfaz de Usuario y Misiones
         this.setupUI();
         this.updateHUD();
+        this.updateMissionHUD();
 
         // 4. Iniciar bucle de animación
         this.animate = this.animate.bind(this);
         requestAnimationFrame(this.animate);
 
-        // Escuchar redimensionamiento de ventana
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
     setupRenderer() {
         this.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 900);
 
+        // Antialiasing forzado para bordes hiper-nítidos sin pixelación
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: !this.isMobile,
-            powerPreference: 'default',
-            precision: this.isMobile ? 'mediump' : 'highp'
+            antialias: true,
+            powerPreference: 'high-performance',
+            precision: 'highp'
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-        // Clave de rendimiento móvil: pixelRatio a 1.0 en celulares evita saturar la GPU y calentar el teléfono
-        this.renderer.setPixelRatio(this.isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
+        // Resolución nativa nítida: hasta 2.0x DPI en pantallas Retina/AMOLED
+        const dpr = window.devicePixelRatio || 1;
+        this.renderer.setPixelRatio(Math.min(dpr, 2.0));
 
-        // Sombras pesadas en tiempo real desactivadas en celulares para garantizar 60 FPS estables
         this.renderer.shadowMap.enabled = !this.isMobile;
         if (!this.isMobile) {
             this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -73,12 +76,10 @@ class Game {
     }
 
     setupSceneAndLights() {
-        // En móviles, aumentamos la luz ambiental para un aspecto vibrante sin sobrecargar el procesador
-        const ambientIntensity = this.isMobile ? 0.95 : 0.7;
+        const ambientIntensity = this.isMobile ? 0.95 : 0.75;
         const ambientLight = new THREE.AmbientLight(0xffffff, ambientIntensity);
         this.scene.add(ambientLight);
 
-        // Luz de sol brillante
         const sunLight = new THREE.DirectionalLight(0xfffbeb, this.isMobile ? 1.0 : 1.3);
         sunLight.position.set(25, 40, 20);
 
@@ -95,29 +96,28 @@ class Game {
             sunLight.shadow.camera.top = d;
             sunLight.shadow.camera.bottom = -d;
             sunLight.shadow.bias = -0.0005;
-        } else {
-            sunLight.castShadow = false;
         }
 
         this.scene.add(sunLight);
 
-        // Luz hemisférica (cielo azul / suelo verde suave)
         const hemiLight = new THREE.HemisphereLight(0xbae6fd, 0x86efac, 0.45);
         this.scene.add(hemiLight);
     }
 
+    // =========================================================================
+    // COMBATE DEL JUGADOR
+    // =========================================================================
     handlePlayerAttack(weaponId, combo) {
         const weapon = WEAPONS[weaponId] || WEAPONS.bokken;
         const playerPos = this.player.mesh.position;
 
-        // Vector frontal hacia donde mira el ninja
         const forward = new THREE.Vector3(
             Math.sin(this.player.mesh.rotation.y),
             0,
             Math.cos(this.player.mesh.rotation.y)
         ).normalize();
 
-        // 1. Si es arma arrojadiza (Shurikens)
+        // 1. Armas a distancia (Shurikens)
         if (weapon.type === 'ranged') {
             const spawnPos = playerPos.clone().add(new THREE.Vector3(0, 1.3, 0)).addScaledVector(forward, 0.8);
             this.particles.spawnShurikenProjectile(spawnPos, forward, weapon.damage, weapon.element);
@@ -125,33 +125,28 @@ class Game {
             return;
         }
 
-        // 2. Si es arma cuerpo a cuerpo (Espadas)
-        // Efecto visual de estela de corte
+        // 2. Armas cuerpo a cuerpo (Espadas)
         const slashPos = playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(forward, 1.2);
         this.particles.createSlashEffect(slashPos, forward, weapon.element);
         this.multiplayer.sendAttack(weaponId, combo, forward);
 
-        // Comprobar enemigos en el rango de alcance
         let hitCount = 0;
         const range = weapon.range;
 
+        // Golpear enemigos frente al jugador
         this.enemyManager.enemies.forEach(enemy => {
             const enemyPos = enemy.mesh.position;
             const dist = playerPos.distanceTo(enemyPos);
 
             if (dist <= range + 0.8) {
-                // Comprobar si está frente al jugador (ángulo menor a 110 grados)
                 const toEnemy = new THREE.Vector3().subVectors(enemyPos, playerPos).normalize();
                 const angle = forward.angleTo(toEnemy);
 
                 if (angle < Math.PI * 0.65) {
-                    // Impacto acertado
                     hitCount++;
-                    const isCrit = Math.random() < 0.25; // 25% crítico
+                    const isCrit = Math.random() < 0.25;
                     let damage = weapon.damage;
                     if (isCrit) damage = Math.round(damage * 1.6);
-
-                    // Bonificación por nivel del jugador
                     damage += (storage.data.level - 1) * 3;
 
                     this.enemyManager.damageEnemy(enemy, damage, isCrit, toEnemy, (defeatedEnemy) => {
@@ -161,15 +156,67 @@ class Game {
             }
         });
 
+        // Golpear cajas de madera destructibles
+        const attackCenter = playerPos.clone().addScaledVector(forward, 1.2);
+        this.world.checkCrateHits(attackCenter, range + 0.8, (crate) => {
+            this.handleCrateBroken(crate);
+        });
+
+        // Golpear tótems de fuego
+        this.world.checkTotemHits(attackCenter, range + 0.8, (totem) => {
+            this.handleTotemDestroyed(totem);
+        });
+
         if (hitCount > 0) {
             this.showCombo(combo);
+        }
+    }
+
+    // Ataque de Giro Ninja 360° estilo Crash Bandicoot
+    handlePlayerSpinAttack() {
+        const playerPos = this.player.mesh.position;
+        const spinRadius = 3.4;
+
+        this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(1, 0, 0), 'light');
+        this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(-1, 0, 0), 'light');
+
+        let hitCount = 0;
+        this.enemyManager.enemies.forEach(enemy => {
+            const dist = playerPos.distanceTo(enemy.mesh.position);
+            if (dist <= spinRadius) {
+                hitCount++;
+                const isCrit = Math.random() < 0.35;
+                const toEnemy = new THREE.Vector3().subVectors(enemy.mesh.position, playerPos).normalize();
+                const weapon = WEAPONS[storage.getActiveWeaponId()] || WEAPONS.bokken;
+                const damage = Math.round(weapon.damage * 1.4) + (storage.data.level - 1) * 3;
+
+                this.enemyManager.damageEnemy(enemy, damage, isCrit, toEnemy, (def) => this.handleEnemyDefeated(def));
+            }
+        });
+
+        // Romper todas las cajas en radio 360°
+        this.world.checkCrateHits(playerPos, spinRadius, (crate) => this.handleCrateBroken(crate));
+
+        // Romper tótems en radio 360°
+        this.world.checkTotemHits(playerPos, spinRadius, (totem) => this.handleTotemDestroyed(totem));
+
+        if (hitCount > 0) {
+            this.showCombo(2);
         }
     }
 
     handleEnemyDefeated(enemy) {
         storage.incrementEnemiesDefeated();
 
-        // Añadir XP
+        // Registrar en la misión del mundo
+        if (enemy.type === 'boss') {
+            storage.recordMissionBoss(this.world.currentMapId);
+        } else if (enemy.type !== 'dummy') {
+            storage.recordMissionEnemy(this.world.currentMapId);
+        }
+        this.updateMissionHUD();
+
+        // Añadir XP y comprobar nivel
         const xpResult = storage.addXP(enemy.xpDrop);
         this.updateHUD();
 
@@ -179,17 +226,154 @@ class Game {
             this.player.health = this.player.maxHealth;
             this.showBanner(
                 `¡SUBISTE AL NIVEL ${xpResult.newLevel}! 🎉`,
-                `+15 Vida Máxima aumentada y más poder de ataque`
+                `+15 Vida Máxima aumentada y mayor fuerza ninja`
             );
         }
     }
 
+    handleCrateBroken(crate) {
+        sounds.playCrateBreak();
+
+        if (crate.rewardType === 'fruit') {
+            this.player.heal(25);
+            this.showBanner('¡FRUTA SAGRADA! 🍎', '+25 Vida restaurada');
+        } else {
+            storage.addCoins(15);
+            sounds.playCoin();
+        }
+
+        storage.recordMissionCrate(this.world.currentMapId);
+        this.updateHUD();
+        this.updateMissionHUD();
+    }
+
+    handleTotemDestroyed(totem) {
+        sounds.playHit(true);
+        storage.recordMissionTotem(this.world.currentMapId);
+        this.showBanner('¡TÓTEM DESTRUIDO! 🌋', 'Fuego apagado');
+        this.updateMissionHUD();
+    }
+
+    handleGemCollected(gemId, pos) {
+        sounds.playGemCollect();
+        this.particles.createHitSparks(pos.clone().add(new THREE.Vector3(0, 0.5, 0)), true);
+        storage.recordMissionGem(this.world.currentMapId);
+        this.showBanner('¡GEMA SAGRADA OBTENIDA! 💎', '¡Objetivo de misión avanzado!');
+        this.updateMissionHUD();
+    }
+
+    // =========================================================================
+    // GESTIÓN DE MISIONES Y PORTAL DIMENSIONAL (CRASH BANDICOOT STYLE)
+    // =========================================================================
+    updateMissionHUD() {
+        const worldId = this.world.currentMapId;
+        const cfg = MAPS_CONFIG[worldId];
+        const prog = storage.getWorldProgress(worldId);
+
+        const titleEl = document.getElementById('hud-world-name');
+        if (titleEl) {
+            titleEl.textContent = cfg.badge + ' - ' + cfg.name.toUpperCase();
+        }
+
+        const tasksList = document.getElementById('mission-tasks-list');
+        if (tasksList) {
+            tasksList.innerHTML = '';
+
+            if (worldId === 'forest') {
+                const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
+                const gDone = prog.gemsCollected >= prog.gemsTarget;
+                const cDone = prog.cratesBroken >= prog.cratesTarget;
+
+                tasksList.innerHTML = `
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">⚔️</span> <span>Ninjas: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Gemas Sagradas: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${cDone ? 'done' : ''}"><span class="m-icon">📦</span> <span>Cajas del Dojo: ${prog.cratesBroken}/${prog.cratesTarget}</span> <span>${cDone ? '✅' : '⏳'}</span></div>
+                `;
+            } else if (worldId === 'volcano') {
+                const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
+                const gDone = prog.gemsCollected >= prog.gemsTarget;
+                const tDone = prog.totemsDestroyed >= prog.totemsTarget;
+
+                tasksList.innerHTML = `
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">⚔️</span> <span>Ninjas de Fuego: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Reliquias Magma: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${tDone ? 'done' : ''}"><span class="m-icon">🌋</span> <span>Tótems Destruidos: ${prog.totemsDestroyed}/${prog.totemsTarget}</span> <span>${tDone ? '✅' : '⏳'}</span></div>
+                `;
+            } else if (worldId === 'snow') {
+                const gDone = prog.gemsCollected >= prog.gemsTarget;
+                const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
+                const bDone = prog.bossDefeated;
+
+                tasksList.innerHTML = `
+                    <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">💎</span> <span>Zafiros Glaciales: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">⚔️</span> <span>Ninjas Escarcha: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${bDone ? 'done' : ''}"><span class="m-icon">👹</span> <span>Gran Jefe Samurái: ${bDone ? 'Derrotado' : 'Pendiente'}</span> <span>${bDone ? '✅' : '⏳'}</span></div>
+                `;
+            }
+        }
+
+        // Comprobar si la misión está completa para activar el Portal
+        const isComplete = storage.isMissionCompleted(worldId);
+        const pill = document.getElementById('portal-status-pill');
+        const text = document.getElementById('portal-status-text');
+
+        if (isComplete) {
+            if (!this.world.portal || !this.world.portal.isActive) {
+                this.world.activatePortal();
+                sounds.playPortalActivate();
+                this.showBanner('¡PORTAL MÍSTICO ACTIVADO! ⛩️', '¡Cruza el portal para completar el mundo!');
+            }
+            if (pill) pill.classList.add('unlocked');
+            if (text) text.textContent = '⚡ ¡PORTAL ABIERTO! CRUZA AQUÍ';
+        } else {
+            if (pill) pill.classList.remove('unlocked');
+            if (text) text.textContent = '🔒 PORTAL SELLADO';
+        }
+    }
+
+    handlePortalVictory() {
+        if (this.portalVictoryTriggered) return;
+        this.portalVictoryTriggered = true;
+
+        const currentWorld = this.world.currentMapId;
+        const cfg = MAPS_CONFIG[currentWorld];
+
+        // Guardar progreso y recompensas
+        storage.completeWorld(currentWorld);
+        storage.addCoins(100);
+        storage.addXP(150);
+        sounds.playVictoryFanfare();
+
+        // Mostrar Modal de Victoria
+        const modal = document.getElementById('level-clear-modal');
+        const titleEl = document.getElementById('victory-world-title');
+        const nextBtn = document.getElementById('btn-next-world');
+
+        if (titleEl) titleEl.textContent = cfg.name.toUpperCase();
+        if (nextBtn) {
+            if (currentWorld === 'forest') {
+                nextBtn.textContent = 'CONTINUAR AL MUNDO 2: TEMPLO DEL VOLCÁN ➔';
+            } else if (currentWorld === 'volcano') {
+                nextBtn.textContent = 'CONTINUAR AL MUNDO 3: CUMBRES HELADAS ➔';
+            } else {
+                nextBtn.textContent = '¡VICTORIA TOTAL! REPETIR AVENTURA 🏆';
+            }
+        }
+
+        if (modal) modal.classList.add('open');
+        this.updateHUD();
+    }
+
+    // =========================================================================
+    // UI Y ENLACE DE EVENTOS
+    // =========================================================================
     showCombo(comboIndex) {
         const comboEl = document.getElementById('combo-display');
+        if (!comboEl) return;
         const text = comboIndex === 2 ? '¡CORTE GIRATORIO x3!' : (comboIndex === 1 ? '¡GOLPE CRÍTICO x2!' : '¡IMPACTO!');
         comboEl.textContent = text;
         comboEl.classList.remove('active');
-        void comboEl.offsetWidth; // Forzar reflujo de animación
+        void comboEl.offsetWidth;
         comboEl.classList.add('active');
 
         clearTimeout(this.comboTimeout);
@@ -200,8 +384,11 @@ class Game {
 
     showBanner(title, subtitle) {
         const banner = document.getElementById('banner-notification');
-        document.getElementById('banner-title').textContent = title;
-        document.getElementById('banner-subtitle').textContent = subtitle;
+        if (!banner) return;
+        const tEl = document.getElementById('banner-title');
+        const sEl = document.getElementById('banner-subtitle');
+        if (tEl) tEl.textContent = title;
+        if (sEl) sEl.textContent = subtitle;
 
         banner.classList.remove('show');
         void banner.offsetWidth;
@@ -209,7 +396,6 @@ class Game {
     }
 
     setupUI() {
-        // Configurar selección de ranuras de la Hotbar
         const slots = document.querySelectorAll('.hotbar-slot');
         slots.forEach((slot, index) => {
             slot.addEventListener('click', () => {
@@ -217,7 +403,6 @@ class Game {
             });
         });
 
-        // Atajos numéricos 1 - 5 y tecla T para tienda
         window.addEventListener('keydown', (e) => {
             if (e.key >= '1' && e.key <= '5') {
                 const slotIndex = parseInt(e.key) - 1;
@@ -228,30 +413,45 @@ class Game {
             }
             if (e.key === 'Escape') {
                 this.closeShop();
+                this.closeMaps();
             }
         });
 
-        // Botón Tienda
         document.getElementById('btn-open-shop').addEventListener('click', () => this.toggleShop());
         document.getElementById('btn-close-shop').addEventListener('click', () => this.closeShop());
 
-        // Botón Mapas
         const btnMaps = document.getElementById('btn-open-maps');
         if (btnMaps) btnMaps.addEventListener('click', () => this.toggleMaps());
         const btnCloseMaps = document.getElementById('btn-close-maps');
         if (btnCloseMaps) btnCloseMaps.addEventListener('click', () => this.closeMaps());
 
-        // Configurar selector de mapas y PWA móvil
+        // Botón del Modal de Victoria (Nivel Superado)
+        const btnNextWorld = document.getElementById('btn-next-world');
+        if (btnNextWorld) {
+            btnNextWorld.addEventListener('click', () => {
+                const modal = document.getElementById('level-clear-modal');
+                if (modal) modal.classList.remove('open');
+                this.portalVictoryTriggered = false;
+
+                const curr = this.world.currentMapId;
+                if (curr === 'forest') {
+                    this.switchMap('volcano');
+                } else if (curr === 'volcano') {
+                    this.switchMap('snow');
+                } else {
+                    this.switchMap('forest');
+                }
+            });
+        }
+
         this.setupMapSelector();
         this.setupPWAInstall();
 
-        // Botón Jefe
         document.getElementById('btn-spawn-boss').addEventListener('click', () => {
             this.enemyManager.spawnBoss(new THREE.Vector3(0, 0, -2));
             this.showBanner('¡EL GRAN JEFE HA APARECIDO! 👹', '¡Derrótalo para ganar 160 monedas doradas!');
         });
 
-        // Botón Sonido
         const soundBtn = document.getElementById('btn-toggle-sound');
         if (soundBtn) {
             soundBtn.addEventListener('click', () => {
@@ -260,7 +460,6 @@ class Game {
             });
         }
 
-        // Botón Alternar Controles Táctiles (Móviles / PC)
         const touchBtn = document.getElementById('btn-toggle-touch');
         if (touchBtn) {
             touchBtn.addEventListener('click', () => {
@@ -274,10 +473,9 @@ class Game {
             });
         }
 
-        // Rellenar cuadrícula de la tienda
         this.renderShopItems();
 
-        // ---------------- MULTIJUGADOR Y SALAS ----------------
+        // Multijugador
         let selectedColor = 0x1e293b;
         const nameInput = document.getElementById('input-ninja-name');
         const colorPalette = document.getElementById('color-palette');
@@ -301,7 +499,6 @@ class Game {
             });
         }
 
-        // Función para cerrar lobby y comenzar inmediatamente a jugar
         const startCombatNow = () => {
             document.getElementById('multiplayer-modal').classList.remove('open');
             this.showBanner('¡DOJO NINJA LISTO! 🥷', '¡Usa el joystick y los botones para combatir!');
@@ -310,15 +507,12 @@ class Game {
             if (tc) tc.style.display = 'block';
         };
 
-        // Botón Jugar Solo
         const btnSolo = document.getElementById('btn-start-solo');
         if (btnSolo) btnSolo.addEventListener('click', startCombatNow);
 
-        // Botón Jugar Ya (encabezado para celular)
         const btnQuick = document.getElementById('btn-quick-start');
         if (btnQuick) btnQuick.addEventListener('click', startCombatNow);
 
-        // Botón Crear Sala
         const btnCreate = document.getElementById('btn-create-room');
         if (btnCreate) {
             btnCreate.addEventListener('click', () => {
@@ -327,17 +521,14 @@ class Game {
             });
         }
 
-        // Botón Ir a Unirse
         const btnGotoJoin = document.getElementById('btn-goto-join');
         if (btnGotoJoin) {
             btnGotoJoin.addEventListener('click', () => {
                 document.getElementById('lobby-modes-view').style.display = 'none';
                 document.getElementById('lobby-join-view').style.display = 'block';
-                document.getElementById('join-error-msg').style.display = 'none';
             });
         }
 
-        // Botón Volver a Modos
         const btnBack = document.getElementById('btn-back-to-modes');
         if (btnBack) {
             btnBack.addEventListener('click', () => {
@@ -346,40 +537,45 @@ class Game {
             });
         }
 
-        // Botón Confirmar Unirse con Código
         const btnConfirmJoin = document.getElementById('btn-confirm-join');
         if (btnConfirmJoin) {
             btnConfirmJoin.addEventListener('click', () => {
-                const code = document.getElementById('input-join-room-code').value.trim();
+                const codeInput = document.getElementById('input-join-room-code');
+                const roomCode = codeInput ? codeInput.value.trim().toUpperCase() : '';
                 const name = (nameInput ? nameInput.value : 'Ninja Pro').trim();
-                if (!code) {
-                    const err = document.getElementById('join-error-msg');
-                    err.textContent = 'Por favor escribe el código de la sala.';
-                    err.style.display = 'block';
-                    return;
+                if (roomCode) {
+                    this.multiplayer.joinRoom(roomCode, name, selectedColor);
                 }
-                this.multiplayer.joinRoom(code, name, selectedColor);
             });
         }
 
-        // Botón Entrar al Dojo (después de crear sala)
-        const btnStartRoom = document.getElementById('btn-start-playing-room');
-        if (btnStartRoom) {
-            btnStartRoom.addEventListener('click', () => {
-                document.getElementById('multiplayer-modal').classList.remove('open');
-                this.showBanner(`¡SALA ${this.multiplayer.roomCode} ACTIVA!`, '¡Combatan juntos contra los enemigos!');
+        const btnCopyLobby = document.getElementById('btn-copy-lobby-code');
+        if (btnCopyLobby) {
+            btnCopyLobby.addEventListener('click', () => {
+                if (this.multiplayer.roomCode) {
+                    navigator.clipboard.writeText(this.multiplayer.roomCode).then(() => {
+                        btnCopyLobby.textContent = '✅ ¡Copiado!';
+                        setTimeout(() => btnCopyLobby.textContent = '📋 Copiar Código', 2000);
+                    });
+                }
             });
         }
 
-        // Botón cerrar lobby
-        const btnCloseLobby = document.getElementById('btn-close-lobby');
-        if (btnCloseLobby) {
-            btnCloseLobby.addEventListener('click', () => {
-                document.getElementById('multiplayer-modal').classList.remove('open');
+        const btnCopyHud = document.getElementById('btn-copy-hud-code');
+        if (btnCopyHud) {
+            btnCopyHud.addEventListener('click', () => {
+                if (this.multiplayer.roomCode) {
+                    navigator.clipboard.writeText(this.multiplayer.roomCode).then(() => {
+                        btnCopyHud.textContent = '✅';
+                        setTimeout(() => btnCopyHud.textContent = '📋 Copiar', 2000);
+                    });
+                }
             });
         }
 
-        // Botón abrir lobby desde HUD
+        const btnStartPlaying = document.getElementById('btn-start-playing-room');
+        if (btnStartPlaying) btnStartPlaying.addEventListener('click', startCombatNow);
+
         const btnOpenLobby = document.getElementById('btn-open-multiplayer');
         if (btnOpenLobby) {
             btnOpenLobby.addEventListener('click', () => {
@@ -387,79 +583,24 @@ class Game {
             });
         }
 
-        // Función para copiar código al portapapeles
-        const copyCode = (code, btn) => {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(code).then(() => {
-                    const originalText = btn.textContent;
-                    btn.textContent = '¡Copiado! ✓';
-                    setTimeout(() => { btn.textContent = originalText; }, 1800);
-                }).catch(() => {});
-            }
-        };
-
-        const btnCopyLobby = document.getElementById('btn-copy-lobby-code');
-        if (btnCopyLobby) {
-            btnCopyLobby.addEventListener('click', () => {
-                copyCode(this.multiplayer.roomCode || '', btnCopyLobby);
+        const btnCloseLobby = document.getElementById('btn-close-lobby');
+        if (btnCloseLobby) {
+            btnCloseLobby.addEventListener('click', () => {
+                document.getElementById('multiplayer-modal').classList.remove('open');
             });
         }
 
-        const btnCopyHud = document.getElementById('btn-copy-hud-code');
-        if (btnCopyHud) {
-            btnCopyHud.addEventListener('click', () => {
-                copyCode(this.multiplayer.roomCode || '', btnCopyHud);
-            });
-        }
-
-        // Callbacks de Eventos de Red
-        this.multiplayer.onRoomCreated = (roomCode, players) => {
+        this.multiplayer.onRoomCreated = (code) => {
             document.getElementById('lobby-modes-view').style.display = 'none';
             document.getElementById('lobby-created-view').style.display = 'block';
-            document.getElementById('room-code-display').textContent = roomCode;
+            document.getElementById('room-code-display').textContent = code;
+            document.getElementById('hud-room-code').textContent = code;
+            document.getElementById('hud-room-badge').style.display = 'inline-flex';
+            this.showBanner('¡SALA PRIVADA CREADA! 🏠', `Código de acceso: ${code}`);
+        };
 
-            // Mostrar badge en el HUD
-            const hudBadge = document.getElementById('hud-room-badge');
-            document.getElementById('hud-room-code').textContent = roomCode;
-            hudBadge.style.display = 'flex';
-
+        this.multiplayer.onPlayerJoined = (players) => {
             this.updateLobbyPlayersList(players);
-            sounds.playLevelUp();
-        };
-
-        this.multiplayer.onRoomJoined = (roomCode, players) => {
-            document.getElementById('multiplayer-modal').classList.remove('open');
-            const hudBadge = document.getElementById('hud-room-badge');
-            document.getElementById('hud-room-code').textContent = roomCode;
-            hudBadge.style.display = 'flex';
-
-            this.showBanner(`¡TE HAS UNIDO A LA SALA ${roomCode}! 🥷`, '¡Combate en equipo en el dojo!');
-            sounds.playLevelUp();
-        };
-
-        this.multiplayer.onPlayerJoined = (player) => {
-            sounds.playPoof();
-            this.showBanner(`¡${player.name} SE UNIÓ! 🥷`, '¡Un nuevo ninja ha entrado al dojo!');
-            const chipsContainer = document.getElementById('lobby-players-list');
-            if (chipsContainer) {
-                const chip = document.createElement('div');
-                chip.className = 'player-chip';
-                const colorHex = typeof player.color === 'number' ? `#${player.color.toString(16).padStart(6, '0')}` : player.color;
-                chip.innerHTML = `<span class="player-chip-color" style="background: ${colorHex};"></span><span>${player.name}</span>`;
-                chipsContainer.appendChild(chip);
-            }
-        };
-
-        this.multiplayer.onPlayerLeft = (id, name) => {
-            this.showBanner(`¡${name} HA SALIDO DEL DOJO!`, '');
-        };
-
-        this.multiplayer.onError = (message) => {
-            const err = document.getElementById('join-error-msg');
-            if (err) {
-                err.textContent = message;
-                err.style.display = 'block';
-            }
         };
     }
 
@@ -512,7 +653,7 @@ class Game {
             if (weaponId && WEAPONS[weaponId]) {
                 const w = WEAPONS[weaponId];
                 iconEl.textContent = w.icon;
-                nameEl.textContent = w.name.split(' ')[0]; // Nombre corto
+                nameEl.textContent = w.name.split(' ')[0];
             } else {
                 iconEl.textContent = '➕';
                 nameEl.textContent = 'Vacío';
@@ -528,6 +669,7 @@ class Game {
 
     renderShopItems() {
         const grid = document.getElementById('shop-items-grid');
+        if (!grid) return;
         grid.innerHTML = '';
 
         Object.values(WEAPONS).forEach(weapon => {
@@ -536,49 +678,40 @@ class Game {
             const canAfford = storage.data.coins >= weapon.cost;
 
             const card = document.createElement('div');
-            card.className = `weapon-card ${isUnlocked ? 'owned' : ''}`;
+            card.className = `shop-item-card ${isEquipped ? 'equipped' : ''}`;
 
             card.innerHTML = `
-                <div class="weapon-card-icon">${weapon.icon}</div>
-                <div class="weapon-card-name">${weapon.name}</div>
-                <div class="weapon-card-desc">${weapon.desc}</div>
-                <div class="weapon-stats-row">
-                    <div class="stat-item">⚔️ Daño: ${weapon.damage}</div>
-                    <div class="stat-item">⚡ Vel: ${weapon.attackSpeed}s</div>
+                <div class="shop-item-icon">${weapon.icon}</div>
+                <div class="shop-item-name">${weapon.name}</div>
+                <div class="shop-item-desc">${weapon.description}</div>
+                <div class="shop-item-stats">
+                    <span>⚔️ Daño: ${weapon.damage}</span>
+                    <span>⚡ Vel: ${weapon.attackSpeed}s</span>
                 </div>
-                <button class="btn-buy ${
-                    isEquipped ? 'equipped' : (isUnlocked ? 'equip-now' : (canAfford ? 'can-buy' : 'disabled'))
-                }" data-weapon-id="${weapon.id}">
-                    ${
-                        isEquipped
-                            ? '✓ EQUIPADA'
-                            : (isUnlocked
-                                ? '⚡ EQUIPAR'
-                                : `🪙 COMPRAR ${weapon.cost}`)
-                    }
+                <button class="btn-buy ${isEquipped ? 'equipped' : (isUnlocked ? 'equip-now' : (canAfford ? 'can-buy' : 'disabled'))}" 
+                        data-weapon-id="${weapon.id}">
+                    ${isEquipped ? '✓ EQUIPADA' : (isUnlocked ? 'EQUIPAR' : `🪙 ${weapon.cost}`)}
                 </button>
             `;
 
             const btn = card.querySelector('.btn-buy');
-            btn.addEventListener('click', () => this.handleShopAction(weapon.id));
+            btn.addEventListener('click', () => this.handleWeaponAction(weapon.id));
 
             grid.appendChild(card);
         });
     }
 
-    handleShopAction(weaponId) {
+    handleWeaponAction(weaponId) {
         const weapon = WEAPONS[weaponId];
         const isUnlocked = storage.isUnlocked(weaponId);
 
         if (isUnlocked) {
-            // Equipar en la ranura actual
             storage.setHotbarSlot(storage.data.currentSlot, weaponId);
             this.player.equipWeapon(weaponId);
             sounds.playSlash(weapon.element);
             this.updateHotbarVisuals();
             this.renderShopItems();
         } else if (storage.spendCoins(weapon.cost)) {
-            // Comprar y desbloquear
             sounds.playShopBuy();
             storage.unlockWeapon(weaponId);
             this.player.equipWeapon(weaponId);
@@ -609,6 +742,7 @@ class Game {
         if (modal.classList.contains('open')) {
             this.closeMaps();
         } else {
+            this.updateMapCardsUI();
             modal.classList.add('open');
         }
     }
@@ -626,6 +760,10 @@ class Game {
 
             const handleSelect = () => {
                 if (this.world.currentMapId === mapId) return;
+                if (!storage.isWorldUnlocked(mapId)) {
+                    this.showBanner('🔒 MUNDO BLOQUEADO', 'Completa la misión del mundo anterior para entrar');
+                    return;
+                }
                 this.switchMap(mapId);
             };
 
@@ -639,38 +777,55 @@ class Game {
         });
     }
 
-    switchMap(mapId) {
-        if (!MAPS_CONFIG[mapId]) return;
-        this.world.setMap(mapId);
-
-        // Reposicionar al ninja en el centro de la nueva arena
-        this.player.mesh.position.set(0, 1.2, 0);
-        this.player.velocity.set(0, 0, 0);
-
-        // Actualizar tarjetas de selección en la UI
+    updateMapCardsUI() {
         const cards = document.querySelectorAll('.map-card');
         cards.forEach(c => {
             const cMap = c.getAttribute('data-map');
             const btn = c.querySelector('.btn-select-map');
-            if (cMap === mapId) {
-                c.classList.add('active');
-                if (btn) btn.textContent = '✓ MAPA ACTUAL';
-            } else {
+            const isUnlocked = storage.isWorldUnlocked(cMap);
+
+            if (!isUnlocked) {
+                c.classList.add('locked');
                 c.classList.remove('active');
+                if (btn) btn.textContent = '🔒 BLOQUEADO';
+            } else if (cMap === this.world.currentMapId) {
+                c.classList.remove('locked');
+                c.classList.add('active');
+                if (btn) btn.textContent = '✓ EN JUEGO';
+            } else {
+                c.classList.remove('locked', 'active');
                 if (btn) {
                     const icon = cMap === 'volcano' ? '🌋' : (cMap === 'snow' ? '❄️' : '🌸');
                     btn.textContent = `VIAJAR AHORA ${icon}`;
                 }
             }
         });
+    }
+
+    switchMap(mapId) {
+        if (!MAPS_CONFIG[mapId]) return;
+        if (!storage.isWorldUnlocked(mapId)) {
+            this.showBanner('🔒 MUNDO BLOQUEADO', 'Completa la misión anterior para desbloquearlo');
+            return;
+        }
+
+        this.portalVictoryTriggered = false;
+        this.world.setMap(mapId);
+        this.enemyManager.spawnInitialEnemies(mapId);
+
+        // Reposicionar al ninja
+        this.player.mesh.position.set(0, 1.2, 0);
+        this.player.velocity.set(0, 0, 0);
+
+        this.updateMapCardsUI();
+        this.updateMissionHUD();
 
         sounds.playSlash('heavy');
-        this.showBanner('¡NUEVO CAMPO DE BATALLA! 🗺️', MAPS_CONFIG[mapId].name);
+        this.showBanner('¡NUEVO MUNDO NINJA! 🗺️', MAPS_CONFIG[mapId].name);
         this.closeMaps();
     }
 
     setupPWAInstall() {
-        // Registrar Service Worker para juego offline y ejecución standalone 60 FPS
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -692,7 +847,6 @@ class Game {
             deferredPrompt = e;
             window.deferredPwaPrompt = e;
 
-            // Sugerir instalación si es primera visita en móvil o tablet
             const hasSeenPrompt = localStorage.getItem('ninja_pwa_prompt_v6');
             if (!hasSeenPrompt && (this.isMobile || window.innerWidth <= 900)) {
                 setTimeout(() => {
@@ -701,7 +855,6 @@ class Game {
             }
         });
 
-        // Caso especial iOS Safari (mostrar instrucciones visuales)
         if (isIOS && !isStandalone) {
             const hasSeenPrompt = localStorage.getItem('ninja_pwa_prompt_v6');
             if (!hasSeenPrompt) {
@@ -750,21 +903,17 @@ class Game {
     }
 
     updateHUD() {
-        // Vida
         const healthPercent = Math.max(0, (this.player.health / this.player.maxHealth) * 100);
         document.getElementById('player-health-fill').style.width = `${healthPercent}%`;
         document.getElementById('player-health-text').textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
 
-        // Monedas
         const coinEl = document.getElementById('coin-count');
         coinEl.textContent = storage.data.coins;
 
-        // Nivel y XP
         document.getElementById('player-level-badge').textContent = `NVL ${storage.data.level}`;
         const xpPercent = Math.min(100, (storage.data.xp / storage.data.xpToNext) * 100);
         document.getElementById('player-xp-fill').style.width = `${xpPercent}%`;
 
-        // Actualizar visuales de la hotbar
         this.updateHotbarVisuals();
 
         const activeWeaponId = storage.getActiveWeaponId();
@@ -777,7 +926,8 @@ class Game {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(this.isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
+        const dpr = window.devicePixelRatio || 1;
+        this.renderer.setPixelRatio(Math.min(dpr, 2.0));
     }
 
     animate() {
@@ -785,35 +935,47 @@ class Game {
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
 
-        // 1. Actualizar jugador (física, animaciones, controles)
+        // 1. Actualizar jugador
         this.player.update(delta);
 
-        // Actualizar animaciones ambientales del mundo (lava fluida, agua, ventisca)
+        // 2. Actualizar mundo (lava, agua, nieve, rotaciones)
         this.world.update(delta);
 
-        // 2. Comprobar trampolines del mundo para jugador y enemigos
+        // 3. Comprobar trampolines
         this.world.checkTrampolines(this.player);
         this.world.checkTrampolinesForEnemies(this.enemyManager.enemies);
 
-        // 3. Comprobar monedas flotantes en el aire (parkour)
+        // 4. Comprobar monedas flotantes
         this.world.checkFloatingCoins(this.player.mesh.position, (coins) => {
             storage.addCoins(coins);
             sounds.playCoin();
             this.updateHUD();
         });
 
-        // 4. Actualizar enemigos
+        // 5. Comprobar gemas sagradas de misión
+        this.world.checkMissionGems(this.player.mesh.position, (gemId, pos) => {
+            this.handleGemCollected(gemId, pos);
+        });
+
+        // 6. Comprobar entrada al Portal Místico (Victoria de Mundo)
+        if (!this.portalVictoryTriggered && this.world.checkPortalEntry(this.player.mesh.position)) {
+            this.handlePortalVictory();
+        }
+
+        // 7. Actualizar enemigos con IA táctica
         this.enemyManager.update(delta, this.player, this.camera);
 
-        // 5. Actualizar partículas y recoger monedas de enemigos
+        // 8. Actualizar partículas y monedas
         this.particles.update(delta, this.player.mesh.position, (coins) => {
             storage.addCoins(coins);
             this.updateHUD();
         });
 
-        // 6. Colisiones de proyectiles (Shurikens) con enemigos
+        // 9. Colisiones de shurikens con enemigos, cajas y tótems
         for (const proj of this.particles.projectiles) {
             if (!proj.active) continue;
+
+            // Con enemigos
             for (const enemy of this.enemyManager.enemies) {
                 const dist = proj.mesh.position.distanceTo(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
                 if (dist < 1.4) {
@@ -825,23 +987,26 @@ class Game {
                     break;
                 }
             }
+
+            // Con cajas
+            this.world.checkCrateHits(proj.mesh.position, 1.2, (crate) => {
+                proj.active = false;
+                this.handleCrateBroken(crate);
+            });
         }
 
-        // 7. Actualizar multijugador y transmitir posición de red
+        // 10. Multijugador
         this.multiplayer.update(delta);
         this.multiplayer.sendLocalUpdate(this.player.getNetworkState());
 
-        // Actualizar barra de vida en HUD continuamente
         const healthPercent = Math.max(0, (this.player.health / this.player.maxHealth) * 100);
         document.getElementById('player-health-fill').style.width = `${healthPercent}%`;
         document.getElementById('player-health-text').textContent = `${Math.ceil(this.player.health)} / ${this.player.maxHealth}`;
 
-        // Renderizar escena
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-// Iniciar juego cuando el documento esté listo
 window.addEventListener('DOMContentLoaded', () => {
     new Game();
 });

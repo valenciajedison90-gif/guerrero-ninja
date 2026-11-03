@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Guerrero Ninja">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="css/style.css?v=6.0">
+    <link rel="stylesheet" href="css/style.css?v=7.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -50,6 +50,21 @@
                     <div class="xp-bar-container" title="Experiencia para subir de nivel">
                         <div class="xp-bar-fill" id="player-xp-fill"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta de Misión del Mundo estilo Crash Bandicoot -->
+            <div id="mission-hud" class="mission-hud-card">
+                <div class="mission-header">
+                    <span class="mission-badge-icon">📜</span>
+                    <span class="mission-world-title" id="hud-world-name">MUNDO 1: BOSQUE</span>
+                </div>
+                <div class="mission-tasks" id="mission-tasks-list">
+                    <!-- Tareas dinámicas -->
+                </div>
+                <div class="portal-status-pill" id="portal-status-pill">
+                    <span class="portal-dot"></span>
+                    <span id="portal-status-text">🔒 PORTAL SELLADO</span>
                 </div>
             </div>
 
@@ -171,6 +186,12 @@
             <button class="btn-touch-action btn-touch-jump" id="btn-touch-jump" title="Saltar">
                 <span class="touch-icon">🥾</span>
                 <span class="touch-label">SALTO</span>
+            </button>
+
+            <!-- Botón Giro Ninja 360° estilo Crash Bandicoot -->
+            <button class="btn-touch-action btn-touch-spin" id="btn-touch-spin" title="Giro Ninja 360°">
+                <span class="touch-icon">🌀</span>
+                <span class="touch-label">GIRO</span>
             </button>
 
             <!-- Botón de Disparo / Ataque Principal (Grande estilo Free Fire) -->
@@ -313,8 +334,8 @@
                 <div class="maps-title-group">
                     <span style="font-size: 32px;">🗺️</span>
                     <div>
-                        <div class="maps-title">SELECCIÓN DE MAPAS Y BIOMAS</div>
-                        <div style="font-size: 13px; color: #94a3b8;">Viaja a campos de batalla legendarios con entornos vivos y orgánicos</div>
+                        <div class="maps-title">SELECTOR DE MUNDOS Y NIVELES</div>
+                        <div style="font-size: 13px; color: #94a3b8;">Supera las misiones de cada mundo para desbloquear el portal al siguiente</div>
                     </div>
                 </div>
                 <button class="shop-close-btn" id="btn-close-maps">✕</button>
@@ -324,25 +345,27 @@
                     <!-- Mapa 1: Santuario del Bosque -->
                     <div class="map-card active" id="map-card-forest" data-map="forest">
                         <div class="map-banner map-forest-banner">
-                            <span class="map-badge">🌸 ZEN</span>
+                            <span class="map-badge">🌸 MUNDO 1</span>
                             <span class="map-emoji">⛩️</span>
                         </div>
                         <div class="map-content">
                             <div class="map-name">Santuario del Bosque Sagrado</div>
-                            <div class="map-desc">Colinas verdes zen, bambú, cerezos sakura, pagoda tradicional y estanque koi con agua cristalina.</div>
-                            <button class="btn-select-map" data-map="forest">✓ MAPA ACTUAL</button>
+                            <div class="map-mission-goals">📜 5 Ninjas • 3 Gemas • 6 Cajas</div>
+                            <div class="map-desc">Colinas zen, bambú, cerezos sakura y estanque koi cristalino.</div>
+                            <button class="btn-select-map" data-map="forest">✓ EN JUEGO</button>
                         </div>
                     </div>
 
                     <!-- Mapa 2: Volcán Carmesí -->
                     <div class="map-card" id="map-card-volcano" data-map="volcano">
                         <div class="map-banner map-volcano-banner">
-                            <span class="map-badge fire">🔥 FUEGO</span>
+                            <span class="map-badge fire">🔥 MUNDO 2</span>
                             <span class="map-emoji">🌋</span>
                         </div>
                         <div class="map-content">
                             <div class="map-name">Templo del Volcán Carmesí</div>
-                            <div class="map-desc">Terreno de basalto oscuro, ríos de lava ardiente fluida, pilares de obsidiana y géiseres térmicos.</div>
+                            <div class="map-mission-goals">📜 6 Ninjas • 3 Reliquias • 4 Tótems</div>
+                            <div class="map-desc">Terreno de basalto, ríos de lava ardiente fluida y géiseres térmicos.</div>
                             <button class="btn-select-map" data-map="volcano">VIAJAR AHORA 🌋</button>
                         </div>
                     </div>
@@ -350,17 +373,37 @@
                     <!-- Mapa 3: Cumbres Heladas -->
                     <div class="map-card" id="map-card-snow" data-map="snow">
                         <div class="map-banner map-snow-banner">
-                            <span class="map-badge ice">❄️ HIELO</span>
+                            <span class="map-badge ice">❄️ MUNDO 3</span>
                             <span class="map-emoji">🏔️</span>
                         </div>
                         <div class="map-content">
                             <div class="map-name">Cumbres Heladas del Dragón</div>
-                            <div class="map-desc">Montañas nevadas, agujas de cristal de hielo brillante, pinos nevados y ventisca suave.</div>
+                            <div class="map-mission-goals">📜 8 Ninjas • 4 Zafiros • Gran Jefe Samurái</div>
+                            <div class="map-desc">Montañas nevadas, agujas de hielo, ventisca y el Gran Samurái Warlord.</div>
                             <button class="btn-select-map" data-map="snow">VIAJAR AHORA ❄️</button>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de Nivel Superado / Victoria de Mundo estilo Crash Bandicoot -->
+    <div class="modal-overlay" id="level-clear-modal">
+        <div class="level-clear-window">
+            <div class="victory-ribbon">⭐ ¡NIVEL SUPERADO! ⭐</div>
+            <div class="victory-world-title" id="victory-world-title">SANTUARIO DEL BOSQUE SAGRADO</div>
+            <div class="victory-gems-row" id="victory-gems-row">
+                <span class="v-gem">💎</span>
+                <span class="v-gem">💎</span>
+                <span class="v-gem">💎</span>
+            </div>
+            <p class="victory-desc" id="victory-desc">¡Has completado todos los desafíos y liberado este mundo!</p>
+            <div class="victory-rewards">
+                <span class="reward-pill">+100 Monedas Doradas 🪙</span>
+                <span class="reward-pill">+150 XP de Guerrero ⚡</span>
+            </div>
+            <button class="btn-victory-next" id="btn-next-world">CONTINUAR AL SIGUIENTE MUNDO ➔</button>
         </div>
     </div>
 
@@ -388,6 +431,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=6.0"></script>
+    <script type="module" src="js/main.js?v=7.0"></script>
 </body>
 </html>

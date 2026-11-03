@@ -1,7 +1,7 @@
-// js/player.js - Personaje Ninja Estilo Roblox, Animaciones y Cámara en Tercera Persona
+// js/player.js - Controlador del Jugador, Cinemática Articular Natural y Ataque de Giro
 import * as THREE from 'three';
-import { createWeaponMesh, WEAPONS } from './weapons.js';
-import { sounds } from './sound.js';
+import { sounds } from './sound.js?v=6.0';
+import { WEAPONS } from './weapons.js?v=6.0';
 
 export class Player {
     constructor(scene, camera, domElement) {
@@ -9,29 +9,36 @@ export class Player {
         this.camera = camera;
         this.domElement = domElement;
 
-        // Estadísticas del jugador (Movilidad rápida y ágil estilo ninja)
+        // Atributos de combate
         this.maxHealth = 100;
         this.health = 100;
-        this.speed = 15.5;
+        this.attackCooldown = 0;
+        this.attackCombo = 0;
+        this.comboResetTimer = 0;
+        this.isAttacking = false;
+        this.attackTimer = 0;
+        this.isSpinning = false;
+        this.spinTimer = 0;
+        this.spinCooldown = 0;
+        this.onAttackCallback = null;
+        this.onSpinAttackCallback = null;
+
+        // Salto y Doble Salto (Estilo plataformas)
+        this.jumpCount = 0;
+        this.maxJumps = 2;
         this.jumpForce = 13.5;
         this.isGrounded = true;
-        this.jumpCount = 0;
-        this.isAttacking = false;
-        this.attackCombo = 0;
-        this.attackTimer = 0;
-        this.attackCooldown = 0;
-        this.comboResetTimer = 0;
 
         // Movimiento y física
         this.velocity = new THREE.Vector3();
         this.moveDirection = new THREE.Vector3();
         this.gravity = -26.0;
 
-        // Cámara en 3ra persona
+        // Cámara en 3ra persona orbital
         this.cameraDistance = 6.2;
         this.cameraHeight = 3.2;
-        this.cameraPitch = 0.25; // Ángulo vertical
-        this.cameraYaw = 0;     // Ángulo horizontal
+        this.cameraPitch = 0.25;
+        this.cameraYaw = 0;
         this.isDraggingMouse = false;
         this.previousMousePosition = { x: 0, y: 0 };
 
@@ -44,7 +51,7 @@ export class Player {
             space: false
         };
 
-        // Movimiento táctil móvil (joystick virtual estilo Free Fire)
+        // Movimiento táctil móvil
         this.touchMoveVector = new THREE.Vector2(0, 0);
 
         // Habilidad de impulso / dash ninja
@@ -54,7 +61,7 @@ export class Player {
 
         this.suitColor = 0x1e293b;
 
-        // Construir modelo humanoide realista y anatómico
+        // Construir modelo humanoide anatómico ultra-suave
         this.mesh = new THREE.Group();
         this.mesh.name = 'player';
         this.buildRealisticNinjaModel();
@@ -78,7 +85,8 @@ export class Player {
 
     getNetworkState() {
         let anim = 'idle';
-        if (this.isAttacking) anim = 'attack';
+        if (this.isSpinning) anim = 'spin';
+        else if (this.isAttacking) anim = 'attack';
         else if (this.dashTimer > 0) anim = 'run';
         else if (!this.isGrounded) anim = 'jump';
         else if (this.keys.w || this.keys.s || this.keys.a || this.keys.d || this.touchMoveVector.lengthSq() > 0.01) anim = 'run';
@@ -94,25 +102,25 @@ export class Player {
     }
 
     buildRealisticNinjaModel() {
-        // Materiales con iluminación PBR suave
+        // Materiales con iluminación PBR suave y sombreado liso
         this.suitMat = new THREE.MeshStandardMaterial({
             color: this.suitColor,
-            roughness: 0.5,
+            roughness: 0.45,
             metalness: 0.15
         });
         const suitMat = this.suitMat;
         const clothAccentMat = new THREE.MeshStandardMaterial({
-            color: 0xd92323, // Rojo carmesí ninja
-            roughness: 0.45
+            color: 0xd92323,
+            roughness: 0.4
         });
         const skinMat = new THREE.MeshStandardMaterial({
-            color: 0xfbd0a1, // Piel anime cálida
+            color: 0xfbd0a1,
             roughness: 0.35
         });
         const armorMat = new THREE.MeshStandardMaterial({
             color: 0x334155,
-            metalness: 0.6,
-            roughness: 0.3
+            metalness: 0.65,
+            roughness: 0.28
         });
         const metalGoldMat = new THREE.MeshStandardMaterial({
             color: 0xf59e0b,
@@ -127,8 +135,8 @@ export class Player {
         this.torso.position.y = 1.35;
         this.mesh.add(this.torso);
 
-        // Pecho superior / Pectorales (Cilindro cónico redondeado)
-        const chestGeom = new THREE.CylinderGeometry(0.42, 0.34, 0.55, 16);
+        // Pecho superior / Pectorales (Cilindro de alta resolución para curvas suaves)
+        const chestGeom = new THREE.CylinderGeometry(0.42, 0.34, 0.55, 24);
         const chest = new THREE.Mesh(chestGeom, suitMat);
         chest.position.y = 0.15;
         chest.castShadow = true;
@@ -136,69 +144,54 @@ export class Player {
         this.torso.add(chest);
 
         // Abdomen / Cintura atlética
-        const absGeom = new THREE.CylinderGeometry(0.34, 0.30, 0.45, 16);
+        const absGeom = new THREE.CylinderGeometry(0.34, 0.30, 0.45, 24);
         const abs = new THREE.Mesh(absGeom, suitMat);
-        abs.position.y = -0.22;
+        abs.position.y = -0.25;
         abs.castShadow = true;
+        abs.receiveShadow = true;
         this.torso.add(abs);
 
-        // Faja / Cinturón tradicional Shinobi (Obi)
-        const beltGeom = new THREE.CylinderGeometry(0.35, 0.35, 0.16, 16);
-        const belt = new THREE.Mesh(beltGeom, clothAccentMat);
-        belt.position.y = -0.32;
-        this.torso.add(belt);
+        // Cinturón Shinobi Obi tradicional con hebilla dorada
+        const obiGeom = new THREE.CylinderGeometry(0.32, 0.32, 0.16, 24);
+        const obi = new THREE.Mesh(obiGeom, clothAccentMat);
+        obi.position.y = -0.42;
+        obi.castShadow = true;
+        this.torso.add(obi);
 
-        // Emblema ninja dorado en el cinturón
-        const buckle = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.09, 0.09, 0.04, 12),
-            metalGoldMat
-        );
+        const buckleGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16);
+        const buckle = new THREE.Mesh(buckleGeom, metalGoldMat);
         buckle.rotation.x = Math.PI / 2;
-        buckle.position.set(0, -0.32, 0.33);
+        buckle.position.set(0, -0.42, 0.32);
         this.torso.add(buckle);
 
-        // 2. Cabeza y Cuello (Rostro humanoide con capucha shinobi)
-        const neckGeom = new THREE.CylinderGeometry(0.14, 0.16, 0.22, 12);
-        const neck = new THREE.Mesh(neckGeom, skinMat);
-        neck.position.y = 0.48;
-        this.torso.add(neck);
-
+        // 2. Cabeza Esculpida y Máscara Ninja (Cowl)
         this.head = new THREE.Group();
-        this.head.position.y = 0.72;
+        this.head.position.y = 0.68;
         this.torso.add(this.head);
 
-        // Cráneo / Capucha redondeada
-        const hoodGeom = new THREE.SphereGeometry(0.35, 16, 16);
-        hoodGeom.scale(1.0, 1.15, 1.05);
-        const hood = new THREE.Mesh(hoodGeom, suitMat);
-        hood.castShadow = true;
-        this.head.add(hood);
+        // Cúpula esférica de la máscara de tela
+        const cowlGeom = new THREE.SphereGeometry(0.38, 24, 20);
+        cowlGeom.scale(1.0, 1.12, 1.08);
+        const cowl = new THREE.Mesh(cowlGeom, suitMat);
+        cowl.castShadow = true;
+        this.head.add(cowl);
 
-        // Rostro visible (piel alrededor de los ojos)
-        const faceVisorGeom = new THREE.SphereGeometry(0.33, 14, 14, 0, Math.PI * 2, Math.PI * 0.28, Math.PI * 0.22);
-        faceVisorGeom.scale(1.02, 1.14, 1.06);
-        const faceVisor = new THREE.Mesh(faceVisorGeom, skinMat);
-        this.head.add(faceVisor);
+        // Apertura facial de piel
+        const faceOpeningGeom = new THREE.CylinderGeometry(0.24, 0.22, 0.18, 16, 1, false, -Math.PI * 0.35, Math.PI * 0.7);
+        const faceSkin = new THREE.Mesh(faceOpeningGeom, skinMat);
+        faceSkin.position.set(0, 0.02, 0.18);
+        this.head.add(faceSkin);
 
-        // Máscara ninja en la parte inferior del rostro
-        const maskGeom = new THREE.CylinderGeometry(0.32, 0.24, 0.32, 14);
-        maskGeom.scale(1.0, 1.0, 0.85);
-        const mask = new THREE.Mesh(maskGeom, suitMat);
-        mask.position.set(0, -0.12, 0.08);
-        this.head.add(mask);
-
-        // Ojos estilo anime definidos
-        [-0.11, 0.11].forEach((eyeX) => {
+        // Ojos estilo anime
+        [-0.10, 0.10].forEach(eyeX => {
             const eyeGroup = new THREE.Group();
-            eyeGroup.position.set(eyeX, 0.05, 0.33);
+            eyeGroup.position.set(eyeX, 0.04, 0.38);
 
-            // Globo ocular blanco
-            const whiteMesh = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), eyeHighlightMat);
-            whiteMesh.scale.set(1.1, 0.7, 0.3);
-            eyeGroup.add(whiteMesh);
+            const eyeSclera = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 12), eyeHighlightMat);
+            eyeSclera.scale.set(1.1, 0.65, 0.3);
+            eyeGroup.add(eyeSclera);
 
-            // Pupila oscura
-            const pupil = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), eyePupilMat);
+            const pupil = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12), eyePupilMat);
             pupil.rotation.x = Math.PI / 2;
             pupil.position.z = 0.02;
             eyeGroup.add(pupil);
@@ -207,151 +200,204 @@ export class Player {
         });
 
         // Protector de frente ninja metálico curvado (Hitai-ate)
-        const plateGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.14, 16, 1, true, -Math.PI * 0.32, Math.PI * 0.64);
+        const plateGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.14, 24, 1, true, -Math.PI * 0.32, Math.PI * 0.64);
         const plate = new THREE.Mesh(plateGeom, armorMat);
         plate.position.y = 0.16;
         this.head.add(plate);
 
         // Bandana roja envolvente
-        const bandWrapGeom = new THREE.CylinderGeometry(0.365, 0.365, 0.16, 16, 1, true, -Math.PI * 0.55, Math.PI * 1.1);
+        const bandWrapGeom = new THREE.CylinderGeometry(0.365, 0.365, 0.16, 24, 1, true, -Math.PI * 0.55, Math.PI * 1.1);
         const bandWrap = new THREE.Mesh(bandWrapGeom, clothAccentMat);
         bandWrap.position.y = 0.16;
         this.head.add(bandWrap);
 
-        // Emblema de la aldea en el centro del protector
-        const emblem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), metalGoldMat);
+        // Emblema dorado en el centro del protector
+        const emblem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 12), metalGoldMat);
         emblem.rotation.x = Math.PI / 2;
         emblem.position.set(0, 0.16, 0.38);
         this.head.add(emblem);
 
         // Cintas de la bandana ondeando al viento
-        this.bandanaTail1 = new THREE.Mesh(
-            new THREE.BoxGeometry(0.09, 0.65, 0.02),
-            clothAccentMat
-        );
+        this.bandanaTail1 = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.65, 0.02), clothAccentMat);
         this.bandanaTail1.position.set(-0.08, 0.08, -0.38);
         this.bandanaTail1.rotation.x = 0.35;
         this.head.add(this.bandanaTail1);
 
-        this.bandanaTail2 = new THREE.Mesh(
-            new THREE.BoxGeometry(0.09, 0.55, 0.02),
-            clothAccentMat
-        );
+        this.bandanaTail2 = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.55, 0.02), clothAccentMat);
         this.bandanaTail2.position.set(0.08, 0.12, -0.38);
         this.bandanaTail2.rotation.x = 0.45;
         this.head.add(this.bandanaTail2);
 
-        // 3. Brazo Izquierdo Humanoide Articulado
+        // 3. Brazo Izquierdo con Codo Articulado
         this.leftArmPivot = new THREE.Group();
         this.leftArmPivot.position.set(-0.48, 0.35, 0);
         this.torso.add(this.leftArmPivot);
 
-        // Hombro / Deltoides curvado
-        const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), armorMat);
+        const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), armorMat);
         this.leftArmPivot.add(lShoulder);
 
-        // Brazo superior (Bícep)
-        const lUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.42, 12), suitMat);
-        lUpperArm.position.y = -0.22;
+        const lUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.38, 16), suitMat);
+        lUpperArm.position.y = -0.19;
         lUpperArm.castShadow = true;
         this.leftArmPivot.add(lUpperArm);
 
-        // Antebrazo con guantelete ninja (Kote)
-        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.44, 12), clothAccentMat);
-        lForearm.position.y = -0.55;
+        // Articulación del Codo Izquierdo
+        this.leftElbowPivot = new THREE.Group();
+        this.leftElbowPivot.position.set(0, -0.38, 0);
+        this.leftArmPivot.add(this.leftElbowPivot);
+
+        const lElbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), armorMat);
+        this.leftElbowPivot.add(lElbowJoint);
+
+        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.38, 16), clothAccentMat);
+        lForearm.position.y = -0.19;
         lForearm.castShadow = true;
-        this.leftArmPivot.add(lForearm);
+        this.leftElbowPivot.add(lForearm);
 
-        // Mano izquierda cerrada
-        const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), skinMat);
-        lHand.position.y = -0.78;
-        this.leftArmPivot.add(lHand);
+        const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), skinMat);
+        lHand.position.y = -0.40;
+        this.leftElbowPivot.add(lHand);
 
-        // 4. Brazo Derecho Humanoide con agarre de arma
+        // 4. Brazo Derecho con Codo Articulado y Anclaje de Arma
         this.rightArmPivot = new THREE.Group();
         this.rightArmPivot.position.set(0.48, 0.35, 0);
         this.torso.add(this.rightArmPivot);
 
-        const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), armorMat);
+        const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), armorMat);
         this.rightArmPivot.add(rShoulder);
 
-        const rUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.42, 12), suitMat);
-        rUpperArm.position.y = -0.22;
+        const rUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.38, 16), suitMat);
+        rUpperArm.position.y = -0.19;
         rUpperArm.castShadow = true;
         this.rightArmPivot.add(rUpperArm);
 
-        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.44, 12), clothAccentMat);
-        rForearm.position.y = -0.55;
+        // Articulación del Codo Derecho
+        this.rightElbowPivot = new THREE.Group();
+        this.rightElbowPivot.position.set(0, -0.38, 0);
+        this.rightArmPivot.add(this.rightElbowPivot);
+
+        const rElbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), armorMat);
+        this.rightElbowPivot.add(rElbowJoint);
+
+        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.38, 16), clothAccentMat);
+        rForearm.position.y = -0.19;
         rForearm.castShadow = true;
-        this.rightArmPivot.add(rForearm);
+        this.rightElbowPivot.add(rForearm);
 
-        // Mano derecha
-        const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), skinMat);
-        rHand.position.y = -0.78;
-        this.rightArmPivot.add(rHand);
+        const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), skinMat);
+        rHand.position.y = -0.40;
+        this.rightElbowPivot.add(rHand);
 
-        // Punto de anclaje de arma en la mano derecha
+        // Anclaje de arma en la mano derecha
         this.weaponHolder = new THREE.Group();
-        this.weaponHolder.position.set(0, -0.78, 0.08);
+        this.weaponHolder.position.set(0, -0.40, 0.08);
         this.weaponHolder.rotation.x = Math.PI / 2;
-        this.rightArmPivot.add(this.weaponHolder);
+        this.rightElbowPivot.add(this.weaponHolder);
 
-        // 5. Piernas Humanoides Anatómicas
+        // 5. Piernas Humanoides Anatómicas con Rodillas Articuladas
         // Pierna Izquierda
         this.leftLegPivot = new THREE.Group();
         this.leftLegPivot.position.set(-0.20, -0.45, 0);
         this.torso.add(this.leftLegPivot);
 
-        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.48, 12), suitMat);
-        lThigh.position.y = -0.24;
+        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.44, 16), suitMat);
+        lThigh.position.y = -0.22;
         lThigh.castShadow = true;
         this.leftLegPivot.add(lThigh);
 
-        // Pantorrilla con polaina ninja (Kyahan)
-        const lCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.48, 12), clothAccentMat);
-        lCalf.position.y = -0.66;
-        lCalf.castShadow = true;
-        this.leftLegPivot.add(lCalf);
+        // Articulación de la Rodilla Izquierda
+        this.leftKneePivot = new THREE.Group();
+        this.leftKneePivot.position.set(0, -0.44, 0);
+        this.leftLegPivot.add(this.leftKneePivot);
 
-        // Zapato Tabi anatómico curvado
-        const lFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        const lKneeJoint = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), armorMat);
+        this.leftKneePivot.add(lKneeJoint);
+
+        const lCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.44, 16), clothAccentMat);
+        lCalf.position.y = -0.22;
+        lCalf.castShadow = true;
+        this.leftKneePivot.add(lCalf);
+
+        const lFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }));
         lFoot.scale.set(0.9, 0.6, 1.4);
-        lFoot.position.set(0, -0.88, 0.04);
-        this.leftLegPivot.add(lFoot);
+        lFoot.position.set(0, -0.44, 0.05);
+        this.leftKneePivot.add(lFoot);
 
         // Pierna Derecha
         this.rightLegPivot = new THREE.Group();
         this.rightLegPivot.position.set(0.20, -0.45, 0);
         this.torso.add(this.rightLegPivot);
 
-        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.48, 12), suitMat);
-        rThigh.position.y = -0.24;
+        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.44, 16), suitMat);
+        rThigh.position.y = -0.22;
         rThigh.castShadow = true;
         this.rightLegPivot.add(rThigh);
 
-        const rCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.48, 12), clothAccentMat);
-        rCalf.position.y = -0.66;
-        rCalf.castShadow = true;
-        this.rightLegPivot.add(rCalf);
+        // Articulación de la Rodilla Derecha
+        this.rightKneePivot = new THREE.Group();
+        this.rightKneePivot.position.set(0, -0.44, 0);
+        this.rightLegPivot.add(this.rightKneePivot);
 
-        const rFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        const rKneeJoint = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), armorMat);
+        this.rightKneePivot.add(rKneeJoint);
+
+        const rCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.44, 16), clothAccentMat);
+        rCalf.position.y = -0.22;
+        rCalf.castShadow = true;
+        this.rightKneePivot.add(rCalf);
+
+        const rFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }));
         rFoot.scale.set(0.9, 0.6, 1.4);
-        rFoot.position.set(0, -0.88, 0.04);
-        this.rightLegPivot.add(rFoot);
+        rFoot.position.set(0, -0.44, 0.05);
+        this.rightKneePivot.add(rFoot);
     }
 
     equipWeapon(weaponId) {
         this.currentWeaponId = weaponId;
 
-        // Limpiar arma anterior
         while (this.weaponHolder.children.length > 0) {
             const child = this.weaponHolder.children[0];
             this.weaponHolder.remove(child);
         }
 
-        // Crear nueva malla 3D
-        this.weaponMesh = createWeaponMesh(weaponId);
-        this.weaponHolder.add(this.weaponMesh);
+        const weaponGroup = new THREE.Group();
+        const data = WEAPONS[weaponId] || WEAPONS.bokken;
+
+        // Mango de agarre con cinta tsuka-ito
+        const hilt = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, 0.045, 0.45, 12),
+            new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
+        );
+        hilt.position.y = -0.2;
+        weaponGroup.add(hilt);
+
+        // Guardia de la espada (Tsuba)
+        const guard = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.13, 0.13, 0.04, 16),
+            new THREE.MeshStandardMaterial({ color: data.glowColor || 0xf59e0b, metalness: 0.8, roughness: 0.3 })
+        );
+        guard.position.y = 0.04;
+        weaponGroup.add(guard);
+
+        // Hoja de la espada
+        const bladeMat = new THREE.MeshStandardMaterial({
+            color: data.color || 0xe2e8f0,
+            metalness: 0.85,
+            roughness: 0.2,
+            emissive: data.glowColor || 0x000000,
+            emissiveIntensity: data.glowColor ? 0.6 : 0.0
+        });
+
+        const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.07, 1.4, 0.03),
+            bladeMat
+        );
+        blade.position.y = 0.74;
+        blade.castShadow = true;
+        weaponGroup.add(blade);
+
+        this.weaponHolder.add(weaponGroup);
+        this.weaponMesh = weaponGroup;
     }
 
     setupInputListeners() {
@@ -363,10 +409,17 @@ export class Player {
             if (key === 'd' || key === 'arrowright') this.keys.d = true;
             if (e.code === 'Space') {
                 this.keys.space = true;
+                this.jump();
                 e.preventDefault();
+            }
+            if (key === 'shift') {
+                this.dash();
             }
             if (key === 'f' || key === 'j') {
                 this.triggerAttack();
+            }
+            if (key === 'e' || key === 'q') {
+                this.triggerSpinAttack();
             }
         });
 
@@ -379,10 +432,9 @@ export class Player {
             if (e.code === 'Space') this.keys.space = false;
         });
 
-        // Controles de mouse para cámara en 3ra persona
+        // Controles de ratón para apuntado y cámara
         this.domElement.addEventListener('mousedown', (e) => {
             if (e.button === 0) {
-                // Clic izquierdo: Atacar
                 this.triggerAttack();
             }
             if (e.button === 2 || e.button === 0) {
@@ -398,8 +450,6 @@ export class Player {
 
                 this.cameraYaw -= deltaX * 0.007;
                 this.cameraPitch += deltaY * 0.005;
-
-                // Limitar ángulo vertical de la cámara
                 this.cameraPitch = Math.max(-0.2, Math.min(1.1, this.cameraPitch));
 
                 this.previousMousePosition = { x: e.clientX, y: e.clientY };
@@ -410,10 +460,8 @@ export class Player {
             this.isDraggingMouse = false;
         });
 
-        // Prevenir menú contextual con clic derecho
         this.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Zoom de cámara con rueda
         window.addEventListener('wheel', (e) => {
             this.cameraDistance = Math.max(3.5, Math.min(12.0, this.cameraDistance + e.deltaY * 0.005));
         });
@@ -424,7 +472,6 @@ export class Player {
     }
 
     addCameraRotation(deltaX, deltaY) {
-        // Sensibilidad calibrada para pantalla táctil estilo Free Fire
         this.cameraYaw -= deltaX * 0.013;
         this.cameraPitch += deltaY * 0.007;
         this.cameraPitch = Math.max(-0.15, Math.min(0.95, this.cameraPitch));
@@ -436,8 +483,8 @@ export class Player {
             this.isGrounded = false;
             this.jumpCount = 1;
             sounds.playJump();
-        } else if (this.jumpCount === 1) {
-            // Doble salto ninja acrobático
+        } else if (this.jumpCount < this.maxJumps) {
+            // Doble salto estilo Crash Bandicoot
             this.velocity.y = this.jumpForce * 0.95;
             this.jumpCount = 2;
             sounds.playJump();
@@ -450,7 +497,6 @@ export class Player {
         this.dashTimer = 0.22;
         sounds.playDash();
 
-        // Si se está moviendo, el impulso sigue esa dirección; si no, hacia donde mira el ninja
         if (this.moveDirection.lengthSq() > 0.001) {
             this.dashDirection.copy(this.moveDirection).normalize();
         } else {
@@ -465,7 +511,6 @@ export class Player {
     triggerAttack() {
         if (this.attackCooldown > 0) return;
 
-        // Alinear al ninja hacia donde apunta la cámara/mira (Estilo Free Fire)
         this.mesh.rotation.y = this.cameraYaw + Math.PI;
 
         const weaponData = WEAPONS[this.currentWeaponId] || WEAPONS.bokken;
@@ -473,11 +518,9 @@ export class Player {
         this.attackTimer = 0;
         this.attackCooldown = weaponData.attackSpeed;
 
-        // Avanzar combo 0 -> 1 -> 2 -> 0
         this.attackCombo = (this.attackCombo + 1) % 3;
         this.comboResetTimer = 0.9;
 
-        // Sonido de ataque
         sounds.playSlash(weaponData.element);
 
         if (this.onAttackCallback) {
@@ -485,10 +528,28 @@ export class Player {
         }
     }
 
+    // Ataque de Giro Ninja 360° estilo Crash Bandicoot
+    triggerSpinAttack() {
+        if (this.spinCooldown > 0) return;
+        this.spinCooldown = 0.65;
+        this.isSpinning = true;
+        this.spinTimer = 0.35;
+        this.isAttacking = true;
+        this.attackCombo = 2;
+
+        sounds.playSlash('heavy');
+
+        if (this.onSpinAttackCallback) {
+            this.onSpinAttackCallback();
+        } else if (this.onAttackCallback) {
+            this.onAttackCallback(this.currentWeaponId, 2);
+        }
+    }
+
     bounceTrampoline(boostForce = 22.0) {
         this.velocity.y = boostForce;
         this.isGrounded = false;
-        this.jumpCount = 1; // Permite salto extra en el aire
+        this.jumpCount = 1;
         sounds.playTrampoline();
     }
 
@@ -496,7 +557,6 @@ export class Player {
         this.health = Math.max(0, this.health - amount);
         sounds.playHit(false);
 
-        // Destello rojo en el personaje
         if (this.suitMat) {
             this.suitMat.color.setHex(0xff3333);
             setTimeout(() => {
@@ -509,88 +569,102 @@ export class Player {
         }
     }
 
+    heal(amount) {
+        this.health = Math.min(this.maxHealth, this.health + amount);
+    }
+
     respawn() {
-        sounds.playPoof();
         this.health = this.maxHealth;
-        this.mesh.position.set(0, 1.0, 0);
+        this.mesh.position.set(0, 1.5, 0);
         this.velocity.set(0, 0, 0);
+        this.isGrounded = true;
+        this.jumpCount = 0;
     }
 
     update(delta) {
-        // Enfriamiento de ataque y dash
-        if (this.attackCooldown > 0) {
-            this.attackCooldown -= delta;
-        }
+        // Enfriamiento de ataque, combo y giro
+        if (this.attackCooldown > 0) this.attackCooldown -= delta;
+        if (this.spinCooldown > 0) this.spinCooldown -= delta;
+        if (this.dashCooldown > 0) this.dashCooldown -= delta;
+
         if (this.comboResetTimer > 0) {
             this.comboResetTimer -= delta;
             if (this.comboResetTimer <= 0) {
                 this.attackCombo = 0;
             }
         }
-        if (this.dashCooldown > 0) {
-            this.dashCooldown -= delta;
-        }
-        if (this.dashTimer > 0) {
-            this.dashTimer -= delta;
-        }
 
-        // 1. Calcular dirección de movimiento en base a la rotación de cámara
-        const forward = new THREE.Vector3(-Math.sin(this.cameraYaw), 0, -Math.cos(this.cameraYaw)).normalize();
-        const right = new THREE.Vector3(Math.cos(this.cameraYaw), 0, -Math.sin(this.cameraYaw)).normalize();
+        // 1. Vector de movimiento relativo a la cámara
+        const forward = new THREE.Vector3(
+            -Math.sin(this.cameraYaw),
+            0,
+            -Math.cos(this.cameraYaw)
+        ).normalize();
+
+        const right = new THREE.Vector3(
+            Math.cos(this.cameraYaw),
+            0,
+            -Math.sin(this.cameraYaw)
+        ).normalize();
 
         this.moveDirection.set(0, 0, 0);
+
         if (this.keys.w) this.moveDirection.add(forward);
         if (this.keys.s) this.moveDirection.sub(forward);
         if (this.keys.d) this.moveDirection.add(right);
         if (this.keys.a) this.moveDirection.sub(right);
 
-        // Movimiento con joystick táctil móvil (analógico suave 360°)
-        if (this.touchMoveVector.lengthSq() > 0.001) {
+        if (this.touchMoveVector.lengthSq() > 0.01) {
+            this.moveDirection.addScaledVector(forward, -this.touchMoveVector.y);
             this.moveDirection.addScaledVector(right, this.touchMoveVector.x);
-            this.moveDirection.addScaledVector(forward, this.touchMoveVector.y);
         }
 
         const isMoving = this.moveDirection.lengthSq() > 0.001;
 
-        if (this.dashTimer > 0) {
-            // Sprint supersónico por habilidad de Dash
-            this.mesh.position.addScaledVector(this.dashDirection, this.speed * 2.6 * delta);
-        } else if (isMoving) {
+        if (isMoving) {
             this.moveDirection.normalize();
-            this.mesh.position.addScaledVector(this.moveDirection, this.speed * delta);
+            if (!this.isAttacking && !this.isSpinning) {
+                const targetRotation = Math.atan2(this.moveDirection.x, this.moveDirection.z);
+                let diff = targetRotation - this.mesh.rotation.y;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                this.mesh.rotation.y += diff * 0.22;
+            }
+        }
 
-            // Girar reactivamente el ninja hacia la dirección de avance
-            const targetRotation = Math.atan2(this.moveDirection.x, this.moveDirection.z);
-            let diff = targetRotation - this.mesh.rotation.y;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.mesh.rotation.y += diff * Math.min(1.0, delta * 24);
+        // Velocidad de movimiento
+        const baseSpeed = 10.5;
+        let currentSpeed = baseSpeed;
+
+        if (this.dashTimer > 0) {
+            this.dashTimer -= delta;
+            currentSpeed = 24.0;
+            this.velocity.x = this.dashDirection.x * currentSpeed;
+            this.velocity.z = this.dashDirection.z * currentSpeed;
+        } else if (isMoving) {
+            this.velocity.x = this.moveDirection.x * currentSpeed;
+            this.velocity.z = this.moveDirection.z * currentSpeed;
         } else {
-            // Cuando no se mueve, orientar suavemente al ninja hacia donde apunta la cámara (Estilo Free Fire)
-            const targetRotation = this.cameraYaw + Math.PI;
-            let diff = targetRotation - this.mesh.rotation.y;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.mesh.rotation.y += diff * Math.min(1.0, delta * 16);
+            this.velocity.x *= 0.65;
+            this.velocity.z *= 0.65;
+            if (Math.abs(this.velocity.x) < 0.05) this.velocity.x = 0;
+            if (Math.abs(this.velocity.z) < 0.05) this.velocity.z = 0;
         }
 
-        // 2. Salto y gravedad
-        if (this.keys.space && this.isGrounded) {
-            this.jump();
-        }
-
+        // 2. Gravedad y suelo
         this.velocity.y += this.gravity * delta;
+        this.mesh.position.x += this.velocity.x * delta;
         this.mesh.position.y += this.velocity.y * delta;
+        this.mesh.position.z += this.velocity.z * delta;
 
-        // Suelo a Y = 0
         if (this.mesh.position.y <= 0) {
             this.mesh.position.y = 0;
             this.velocity.y = 0;
             this.isGrounded = true;
-            this.jumpCount = 0; // Reiniciar contador de saltos
+            this.jumpCount = 0;
         }
 
-        // Límites del mapa para no caer al vacío
+        // Límites del mapa
         const arenaRadius = 55.0;
         const currentDist = Math.hypot(this.mesh.position.x, this.mesh.position.z);
         if (currentDist > arenaRadius) {
@@ -599,73 +673,139 @@ export class Player {
             this.mesh.position.z = Math.sin(angle) * arenaRadius;
         }
 
-        // 3. Animaciones procedurales estilo Roblox
-        const time = performance.now() * 0.015;
+        // =====================================================================
+        // 3. CINEMÁTICA ARTICULAR NATURAL Y ANIMACIONES
+        // =====================================================================
+        const time = performance.now() * 0.013;
 
-        if (this.isAttacking) {
+        if (this.isSpinning) {
+            this.spinTimer -= delta;
+            if (this.spinTimer <= 0) {
+                this.isSpinning = false;
+                this.isAttacking = false;
+            }
+
+            // Giro 360° veloz estilo Crash Bandicoot
+            this.mesh.rotation.y += delta * 24.0;
+            this.torso.position.y = 1.35;
+            this.torso.rotation.set(0, 0, 0);
+
+            // Brazos abiertos con espada horizontal
+            this.rightArmPivot.rotation.set(0, 0, Math.PI * 0.45);
+            this.rightElbowPivot.rotation.set(0, 0, 0);
+            this.leftArmPivot.rotation.set(0, 0, -Math.PI * 0.45);
+            this.leftElbowPivot.rotation.set(0, 0, 0);
+
+            this.leftLegPivot.rotation.set(0, 0, -0.15);
+            this.rightLegPivot.rotation.set(0, 0, 0.15);
+            this.leftKneePivot.rotation.set(0.3, 0, 0);
+            this.rightKneePivot.rotation.set(0.3, 0, 0);
+
+        } else if (this.isAttacking) {
             this.attackTimer += delta * 8;
             if (this.attackTimer > Math.PI) {
                 this.isAttacking = false;
                 this.attackTimer = 0;
             }
 
-            // Animación de corte con brazo derecho
             if (this.attackCombo === 1) {
-                // Tajo horizontal
+                // Tajo horizontal fluido
                 this.rightArmPivot.rotation.x = Math.PI / 2 + Math.sin(this.attackTimer) * 0.6;
                 this.rightArmPivot.rotation.y = -Math.PI / 3 + Math.sin(this.attackTimer) * 1.8;
+                this.rightElbowPivot.rotation.x = -0.3 + Math.sin(this.attackTimer) * 0.4;
                 this.torso.rotation.y = Math.sin(this.attackTimer) * 0.5;
             } else if (this.attackCombo === 2) {
-                // Tajo descendente vertical potente
+                // Tajo descendente potente
                 this.rightArmPivot.rotation.x = Math.PI - Math.sin(this.attackTimer) * 2.2;
                 this.rightArmPivot.rotation.y = 0;
+                this.rightElbowPivot.rotation.x = -0.6;
                 this.torso.rotation.x = Math.sin(this.attackTimer) * 0.3;
             } else {
-                // Giro 360 grados estilo torbellino
-                this.rightArmPivot.rotation.x = Math.PI / 2;
-                this.rightArmPivot.rotation.y = -1.2;
-                this.mesh.rotation.y += delta * 25;
+                // Estocada frontal con torsión de torso
+                this.rightArmPivot.rotation.x = Math.PI * 0.5;
+                this.rightArmPivot.rotation.y = Math.sin(this.attackTimer) * 0.8;
+                this.rightElbowPivot.rotation.x = -0.2;
+                this.torso.rotation.y = -Math.sin(this.attackTimer) * 0.3;
             }
-        } else {
-            this.torso.rotation.set(0, 0, 0);
 
+        } else {
             if (!this.isGrounded) {
-                // Animación de salto
-                this.rightArmPivot.rotation.x = -Math.PI * 0.8;
-                this.leftArmPivot.rotation.x = -Math.PI * 0.8;
-                this.leftLegPivot.rotation.x = 0.5;
-                this.rightLegPivot.rotation.x = 0.3;
+                // Salto natural con flexión de rodillas
+                this.torso.position.y = 1.35;
+                this.torso.rotation.x = 0.1;
+                this.torso.rotation.y = 0;
+                this.torso.rotation.z = 0;
+
+                this.leftLegPivot.rotation.x = -0.35;
+                this.rightLegPivot.rotation.x = 0.25;
+                // Rodillas flexionadas en el aire
+                this.leftKneePivot.rotation.x = 0.85;
+                this.rightKneePivot.rotation.x = 0.65;
+
+                // Brazos elevados en equilibrio
+                this.leftArmPivot.rotation.x = -Math.PI * 0.65;
+                this.rightArmPivot.rotation.x = -Math.PI * 0.65;
+                this.leftElbowPivot.rotation.x = -0.4;
+                this.rightElbowPivot.rotation.x = -0.4;
+
             } else if (isMoving) {
-                // Animación de correr (brazos y piernas oscilan dinámicamente)
-                const swing = Math.sin(time) * 0.85;
+                // Carrera orgánica: balanceo de cadera + flexión de rodillas y codos
+                const swing = Math.sin(time) * 0.82;
+
+                // 1. Rebote rítmico vertical de la pelvis (bobbing)
+                this.torso.position.y = 1.35 + Math.abs(Math.sin(time)) * 0.08;
+
+                // 2. Inclinación hacia adelante atlética
+                this.torso.rotation.x = 0.18;
+                this.torso.rotation.y = -swing * 0.12; // Suave torsión de pecho
+                this.torso.rotation.z = 0;
+
+                // 3. Piernas con flexión activa de rodillas
                 this.leftLegPivot.rotation.x = swing;
                 this.rightLegPivot.rotation.x = -swing;
-                this.leftArmPivot.rotation.x = -swing * 0.7;
-                this.rightArmPivot.rotation.x = swing * 0.7;
-                this.rightArmPivot.rotation.z = 0.1;
-                this.leftArmPivot.rotation.z = -0.1;
+
+                // Rodilla se dobla hacia atrás cuando la pierna va hacia atrás
+                this.leftKneePivot.rotation.x = Math.max(0, -swing * 1.35);
+                this.rightKneePivot.rotation.x = Math.max(0, swing * 1.35);
+
+                // 4. Brazos flexionados en ángulo de carrera (45-70°)
+                this.leftArmPivot.rotation.x = -swing * 0.75;
+                this.rightArmPivot.rotation.x = swing * 0.75;
+                this.leftArmPivot.rotation.z = -0.12;
+                this.rightArmPivot.rotation.z = 0.12;
+
+                this.leftElbowPivot.rotation.x = -0.65 - Math.max(0, -swing * 0.5);
+                this.rightElbowPivot.rotation.x = -0.65 - Math.max(0, swing * 0.5);
+
             } else {
-                // Animación reposo (respiración suave)
-                const breath = Math.sin(time * 0.3) * 0.05;
-                this.leftLegPivot.rotation.set(0, 0, 0);
-                this.rightLegPivot.rotation.set(0, 0, 0);
-                this.leftArmPivot.rotation.set(breath, 0, -0.1);
-                this.rightArmPivot.rotation.set(breath, 0, 0.1);
+                // Postura de reposo (respiración suave y relajada)
+                const breath = Math.sin(time * 0.35) * 0.04;
+                this.torso.position.y = 1.35 + breath;
+                this.torso.rotation.set(0, 0, 0);
+
+                this.leftLegPivot.rotation.set(0, 0, -0.05);
+                this.rightLegPivot.rotation.set(0, 0, 0.05);
+                this.leftKneePivot.rotation.set(0.08, 0, 0);
+                this.rightKneePivot.rotation.set(0.08, 0, 0);
+
+                this.leftArmPivot.rotation.set(breath * 1.5, 0, -0.12);
+                this.rightArmPivot.rotation.set(breath * 1.5, 0, 0.12);
+                this.leftElbowPivot.rotation.set(-0.35, 0, 0);
+                this.rightElbowPivot.rotation.set(-0.35, 0, 0);
             }
         }
 
-        // Ondeo de cintas de la bandana ninja con el viento
-        const flutter = Math.sin(time * 1.5) * (isMoving ? 0.45 : 0.15);
+        // Cintas de la bandana ondeando al viento
+        const flutter = Math.sin(time * 1.6) * (isMoving ? 0.45 : 0.15);
         this.bandanaTail1.rotation.x = 0.35 + flutter;
         this.bandanaTail2.rotation.x = 0.45 - flutter * 0.8;
 
-        // 4. Actualizar posición de la cámara en 3ra persona orbital
+        // 4. Cámara orbital suave en 3ra persona
         const targetPos = this.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0));
         const camX = targetPos.x + Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
         const camY = targetPos.y + Math.sin(this.cameraPitch) * this.cameraDistance + this.cameraHeight * 0.3;
         const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
 
-        // Movimiento de cámara suave (lerp) sin retraso perceptible
         this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.28);
         this.camera.lookAt(targetPos);
     }

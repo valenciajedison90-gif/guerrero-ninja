@@ -1,255 +1,272 @@
-// js/enemies.js - Enemigos Caricaturescos estilo Roblox, IA Activa y Saltarines
+// js/enemies.js - Gestor de Enemigos con IA Táctica de Combate, Rodeo y Cinemática Articular
 import * as THREE from 'three';
-import { sounds } from './sound.js';
+import { sounds } from './sound.js?v=6.0';
 
 export class EnemyManager {
     constructor(scene, particles) {
         this.scene = scene;
         this.particles = particles;
         this.enemies = [];
-        this.wave = 1;
-        this.bossSpawned = false;
 
-        // Iniciar primeros enemigos activos
-        this.spawnInitialEnemies();
+        this.spawnInitialEnemies('forest');
     }
 
-    spawnInitialEnemies() {
-        // 1 Muñeco de práctica estático en una esquina para pruebas
+    clearEnemies() {
+        while (this.enemies.length > 0) {
+            const e = this.enemies.pop();
+            this.scene.remove(e.mesh);
+        }
+    }
+
+    spawnInitialEnemies(worldId = 'forest') {
+        this.clearEnemies();
+
+        // 1. Muñeco de entrenamiento
         this.spawnDummy(new THREE.Vector3(0, 0, -9));
 
-        // 2 Ninjas de las sombras patrullando y persiguiendo
-        this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8));
-        this.spawnShadowNinja(new THREE.Vector3(14, 0, 8));
-
-        // 2 Ninjas acróbatas saltadores
-        this.spawnAcrobatNinja(new THREE.Vector3(-18, 0, -14));
-        this.spawnAcrobatNinja(new THREE.Vector3(18, 0, -14));
+        if (worldId === 'forest') {
+            // Mundo 1: Ninjas de las Sombras y Acróbatas
+            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0);
+            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1);
+            this.spawnShadowNinja(new THREE.Vector3(0, 0, -18), 2);
+            this.spawnAcrobatNinja(new THREE.Vector3(-18, 0, -14), 3);
+            this.spawnAcrobatNinja(new THREE.Vector3(18, 0, -14), 4);
+        } else if (worldId === 'volcano') {
+            // Mundo 2: Ninjas Ígneos de Fuego y Acróbatas
+            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0xff3b00);
+            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0xff3b00);
+            this.spawnShadowNinja(new THREE.Vector3(-18, 0, -12), 2, 0xff3b00);
+            this.spawnShadowNinja(new THREE.Vector3(18, 0, -12), 3, 0xff3b00);
+            this.spawnAcrobatNinja(new THREE.Vector3(-8, 0, 20), 4);
+            this.spawnAcrobatNinja(new THREE.Vector3(8, 0, 20), 5);
+        } else if (worldId === 'snow') {
+            // Mundo 3: Guerreros Glaciales y el Gran Jefe Samurái Warlord
+            this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0x38bdf8);
+            this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0x38bdf8);
+            this.spawnShadowNinja(new THREE.Vector3(-16, 0, -12), 2, 0x38bdf8);
+            this.spawnShadowNinja(new THREE.Vector3(16, 0, -12), 3, 0x38bdf8);
+            this.spawnAcrobatNinja(new THREE.Vector3(-8, 0, 18), 4);
+            this.spawnAcrobatNinja(new THREE.Vector3(8, 0, 18), 5);
+            // Gran Jefe en el templo
+            this.spawnBoss(new THREE.Vector3(0, 0, -22));
+        }
     }
 
     createHealthBar(maxHealth) {
         const group = new THREE.Group();
-        group.position.y = 2.4;
 
-        // Fondo oscuro
-        const bgGeom = new THREE.BoxGeometry(1.2, 0.16, 0.05);
-        const bgMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
-        const bg = new THREE.Mesh(bgGeom, bgMat);
+        const bgMat = new THREE.MeshBasicMaterial({ color: 0x09090b });
+        const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.2), bgMat);
         group.add(bg);
 
-        // Barra de vida verde
-        const barGeom = new THREE.BoxGeometry(1.16, 0.12, 0.06);
-        const barMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
-        const bar = new THREE.Mesh(barGeom, barMat);
-        bar.position.z = 0.01;
-        group.add(bar);
+        const fillMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        const fill = new THREE.Mesh(new THREE.PlaneGeometry(1.56, 0.16), fillMat);
+        fill.position.z = 0.01;
+        group.add(fill);
 
-        group.barMesh = bar;
-        group.maxHealth = maxHealth;
+        group.userData = { fillMesh: fill, maxHealth: maxHealth };
         return group;
     }
 
     updateHealthBar(healthBarGroup, currentHealth) {
-        const ratio = Math.max(0, currentHealth / healthBarGroup.maxHealth);
-        healthBarGroup.barMesh.scale.x = ratio;
-        healthBarGroup.barMesh.position.x = -(1 - ratio) * 0.58;
+        if (!healthBarGroup || !healthBarGroup.userData) return;
+        const maxH = healthBarGroup.userData.maxHealth;
+        const pct = Math.max(0, Math.min(1, currentHealth / maxH));
 
-        if (ratio < 0.3) {
-            healthBarGroup.barMesh.material.color.setHex(0xef4444); // Rojo crítico
-        } else if (ratio < 0.6) {
-            healthBarGroup.barMesh.material.color.setHex(0xeab308); // Amarillo
+        const fill = healthBarGroup.userData.fillMesh;
+        fill.scale.x = pct;
+        fill.position.x = -(1.56 * (1 - pct)) / 2;
+
+        if (pct < 0.3) {
+            fill.material.color.setHex(0xd97706);
         } else {
-            healthBarGroup.barMesh.material.color.setHex(0x22c55e); // Verde
+            fill.material.color.setHex(0xef4444);
         }
     }
 
+    // =========================================================================
+    // 1. MUÑECO DE ENTRENAMIENTO DE DOJO
+    // =========================================================================
     spawnDummy(pos) {
         const group = new THREE.Group();
         group.position.copy(pos);
 
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.8 });
-        const strawMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.9 });
-        const ropeMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 });
+        const cedarMat = new THREE.MeshStandardMaterial({ color: 0x5c2b14, roughness: 0.8 });
+        const strawMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.9 });
+        const ropeMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.95 });
 
-        // Poste central redondeado de cedro
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 1.9, 12), woodMat);
-        post.position.y = 0.95;
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.5, 0.25, 20), cedarMat);
+        base.position.y = 0.12;
+        base.receiveShadow = true;
+        group.add(base);
+
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2.6, 16), cedarMat);
+        post.position.y = 1.3;
         post.castShadow = true;
         group.add(post);
 
-        // Torso acolchado cilíndrico de paja trenzada
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 0.95, 16), strawMat);
-        body.position.y = 1.4;
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.40, 1.25, 16), strawMat);
+        body.position.y = 1.55;
         body.castShadow = true;
         group.add(body);
 
-        // Cuerdas de cáñamo atadas alrededor del torso
-        [-0.2, 0.0, 0.2].forEach(yOff => {
-            const rope = new THREE.Mesh(new THREE.TorusGeometry(0.41, 0.03, 6, 16), ropeMat);
+        [-0.35, 0.0, 0.35].forEach(yOff => {
+            const rope = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.04, 8, 20), ropeMat);
             rope.rotation.x = Math.PI / 2;
-            rope.position.y = 1.4 + yOff;
+            rope.position.y = 1.55 + yOff;
             group.add(rope);
         });
 
-        // Cabeza esférica de paja
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 12), strawMat);
-        head.position.y = 2.05;
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), strawMat);
+        head.position.y = 2.45;
         head.castShadow = true;
         group.add(head);
 
-        // Cintas de entrenamiento
-        const headband = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.08, 12), new THREE.MeshStandardMaterial({ color: 0xd92323 }));
-        headband.position.y = 2.12;
-        group.add(headband);
+        const crossBar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.8, 12), cedarMat);
+        crossBar.rotation.z = Math.PI / 2;
+        crossBar.position.y = 1.65;
+        crossBar.castShadow = true;
+        group.add(crossBar);
 
-        // Brazos de madera horizontales redondeados
-        const crossArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.7, 10), woodMat);
-        crossArm.rotation.z = Math.PI / 2;
-        crossArm.position.y = 1.4;
-        group.add(crossArm);
-
-        // Barra de vida
-        const healthBar = this.createHealthBar(35);
-        healthBar.position.y = 2.65;
+        const healthBar = this.createHealthBar(50);
+        healthBar.position.y = 3.0;
         group.add(healthBar);
 
         const enemy = {
             mesh: group,
             type: 'dummy',
             name: 'Muñeco de Práctica',
-            health: 35,
-            maxHealth: 35,
+            health: 50,
+            maxHealth: 50,
             healthBar: healthBar,
             coinsDrop: 12,
             xpDrop: 20,
-            originalPos: pos.clone(),
-            attackCooldown: 99999,
+            damage: 0,
+            speed: 0,
+            attackRange: 0,
+            timer: 0,
             bodyMesh: body,
-            velocity: new THREE.Vector3(0, 0, 0),
-            isGrounded: true
+            originalPos: pos.clone(),
+            isGrounded: true,
+            velocity: new THREE.Vector3(0, 0, 0)
         };
 
         this.enemies.push(enemy);
         this.scene.add(group);
     }
 
-    spawnShadowNinja(pos) {
+    // =========================================================================
+    // 2. SHINOBI DE LAS SOMBRAS / FUEGO / HIELO (HUMANOIDE ARTICULADO)
+    // =========================================================================
+    spawnShadowNinja(pos, slotIndex = 0, themeColor = 0x6b21a8) {
         const group = new THREE.Group();
         group.position.copy(pos);
 
-        const suitMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.2 });
-        const purpleClothMat = new THREE.MeshStandardMaterial({ color: 0x9333ea, roughness: 0.4 });
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+        const suitMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.45 });
+        const clothMat = new THREE.MeshStandardMaterial({ color: themeColor, roughness: 0.4 });
         const steelMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85, roughness: 0.2 });
 
-        // 1. Torso Humanoide Anatómico
         const torsoGroup = new THREE.Group();
-        torsoGroup.position.y = 1.3;
+        torsoGroup.position.y = 1.35;
         group.add(torsoGroup);
 
-        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.30, 0.52, 14), suitMat);
-        chest.position.y = 0.12;
+        // Pecho atlético
+        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.32, 0.52, 20), suitMat);
+        chest.position.y = 0.14;
         chest.castShadow = true;
         torsoGroup.add(chest);
 
-        const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.27, 0.40, 14), suitMat);
-        waist.position.y = -0.22;
-        waist.castShadow = true;
-        torsoGroup.add(waist);
+        const abs = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.42, 20), suitMat);
+        abs.position.y = -0.24;
+        torsoGroup.add(abs);
 
-        // Cinturón púrpura
-        const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.14, 14), purpleClothMat);
-        belt.position.y = -0.30;
-        torsoGroup.add(belt);
-
-        // 2. Cabeza Humanoide con capucha y ojos rojos
+        // Cabeza con capucha y ojos brillantes
         const headGroup = new THREE.Group();
         headGroup.position.y = 0.65;
         torsoGroup.add(headGroup);
 
-        const hoodGeom = new THREE.SphereGeometry(0.32, 14, 14);
-        hoodGeom.scale(1.0, 1.12, 1.05);
-        const hood = new THREE.Mesh(hoodGeom, suitMat);
-        hood.castShadow = true;
+        const hood = new THREE.Mesh(new THREE.SphereGeometry(0.35, 20, 16), suitMat);
+        hood.scale.set(1.0, 1.1, 1.05);
         headGroup.add(hood);
 
-        // Máscara
-        const mask = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.20, 0.28, 12), suitMat);
-        mask.position.set(0, -0.1, 0.08);
-        headGroup.add(mask);
-
-        // Ojos amenazantes de ninja sombra
-        [-0.10, 0.10].forEach((eyeX) => {
-            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), eyeMat);
-            eye.scale.set(1.2, 0.5, 0.4);
-            eye.position.set(eyeX, 0.05, 0.31);
+        [-0.10, 0.10].forEach(eyeX => {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({ color: themeColor === 0x18181b ? 0xef4444 : themeColor }));
+            eye.position.set(eyeX, 0.04, 0.34);
             headGroup.add(eye);
         });
 
-        // 3. Brazo Izquierdo Humanoide
+        // Brazo izquierdo con codo articulado
         const leftArmPivot = new THREE.Group();
-        leftArmPivot.position.set(-0.44, 0.32, 0);
+        leftArmPivot.position.set(-0.46, 0.32, 0);
         torsoGroup.add(leftArmPivot);
 
-        const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), purpleClothMat);
-        leftArmPivot.add(lShoulder);
+        const lUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.10, 0.36, 16), suitMat);
+        lUpperArm.position.y = -0.18;
+        leftArmPivot.add(lUpperArm);
 
-        const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.38, 10), suitMat);
-        lArm.position.y = -0.20;
-        leftArmPivot.add(lArm);
+        const leftElbowPivot = new THREE.Group();
+        leftElbowPivot.position.set(0, -0.36, 0);
+        leftArmPivot.add(leftElbowPivot);
 
-        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, 0.40, 10), purpleClothMat);
-        lForearm.position.y = -0.50;
-        leftArmPivot.add(lForearm);
+        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, 0.36, 16), clothMat);
+        lForearm.position.y = -0.18;
+        leftElbowPivot.add(lForearm);
 
-        // 4. Brazo Derecho Humanoide con Katana
+        // Brazo derecho con codo articulado y Katana
         const rightArmPivot = new THREE.Group();
-        rightArmPivot.position.set(0.44, 0.32, 0);
+        rightArmPivot.position.set(0.46, 0.32, 0);
         torsoGroup.add(rightArmPivot);
 
-        const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), purpleClothMat);
-        rightArmPivot.add(rShoulder);
+        const rUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.10, 0.36, 16), suitMat);
+        rUpperArm.position.y = -0.18;
+        rightArmPivot.add(rUpperArm);
 
-        const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.38, 10), suitMat);
-        rArm.position.y = -0.20;
-        rightArmPivot.add(rArm);
+        const rightElbowPivot = new THREE.Group();
+        rightElbowPivot.position.set(0, -0.36, 0);
+        rightArmPivot.add(rightElbowPivot);
 
-        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, 0.40, 10), purpleClothMat);
-        rForearm.position.y = -0.50;
-        rightArmPivot.add(rForearm);
+        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, 0.36, 16), clothMat);
+        rForearm.position.y = -0.18;
+        rightElbowPivot.add(rForearm);
 
-        // Katana de acero curvada
         const katana = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.25, 0.03), steelMat);
-        katana.position.set(0, -0.65, 0.30);
+        katana.position.set(0, -0.28, 0.45);
         katana.rotation.x = Math.PI / 3;
-        rightArmPivot.add(katana);
+        rightElbowPivot.add(katana);
 
-        // 5. Piernas Humanoides
+        // Piernas con rodillas articuladas
         const leftLegPivot = new THREE.Group();
         leftLegPivot.position.set(-0.18, -0.42, 0);
         torsoGroup.add(leftLegPivot);
 
-        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.44, 10), suitMat);
-        lThigh.position.y = -0.22;
+        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 16), suitMat);
+        lThigh.position.y = -0.21;
         leftLegPivot.add(lThigh);
 
-        const lShin = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.45, 10), purpleClothMat);
-        lShin.position.y = -0.60;
-        leftLegPivot.add(lShin);
+        const leftKneePivot = new THREE.Group();
+        leftKneePivot.position.set(0, -0.42, 0);
+        leftLegPivot.add(leftKneePivot);
+
+        const lShin = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.42, 16), clothMat);
+        lShin.position.y = -0.21;
+        leftKneePivot.add(lShin);
 
         const rightLegPivot = new THREE.Group();
         rightLegPivot.position.set(0.18, -0.42, 0);
         torsoGroup.add(rightLegPivot);
 
-        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.44, 10), suitMat);
-        rThigh.position.y = -0.22;
+        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 16), suitMat);
+        rThigh.position.y = -0.21;
         rightLegPivot.add(rThigh);
 
-        const rShin = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.45, 10), purpleClothMat);
-        rShin.position.y = -0.60;
-        rightLegPivot.add(rShin);
+        const rightKneePivot = new THREE.Group();
+        rightKneePivot.position.set(0, -0.42, 0);
+        rightLegPivot.add(rightKneePivot);
 
-        // Barra de vida
+        const rShin = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.42, 16), clothMat);
+        rShin.position.y = -0.21;
+        rightKneePivot.add(rShin);
+
         const healthBar = this.createHealthBar(65);
         healthBar.position.y = 2.6;
         group.add(healthBar);
@@ -257,16 +274,16 @@ export class EnemyManager {
         const enemy = {
             mesh: group,
             type: 'shadow_ninja',
-            name: 'Ninja Sombra',
+            name: 'Ninja de las Sombras',
             health: 65,
             maxHealth: 65,
             healthBar: healthBar,
             coinsDrop: 28,
             xpDrop: 45,
             damage: 8,
-            speed: 9.0, // Rápido y ágil
+            speed: 8.5,
             attackRange: 2.2,
-            attackCooldown: 1.0,
+            attackCooldown: 1.2,
             timer: 0,
             bodyMesh: chest,
             velocity: new THREE.Vector3(0, 0, 0),
@@ -275,135 +292,105 @@ export class EnemyManager {
             patrolTarget: pos.clone(),
             patrolTimer: 0,
             originalPos: pos.clone(),
+            slotIndex: slotIndex,
+            aiState: 'circling', // 'circling' | 'lunging' | 'retreating'
+            stateTimer: Math.random() * 2.0,
+            combatRadius: 4.8 + Math.random() * 1.2,
             rightArmPivot: rightArmPivot,
+            rightElbowPivot: rightElbowPivot,
             leftArmPivot: leftArmPivot,
+            leftElbowPivot: leftElbowPivot,
             leftLegPivot: leftLegPivot,
-            rightLegPivot: rightLegPivot
+            leftKneePivot: leftKneePivot,
+            rightLegPivot: rightLegPivot,
+            rightKneePivot: rightKneePivot
         };
 
         this.enemies.push(enemy);
         this.scene.add(group);
     }
 
-    spawnAcrobatNinja(pos) {
+    // =========================================================================
+    // 3. NINJA ACRÓBATA (ÁGIL, SALTOS FLANQUEADORES)
+    // =========================================================================
+    spawnAcrobatNinja(pos, slotIndex = 3) {
         const group = new THREE.Group();
         group.position.copy(pos);
 
-        const suitMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.45 }); // Azul cian
-        const whiteClothMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35 });
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 }); // Ojos dorados
-        const energyBladeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8, roughness: 0.2 });
+        const suitMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
+        const cyanMat = new THREE.MeshStandardMaterial({
+            color: 0x06b6d4,
+            emissive: 0x0891b2,
+            emissiveIntensity: 0.3,
+            roughness: 0.3
+        });
+        const energyBladeMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
 
-        // 1. Torso Humanoide Atlético
         const torsoGroup = new THREE.Group();
-        torsoGroup.position.y = 1.25;
+        torsoGroup.position.y = 1.3;
         group.add(torsoGroup);
 
-        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.48, 14), suitMat);
-        chest.position.y = 0.10;
-        chest.castShadow = true;
+        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.50, 16), suitMat);
+        chest.position.y = 0.12;
         torsoGroup.add(chest);
 
-        const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.25, 0.38, 14), suitMat);
-        waist.position.y = -0.20;
-        waist.castShadow = true;
-        torsoGroup.add(waist);
-
-        const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.12, 14), whiteClothMat);
-        belt.position.y = -0.28;
-        torsoGroup.add(belt);
-
-        // 2. Cabeza Humanoide con capucha y ojos dorados
         const headGroup = new THREE.Group();
         headGroup.position.y = 0.62;
         torsoGroup.add(headGroup);
 
-        const hoodGeom = new THREE.SphereGeometry(0.30, 14, 14);
-        hoodGeom.scale(1.0, 1.12, 1.05);
-        const hood = new THREE.Mesh(hoodGeom, suitMat);
-        hood.castShadow = true;
+        const hood = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), suitMat);
         headGroup.add(hood);
 
-        const mask = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.18, 0.26, 12), suitMat);
-        mask.position.set(0, -0.1, 0.08);
-        headGroup.add(mask);
-
-        // Bandana blanca envolvente
-        const headband = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.10, 14, 1, true, -Math.PI * 0.5, Math.PI), whiteClothMat);
-        headband.position.y = 0.12;
-        headGroup.add(headband);
-
         [-0.09, 0.09].forEach(eyeX => {
-            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), eyeMat);
-            eye.scale.set(1.2, 0.5, 0.4);
-            eye.position.set(eyeX, 0.04, 0.29);
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+            eye.position.set(eyeX, 0.04, 0.32);
             headGroup.add(eye);
         });
 
-        // 3. Brazo Izquierdo Humanoide
+        // Brazos articulados con dobles dagas de energía
         const leftArmPivot = new THREE.Group();
-        leftArmPivot.position.set(-0.40, 0.30, 0);
+        leftArmPivot.position.set(-0.42, 0.30, 0);
         torsoGroup.add(leftArmPivot);
 
-        const lShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), whiteClothMat);
-        leftArmPivot.add(lShoulder);
+        const leftElbowPivot = new THREE.Group();
+        leftElbowPivot.position.set(0, -0.34, 0);
+        leftArmPivot.add(leftElbowPivot);
 
-        const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, 0.36, 10), suitMat);
-        lArm.position.y = -0.18;
-        leftArmPivot.add(lArm);
+        const lDagger = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.75, 0.02), energyBladeMat);
+        lDagger.position.set(0, -0.25, 0.25);
+        lDagger.rotation.x = Math.PI / 3;
+        leftElbowPivot.add(lDagger);
 
-        const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.38, 10), whiteClothMat);
-        lForearm.position.y = -0.46;
-        leftArmPivot.add(lForearm);
-
-        // 4. Brazo Derecho Humanoide con doble hoja de energía
         const rightArmPivot = new THREE.Group();
-        rightArmPivot.position.set(0.40, 0.30, 0);
+        rightArmPivot.position.set(0.42, 0.30, 0);
         torsoGroup.add(rightArmPivot);
 
-        const rShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), whiteClothMat);
-        rightArmPivot.add(rShoulder);
+        const rightElbowPivot = new THREE.Group();
+        rightElbowPivot.position.set(0, -0.34, 0);
+        rightArmPivot.add(rightElbowPivot);
 
-        const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, 0.36, 10), suitMat);
-        rArm.position.y = -0.18;
-        rightArmPivot.add(rArm);
+        const rDagger = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.75, 0.02), energyBladeMat);
+        rDagger.position.set(0, -0.25, 0.25);
+        rDagger.rotation.x = Math.PI / 3;
+        rightElbowPivot.add(rDagger);
 
-        const rForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.38, 10), whiteClothMat);
-        rForearm.position.y = -0.46;
-        rightArmPivot.add(rForearm);
-
-        // Hoja luminosa ágil
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.03), energyBladeMat);
-        blade.position.set(0, -0.55, 0.22);
-        blade.rotation.x = Math.PI / 4;
-        rightArmPivot.add(blade);
-
-        // 5. Piernas Humanoides
+        // Piernas articuladas
         const leftLegPivot = new THREE.Group();
         leftLegPivot.position.set(-0.16, -0.38, 0);
         torsoGroup.add(leftLegPivot);
 
-        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.40, 10), suitMat);
-        lThigh.position.y = -0.20;
-        leftLegPivot.add(lThigh);
-
-        const lShin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.42, 10), whiteClothMat);
-        lShin.position.y = -0.54;
-        leftLegPivot.add(lShin);
+        const leftKneePivot = new THREE.Group();
+        leftKneePivot.position.set(0, -0.40, 0);
+        leftLegPivot.add(leftKneePivot);
 
         const rightLegPivot = new THREE.Group();
         rightLegPivot.position.set(0.16, -0.38, 0);
         torsoGroup.add(rightLegPivot);
 
-        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.40, 10), suitMat);
-        rThigh.position.y = -0.20;
-        rightLegPivot.add(rThigh);
+        const rightKneePivot = new THREE.Group();
+        rightKneePivot.position.set(0, -0.40, 0);
+        rightLegPivot.add(rightKneePivot);
 
-        const rShin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.42, 10), whiteClothMat);
-        rShin.position.y = -0.54;
-        rightLegPivot.add(rShin);
-
-        // Barra de vida
         const healthBar = this.createHealthBar(50);
         healthBar.position.y = 2.5;
         group.add(healthBar);
@@ -411,186 +398,130 @@ export class EnemyManager {
         const enemy = {
             mesh: group,
             type: 'acrobat',
-            name: 'Ninja Acróbata Saltador',
+            name: 'Ninja Acróbata',
             health: 50,
             maxHealth: 50,
             healthBar: healthBar,
-            coinsDrop: 32,
-            xpDrop: 55,
+            coinsDrop: 24,
+            xpDrop: 40,
             damage: 6,
-            speed: 10.5, // Muy veloz
-            attackRange: 2.4,
-            attackCooldown: 0.9,
+            speed: 10.5,
+            attackRange: 2.0,
+            attackCooldown: 0.8,
             timer: 0,
             bodyMesh: chest,
             velocity: new THREE.Vector3(0, 0, 0),
             isGrounded: true,
-            jumpTimer: 1.0 + Math.random() * 1.5,
+            jumpTimer: 1.0,
             patrolTarget: pos.clone(),
             patrolTimer: 0,
             originalPos: pos.clone(),
+            slotIndex: slotIndex,
+            aiState: 'circling',
+            stateTimer: Math.random() * 1.5,
+            combatRadius: 5.8,
             rightArmPivot: rightArmPivot,
+            rightElbowPivot: rightElbowPivot,
             leftArmPivot: leftArmPivot,
+            leftElbowPivot: leftElbowPivot,
             leftLegPivot: leftLegPivot,
-            rightLegPivot: rightLegPivot
+            leftKneePivot: leftKneePivot,
+            rightLegPivot: rightLegPivot,
+            rightKneePivot: rightKneePivot
         };
 
         this.enemies.push(enemy);
         this.scene.add(group);
     }
 
+    // =========================================================================
+    // 4. GRAN JEFE SAMURÁI WARLORD (MUNDO 3)
+    // =========================================================================
     spawnBoss(pos) {
-        if (this.bossSpawned) return;
-        this.bossSpawned = true;
-
         const group = new THREE.Group();
         group.position.copy(pos);
-        group.scale.set(1.6, 1.6, 1.6); // Jefe samurái gigante
+        group.scale.set(1.45, 1.45, 1.45);
 
-        const armorMat = new THREE.MeshStandardMaterial({
-            color: 0x881337, // Carmesí laqueado samurái
-            metalness: 0.6,
-            roughness: 0.3
-        });
-        const goldMat = new THREE.MeshStandardMaterial({
-            color: 0xf59e0b,
-            metalness: 0.9,
-            roughness: 0.2
-        });
-        const steelBladeMat = new THREE.MeshStandardMaterial({
-            color: 0xfecdd3,
-            metalness: 0.85,
-            roughness: 0.15
-        });
-        const darkArmorMat = new THREE.MeshStandardMaterial({
-            color: 0x18181b,
-            roughness: 0.5
-        });
+        const armorMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, metalness: 0.7, roughness: 0.25 });
+        const darkArmorMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.3 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.15 });
+        const bladeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95, roughness: 0.1 });
 
-        // 1. Torso Imponente con Armadura Samurái (Dō)
         const torsoGroup = new THREE.Group();
         torsoGroup.position.y = 1.45;
         group.add(torsoGroup);
 
-        const cuirass = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.46, 0.75, 16), armorMat);
-        cuirass.position.y = 0.18;
+        const cuirass = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.46, 0.75, 20), armorMat);
+        cuirass.position.y = 0.22;
         cuirass.castShadow = true;
         torsoGroup.add(cuirass);
 
-        // Cinturón y placas colgantes de la armadura (Kusazuri)
-        const faulds = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.54, 0.42, 16), darkArmorMat);
-        faulds.position.y = -0.28;
-        faulds.castShadow = true;
-        torsoGroup.add(faulds);
-
-        // 2. Casco Tradicional Kabuto y Máscara de Guerra (Menpo)
+        // Casco Kabuto tradicional con cresta dorada
         const headGroup = new THREE.Group();
         headGroup.position.y = 0.82;
         torsoGroup.add(headGroup);
 
-        // Cúpula del casco Kabuto
-        const kabutoDome = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), armorMat);
+        const kabutoDome = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 20), armorMat);
         kabutoDome.scale.set(1.05, 1.0, 1.15);
         headGroup.add(kabutoDome);
 
-        // Visera del casco
-        const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.08, 16, 1, true, -Math.PI * 0.4, Math.PI * 0.8), goldMat);
-        visor.position.set(0, 0.05, 0.08);
-        headGroup.add(visor);
-
-        // Gran cresta frontal de luna creciente dorada (Maedate)
-        const crescentHornL = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 6), goldMat);
+        const crescentHornL = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 8), goldMat);
         crescentHornL.position.set(-0.25, 0.5, 0.18);
         crescentHornL.rotation.z = 0.5;
-        crescentHornL.rotation.x = -0.2;
         headGroup.add(crescentHornL);
 
-        const crescentHornR = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 6), goldMat);
+        const crescentHornR = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.75, 8), goldMat);
         crescentHornR.position.set(0.25, 0.5, 0.18);
         crescentHornR.rotation.z = -0.5;
-        crescentHornR.rotation.x = -0.2;
         headGroup.add(crescentHornR);
 
-        // Máscara samurái negra (Menpo) con ojos llameantes
-        const menpo = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.22, 0.32, 14), darkArmorMat);
-        menpo.position.set(0, -0.15, 0.15);
-        headGroup.add(menpo);
-
-        // Ojos de fuego del samurái
+        // Ojos de fuego
         [-0.14, 0.14].forEach(eyeX => {
             const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
             eye.position.set(eyeX, 0.04, 0.38);
             headGroup.add(eye);
         });
 
-        // 3. Brazo Izquierdo con Gran Hombrera Samurái (Ō-sode)
-        const leftArmPivot = new THREE.Group();
-        leftArmPivot.position.set(-0.66, 0.42, 0);
-        torsoGroup.add(leftArmPivot);
-
-        const lSode = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.38), armorMat);
-        lSode.position.set(-0.10, 0.05, 0);
-        lSode.rotation.z = -0.2;
-        leftArmPivot.add(lSode);
-
-        const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.46, 12), darkArmorMat);
-        lArm.position.y = -0.24;
-        leftArmPivot.add(lArm);
-
-        const lBracer = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.50, 12), armorMat);
-        lBracer.position.y = -0.62;
-        leftArmPivot.add(lBracer);
-
-        // 4. Brazo Derecho con Hombrera y Gran Nodachi
+        // Brazo derecho con Nodachi de 2.4 metros
         const rightArmPivot = new THREE.Group();
         rightArmPivot.position.set(0.66, 0.42, 0);
         torsoGroup.add(rightArmPivot);
 
-        const rSode = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.38), armorMat);
-        rSode.position.set(0.10, 0.05, 0);
-        rSode.rotation.z = 0.2;
-        rightArmPivot.add(rSode);
+        const rightElbowPivot = new THREE.Group();
+        rightElbowPivot.position.set(0, -0.45, 0);
+        rightArmPivot.add(rightElbowPivot);
 
-        const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.46, 12), darkArmorMat);
-        rArm.position.y = -0.24;
-        rightArmPivot.add(rArm);
-
-        const rBracer = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.50, 12), armorMat);
-        rBracer.position.y = -0.62;
-        rightArmPivot.add(rBracer);
-
-        // Gran Nodachi Samurái (Espada Gigante Curvada)
-        const nodachi = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.4, 0.05), steelBladeMat);
-        nodachi.position.set(0, -1.0, 0.45);
+        const nodachi = new THREE.Mesh(new THREE.BoxGeometry(0.09, 2.4, 0.04), bladeMat);
+        nodachi.position.set(0, 0.2, 0.6);
         nodachi.rotation.x = Math.PI / 3;
-        rightArmPivot.add(nodachi);
+        rightElbowPivot.add(nodachi);
 
-        // 5. Piernas Acorazadas (Haidate y Suneate)
+        // Brazo izquierdo con hombrera
+        const leftArmPivot = new THREE.Group();
+        leftArmPivot.position.set(-0.66, 0.42, 0);
+        torsoGroup.add(leftArmPivot);
+
+        const leftElbowPivot = new THREE.Group();
+        leftElbowPivot.position.set(0, -0.45, 0);
+        leftArmPivot.add(leftElbowPivot);
+
+        // Piernas con rodillas
         const leftLegPivot = new THREE.Group();
         leftLegPivot.position.set(-0.25, -0.48, 0);
         torsoGroup.add(leftLegPivot);
 
-        const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.52, 12), darkArmorMat);
-        lThigh.position.y = -0.26;
-        leftLegPivot.add(lThigh);
-
-        const lShin = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.15, 0.56, 12), armorMat);
-        lShin.position.y = -0.72;
-        leftLegPivot.add(lShin);
+        const leftKneePivot = new THREE.Group();
+        leftKneePivot.position.set(0, -0.52, 0);
+        leftLegPivot.add(leftKneePivot);
 
         const rightLegPivot = new THREE.Group();
         rightLegPivot.position.set(0.25, -0.48, 0);
         torsoGroup.add(rightLegPivot);
 
-        const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.52, 12), darkArmorMat);
-        rThigh.position.y = -0.26;
-        rightLegPivot.add(rThigh);
+        const rightKneePivot = new THREE.Group();
+        rightKneePivot.position.set(0, -0.52, 0);
+        rightLegPivot.add(rightKneePivot);
 
-        const rShin = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.15, 0.56, 12), armorMat);
-        rShin.position.y = -0.72;
-        rightLegPivot.add(rShin);
-
-        // Barra de vida gigante
         const healthBar = this.createHealthBar(280);
         healthBar.scale.set(1.5, 1.5, 1.5);
         healthBar.position.y = 3.8;
@@ -606,7 +537,7 @@ export class EnemyManager {
             coinsDrop: 160,
             xpDrop: 220,
             damage: 16,
-            speed: 6.8, // Persecución constante
+            speed: 7.2,
             attackRange: 3.5,
             attackCooldown: 1.4,
             timer: 0,
@@ -617,10 +548,18 @@ export class EnemyManager {
             patrolTarget: pos.clone(),
             patrolTimer: 0,
             originalPos: pos.clone(),
+            slotIndex: 0,
+            aiState: 'circling',
+            stateTimer: 2.0,
+            combatRadius: 4.2,
             rightArmPivot: rightArmPivot,
+            rightElbowPivot: rightElbowPivot,
             leftArmPivot: leftArmPivot,
+            leftElbowPivot: leftElbowPivot,
             leftLegPivot: leftLegPivot,
-            rightLegPivot: rightLegPivot
+            leftKneePivot: leftKneePivot,
+            rightLegPivot: rightLegPivot,
+            rightKneePivot: rightKneePivot
         };
 
         this.enemies.push(enemy);
@@ -631,13 +570,21 @@ export class EnemyManager {
         enemy.health = Math.max(0, enemy.health - amount);
         this.updateHealthBar(enemy.healthBar, enemy.health);
 
-        // Sonido de golpe
         sounds.playHit(isCrit);
-
-        // Chispas de impacto
         this.particles.createHitSparks(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), isCrit);
 
-        // Destello blanco de daño
+        // Retroceso por impacto
+        if (hitDirection) {
+            enemy.mesh.position.addScaledVector(hitDirection, 0.45);
+        }
+
+        // Esquiva reactiva: al ser golpeado, salta hacia atrás
+        if (enemy.isGrounded && enemy.type !== 'dummy') {
+            enemy.velocity.y = 7.0;
+            enemy.aiState = 'retreating';
+            enemy.stateTimer = 0.8;
+        }
+
         if (enemy.bodyMesh && enemy.bodyMesh.material) {
             const originalColor = enemy.bodyMesh.material.color.getHex();
             enemy.bodyMesh.material.color.setHex(0xffffff);
@@ -648,43 +595,20 @@ export class EnemyManager {
             }, 100);
         }
 
-        // Retroceso (knockback) y salto de dolor
-        if (hitDirection && enemy.type !== 'dummy') {
-            enemy.mesh.position.addScaledVector(hitDirection, isCrit ? 1.8 : 0.9);
-            if (enemy.isGrounded) {
-                enemy.velocity.y = isCrit ? 8.0 : 4.5;
-                enemy.isGrounded = false;
-            }
-        }
-
-        // Si es derrotado
         if (enemy.health <= 0) {
-            this.handleEnemyDefeat(enemy, onEnemyDefeated);
+            this.defeatEnemy(enemy, onEnemyDefeated);
         }
     }
 
-    handleEnemyDefeat(enemy, onEnemyDefeated) {
-        sounds.playPoof();
+    defeatEnemy(enemy, onEnemyDefeated) {
+        this.particles.createEnemyDefeatBurst(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0)));
 
-        // Efecto cómico de humo
-        const scale = enemy.type === 'boss' ? 2.5 : 1.2;
-        this.particles.createSmokePoof(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), scale);
-
-        // Si era el jefe, lanzar confeti de celebración
-        if (enemy.type === 'boss') {
-            sounds.playLevelUp();
-            this.particles.createConfetti(enemy.mesh.position);
-            this.bossSpawned = false;
-        }
-
-        // Soltar lluvia de monedas doradas
-        const coinCount = enemy.type === 'boss' ? 14 : (enemy.type === 'acrobat' ? 6 : 4);
-        const valuePerCoin = Math.max(1, Math.round(enemy.coinsDrop / coinCount));
-
+        const coinCount = Math.min(10, Math.ceil(enemy.coinsDrop / 5));
+        const valPerCoin = Math.ceil(enemy.coinsDrop / coinCount);
         for (let i = 0; i < coinCount; i++) {
             this.particles.spawnCoin(
                 enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0)),
-                valuePerCoin
+                valPerCoin
             );
         }
 
@@ -692,14 +616,13 @@ export class EnemyManager {
             onEnemyDefeated(enemy);
         }
 
-        // Quitar de la escena
         this.scene.remove(enemy.mesh);
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);
         }
 
-        // Reaparición rápida de enemigos para mantener la arena llena de acción continua
+        // Reaparición controlada
         if (enemy.type === 'dummy') {
             setTimeout(() => {
                 this.spawnDummy(enemy.originalPos);
@@ -710,27 +633,32 @@ export class EnemyManager {
                 const r = 16 + Math.random() * 12;
                 const spawnPos = new THREE.Vector3(Math.cos(angle) * r, 0, Math.sin(angle) * r);
                 if (Math.random() < 0.5) {
-                    this.spawnShadowNinja(spawnPos);
+                    this.spawnShadowNinja(spawnPos, Math.floor(Math.random() * 6));
                 } else {
-                    this.spawnAcrobatNinja(spawnPos);
+                    this.spawnAcrobatNinja(spawnPos, Math.floor(Math.random() * 6));
                 }
-            }, 4000);
+            }, 4500);
         }
     }
 
+    // =========================================================================
+    // BUCLE DE ACTUALIZACIÓN CON IA TÁCTICA DE COMBATE
+    // =========================================================================
     update(delta, player, camera) {
         const playerPos = player.mesh.position;
         const time = performance.now() * 0.012;
 
-        this.enemies.forEach(enemy => {
-            // Orientar barras de vida hacia la cámara del jugador (estilo Billboard)
+        const activeCombatEnemies = this.enemies.filter(e => e.type !== 'dummy' && e.mesh.position.distanceTo(playerPos) <= 40.0);
+        const totalCombat = Math.max(1, activeCombatEnemies.length);
+
+        this.enemies.forEach((enemy, idx) => {
             if (enemy.healthBar) {
                 enemy.healthBar.quaternion.copy(camera.quaternion);
             }
 
             if (enemy.type === 'dummy') return;
 
-            // 1. Física de gravedad y salto para todos los enemigos activos
+            // Física y gravedad
             enemy.velocity.y += -26.0 * delta;
             enemy.mesh.position.y += enemy.velocity.y * delta;
             if (enemy.mesh.position.y <= 0) {
@@ -739,59 +667,130 @@ export class EnemyManager {
                 enemy.isGrounded = true;
             }
 
-            if (enemy.jumpTimer > 0) {
-                enemy.jumpTimer -= delta;
-            }
+            if (enemy.jumpTimer > 0) enemy.jumpTimer -= delta;
+            if (enemy.timer > 0) enemy.timer -= delta;
+            if (enemy.stateTimer > 0) enemy.stateTimer -= delta;
 
             const dist = enemy.mesh.position.distanceTo(playerPos);
 
-            // 2. IA de Persecución y Combate Activo (hasta 45m de distancia)
-            if (dist <= 45.0) {
-                // Mirar al jugador directamente
+            // =================================================================
+            // IA TÁCTICA: RODEO EN ANILLO PERIMÉTRICO (SIN FILA INDIA)
+            // =================================================================
+            if (dist <= 40.0) {
+                // Mirar siempre hacia el jugador
                 enemy.mesh.lookAt(playerPos.x, enemy.mesh.position.y, playerPos.z);
 
-                const dir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).normalize();
-
-                // ¡Brincar hacia el jugador para acortar distancia o saltar en ataque!
-                if (enemy.isGrounded && enemy.jumpTimer <= 0 && dist > 3.2 && dist < 22.0) {
-                    const jumpStrength = enemy.type === 'acrobat' ? 14.5 : (enemy.type === 'boss' ? 15.0 : 12.0);
-                    enemy.velocity.y = jumpStrength;
-                    enemy.isGrounded = false;
-                    enemy.jumpTimer = enemy.type === 'acrobat' ? (1.5 + Math.random() * 1.5) : (2.5 + Math.random() * 2.0);
-                    sounds.playJump();
+                // 1. Fuerza de repulsión entre enemigos (Anti-amontonamiento / Boids)
+                const separation = new THREE.Vector3();
+                for (let j = 0; j < this.enemies.length; j++) {
+                    const other = this.enemies[j];
+                    if (other === enemy || other.type === 'dummy') continue;
+                    const d = enemy.mesh.position.distanceTo(other.mesh.position);
+                    if (d < 2.5 && d > 0.01) {
+                        const rep = new THREE.Vector3().subVectors(enemy.mesh.position, other.mesh.position).normalize();
+                        separation.addScaledVector(rep, (2.5 - d) * 3.5);
+                    }
                 }
 
-                // Perseguir mientras no esté en rango de ataque cuerpo a cuerpo
-                if (dist > enemy.attackRange) {
-                    enemy.mesh.position.addScaledVector(dir, enemy.speed * delta);
+                // 2. Transiciones de estados de combate
+                if (enemy.aiState === 'circling') {
+                    // Posición asignada en el anillo perimétrico alrededor del ninja
+                    const slotAngle = (idx / totalCombat) * Math.PI * 2 + time * 0.15;
+                    const targetX = playerPos.x + Math.cos(slotAngle) * enemy.combatRadius;
+                    const targetZ = playerPos.z + Math.sin(slotAngle) * enemy.combatRadius;
+                    const targetPos = new THREE.Vector3(targetX, enemy.mesh.position.y, targetZ);
 
-                    // Animación de correr
+                    const moveDir = new THREE.Vector3().subVectors(targetPos, enemy.mesh.position);
+                    const distToSlot = moveDir.length();
+
+                    if (distToSlot > 0.4) {
+                        moveDir.normalize();
+                        moveDir.addScaledVector(separation, delta * 2.0).normalize();
+                        enemy.mesh.position.addScaledVector(moveDir, enemy.speed * 0.85 * delta);
+                    }
+
+                    // Si está listo para embestir y se le acaba el temporizador de acecho
+                    if (enemy.stateTimer <= 0 && enemy.timer <= 0) {
+                        enemy.aiState = 'lunging';
+                        enemy.stateTimer = 1.4; // Tiempo máximo de embestida
+                    }
+
+                    // Animación de acecho lateral
                     if (enemy.leftLegPivot && enemy.rightLegPivot) {
-                        const legSwing = Math.sin(time * 1.2) * 0.7;
-                        enemy.leftLegPivot.rotation.x = legSwing;
-                        enemy.rightLegPivot.rotation.x = -legSwing;
+                        const swing = Math.sin(time * 0.8) * 0.5;
+                        enemy.leftLegPivot.rotation.x = swing;
+                        enemy.rightLegPivot.rotation.x = -swing;
+                        if (enemy.leftKneePivot) enemy.leftKneePivot.rotation.x = Math.max(0, -swing * 0.8);
+                        if (enemy.rightKneePivot) enemy.rightKneePivot.rotation.x = Math.max(0, swing * 0.8);
                     }
-                    if (enemy.leftArmPivot) {
-                        enemy.leftArmPivot.rotation.x = -Math.sin(time * 1.2) * 0.5;
-                    }
-                } else {
-                    // Atacar al jugador con espada
-                    enemy.timer += delta;
                     if (enemy.rightArmPivot) {
-                        enemy.rightArmPivot.rotation.x = Math.PI * 0.5 + Math.sin(enemy.timer * 12) * 1.4;
+                        enemy.rightArmPivot.rotation.x = Math.PI * 0.35; // Guardia de espada en alto
                     }
-                    if (enemy.timer >= enemy.attackCooldown) {
-                        enemy.timer = 0;
+
+                } else if (enemy.aiState === 'lunging') {
+                    // ¡EMBESTIDA TELEGRÁFICA HACIA EL JUGADOR!
+                    const chargeDir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).normalize();
+                    chargeDir.addScaledVector(separation, delta).normalize();
+                    enemy.mesh.position.addScaledVector(chargeDir, enemy.speed * 1.35 * delta);
+
+                    // Salto acrobático en embestida
+                    if (enemy.isGrounded && enemy.jumpTimer <= 0 && dist > 3.0 && dist < 12.0) {
+                        enemy.velocity.y = enemy.type === 'acrobat' ? 14.0 : 11.5;
+                        enemy.isGrounded = false;
+                        enemy.jumpTimer = 2.0;
+                        sounds.playJump();
+                    }
+
+                    // Animación de carrera rápida con flexión
+                    if (enemy.leftLegPivot && enemy.rightLegPivot) {
+                        const swing = Math.sin(time * 1.6) * 0.85;
+                        enemy.leftLegPivot.rotation.x = swing;
+                        enemy.rightLegPivot.rotation.x = -swing;
+                        if (enemy.leftKneePivot) enemy.leftKneePivot.rotation.x = Math.max(0, -swing * 1.3);
+                        if (enemy.rightKneePivot) enemy.rightKneePivot.rotation.x = Math.max(0, swing * 1.3);
+                    }
+                    if (enemy.rightArmPivot) {
+                        enemy.rightArmPivot.rotation.x = Math.PI * 0.65;
+                    }
+
+                    // Si llega a rango de golpe
+                    if (dist <= enemy.attackRange) {
+                        // Conectar golpe
                         player.takeDamage(enemy.damage);
                         sounds.playSlash('normal');
+                        enemy.timer = enemy.attackCooldown;
+
+                        // Animación de tajo
+                        if (enemy.rightArmPivot) {
+                            enemy.rightArmPivot.rotation.x = Math.PI;
+                        }
+
+                        // Cambiar inmediatamente a repliegue táctico
+                        enemy.aiState = 'retreating';
+                        enemy.stateTimer = 0.9;
+                    } else if (enemy.stateTimer <= 0) {
+                        // Se acabó el tiempo de embestida sin alcanzar al jugador
+                        enemy.aiState = 'retreating';
+                        enemy.stateTimer = 0.7;
+                    }
+
+                } else if (enemy.aiState === 'retreating') {
+                    // Salto o paso atrás evasivo para recuperar distancia
+                    const retreatDir = new THREE.Vector3().subVectors(enemy.mesh.position, playerPos).normalize();
+                    enemy.mesh.position.addScaledVector(retreatDir, enemy.speed * 0.9 * delta);
+
+                    if (enemy.stateTimer <= 0) {
+                        enemy.aiState = 'circling';
+                        enemy.stateTimer = 1.5 + Math.random() * 2.0;
                     }
                 }
+
             } else {
-                // 3. Patrulla activa cuando el jugador está lejos (no se quedan congelados)
+                // Patrulla ambiental tranquila cuando el jugador está lejos
                 enemy.patrolTimer -= delta;
                 if (enemy.patrolTimer <= 0) {
                     const angle = Math.random() * Math.PI * 2;
-                    const r = 5 + Math.random() * 10;
+                    const r = 5 + Math.random() * 8;
                     enemy.patrolTarget.set(
                         enemy.originalPos.x + Math.cos(angle) * r,
                         0,
@@ -806,23 +805,15 @@ export class EnemyManager {
                     enemy.mesh.position.addScaledVector(pDir, enemy.speed * 0.45 * delta);
                     enemy.mesh.lookAt(enemy.patrolTarget.x, enemy.mesh.position.y, enemy.patrolTarget.z);
 
-                    // Animación de trote suave
                     if (enemy.leftLegPivot && enemy.rightLegPivot) {
                         const legSwing = Math.sin(time * 0.7) * 0.4;
                         enemy.leftLegPivot.rotation.x = legSwing;
                         enemy.rightLegPivot.rotation.x = -legSwing;
                     }
                 }
-
-                // Pequeños saltos acrobáticos mientras patrullan
-                if (enemy.isGrounded && enemy.jumpTimer <= 0 && enemy.type === 'acrobat') {
-                    enemy.velocity.y = 9.0;
-                    enemy.isGrounded = false;
-                    enemy.jumpTimer = 3.0 + Math.random() * 3.0;
-                }
             }
 
-            // Límites del mapa para los enemigos
+            // Límites del mapa
             const arenaRadius = 52.0;
             const distCenter = Math.hypot(enemy.mesh.position.x, enemy.mesh.position.z);
             if (distCenter > arenaRadius) {

@@ -14,6 +14,7 @@ export class TouchControlsManager {
         this.mobileActions = document.getElementById('mobile-actions');
 
         this.btnAttack = document.getElementById('btn-touch-attack');
+        this.btnSpin = document.getElementById('btn-touch-spin');
         this.btnJump = document.getElementById('btn-touch-jump');
         this.btnDash = document.getElementById('btn-touch-dash');
         this.btnSwitch = document.getElementById('btn-touch-switch');
@@ -250,7 +251,21 @@ export class TouchControlsManager {
             this.btnAttack.addEventListener('mouseleave', stopAttack);
         }
 
-        // B) Botón de Salto
+        // B) Botón de Giro Ninja 360° (Estilo Crash Bandicoot)
+        if (this.btnSpin) {
+            const doSpin = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.btnSpin.classList.add('pressed');
+                this.player.triggerSpinAttack();
+                setTimeout(() => this.btnSpin.classList.remove('pressed'), 250);
+            };
+
+            this.btnSpin.addEventListener('touchstart', doSpin, { passive: false });
+            this.btnSpin.addEventListener('mousedown', doSpin);
+        }
+
+        // C) Botón de Salto
         if (this.btnJump) {
             const doJump = (e) => {
                 e.preventDefault();
