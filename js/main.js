@@ -91,9 +91,20 @@ class Game {
             this.spawnShadowClone(pos, rotY);
         });
 
-        // Sistemas de Game Juice (Screen Shake & Números de Daño Flotantes)
+        // Respuesta táctil y visual de salto y aterrizaje
+        this.player.onJumpCallback = (pos) => {
+            this.particles.createSmokePoof(pos, 0.75);
+        };
+        this.player.onLandCallback = (pos) => {
+            this.particles.createSmokePoof(pos, 0.95);
+            this.triggerScreenShake(0.09, 0.08);
+            sounds.playStep();
+        };
+
+        // Sistemas de Game Juice (Screen Shake, Hit-Stop & Números de Daño Flotantes)
         this.screenShakeIntensity = 0;
         this.screenShakeDuration = 0;
+        this.hitStopDuration = 0;
         this.damagePopups = [];
 
         // 3. Inicializar Interfaz de Usuario, Menú y Misiones
@@ -145,30 +156,36 @@ class Game {
     }
 
     setupSceneAndLights() {
-        const ambientLight = new THREE.AmbientLight(0xfff8ee, 0.68);
+        const ambientLight = new THREE.AmbientLight(0xfff8ee, 0.72);
         this.scene.add(ambientLight);
 
-        // Luz del sol tropical colombiano
-        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.55);
-        sunLight.position.set(24, 42, 22);
+        // Luz del sol tropical colombiano con sombras de alta resolución
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+        sunLight.position.set(28, 48, 24);
         sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 1024;
-        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 135;
+        sunLight.shadow.camera.far = 145;
 
-        const d = 42;
+        const d = 48;
         sunLight.shadow.camera.left = -d;
         sunLight.shadow.camera.right = d;
         sunLight.shadow.camera.top = d;
         sunLight.shadow.camera.bottom = -d;
         sunLight.shadow.bias = -0.0003;
         sunLight.shadow.normalBias = 0.02;
+        sunLight.shadow.radius = 1.8;
         this.scene.add(sunLight);
 
         // Luz hemisférica: cielo azul celeste y rebote de hierba verde esmeralda
-        const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x22c55e, 0.72);
+        const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x22c55e, 0.78);
         this.scene.add(hemiLight);
+
+        // Luz de borde (Rim Light) activa durante el juego para destacar las siluetas de los personajes
+        const arenaRimLight = new THREE.DirectionalLight(0x60a5fa, 1.25);
+        arenaRimLight.position.set(-22, 26, -22);
+        this.scene.add(arenaRimLight);
 
         // Luces frontales de estudio para el Menú Principal (destacan al héroe con tonos cálidos y brillo 3D)
         this.menuKeyLight = new THREE.DirectionalLight(0xfff7ed, 1.4);
@@ -278,7 +295,7 @@ class Game {
 
         // 2. Armas cuerpo a cuerpo (Espadas)
         const slashPos = playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(forward, 1.2);
-        this.particles.createSlashEffect(slashPos, forward, weapon.element);
+        this.particles.createSlashEffect(slashPos, forward, weapon.element, combo);
         this.multiplayer.sendAttack(weaponId, combo, forward);
 
         let hitCount = 0;
@@ -334,6 +351,8 @@ class Game {
 
         if (hitCount > 0) {
             this.showCombo(combo);
+            // Hit-Stop táctil de impacto
+            this.hitStopDuration = 0.042;
         }
     }
 
@@ -342,8 +361,8 @@ class Game {
         const playerPos = this.player.mesh.position;
         const spinRadius = 3.6;
 
-        this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(1, 0, 0), 'light');
-        this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(-1, 0, 0), 'light');
+        this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(1, 0, 0), 'light', 2);
+        this.particles.createSlashEffect(playerPos.clone().add(new THREE.Vector3(0, 1.2, 0)), new THREE.Vector3(-1, 0, 0), 'light', 2);
 
         let hitCount = 0;
         this.enemyManager.enemies.forEach(enemy => {
@@ -377,6 +396,8 @@ class Game {
 
         if (hitCount > 0) {
             this.showCombo(2);
+            // Hit-Stop táctil de impacto
+            this.hitStopDuration = 0.045;
         }
     }
 
@@ -1874,6 +1895,18 @@ class Game {
             }
 
             this.world.update(delta);
+            this.renderer.render(this.scene, this.camera);
+            return;
+        }
+
+        // Hit-Stop táctil: congela microsegundos los frames de impacto para dar contundencia a los espadazos
+        if (this.hitStopDuration > 0) {
+            this.hitStopDuration -= delta;
+            if (this.screenShakeDuration > 0) {
+                this.screenShakeDuration -= delta;
+                this.camera.position.x += (Math.random() - 0.5) * this.screenShakeIntensity;
+                this.camera.position.y += (Math.random() - 0.5) * this.screenShakeIntensity;
+            }
             this.renderer.render(this.scene, this.camera);
             return;
         }

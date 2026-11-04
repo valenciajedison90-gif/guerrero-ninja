@@ -34,24 +34,85 @@ export class ParticleSystem {
         };
     }
 
-    createSlashEffect(position, direction, element = 'wood') {
-        const count = 7;
+    createSlashEffect(position, direction, element = 'wood', combo = 0) {
+        // 1. Arco de Corte Creciente Luminoso (Crescent Slash Ribbon estilo Anime)
+        const slashGroup = new THREE.Group();
+        slashGroup.position.copy(position);
+
+        const angleY = Math.atan2(direction.x, direction.z);
+        slashGroup.rotation.y = angleY;
+
+        const elemColors = {
+            wood: { main: 0xfef08a, emissive: 0xd97706 },
+            steel: { main: 0xe0f2fe, emissive: 0x38bdf8 },
+            gold: { main: 0xfacc15, emissive: 0xf59e0b },
+            fire: { main: 0xffedd5, emissive: 0xff4500 },
+            thunder: { main: 0xecfeff, emissive: 0x00f5ff },
+            light: { main: 0xffffff, emissive: 0xa855f7 }
+        };
+        const ec = elemColors[element] || elemColors.steel;
+
+        const arcGeom = new THREE.RingGeometry(1.2, 2.4, 28, 1, -Math.PI * 0.45, Math.PI * 0.9);
+        const arcMat = new THREE.MeshBasicMaterial({
+            color: ec.main,
+            transparent: true,
+            opacity: 0.95,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const arcMesh = new THREE.Mesh(arcGeom, arcMat);
+        const tilt = combo === 1 ? -0.35 : (combo === 2 ? 0.35 : 0);
+        arcMesh.rotation.x = Math.PI / 2 + tilt;
+        slashGroup.add(arcMesh);
+
+        // Núcleo brillante blanco central
+        const coreGeom = new THREE.RingGeometry(1.5, 2.0, 22, 1, -Math.PI * 0.35, Math.PI * 0.7);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 1.0,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+        coreMesh.rotation.x = arcMesh.rotation.x;
+        slashGroup.add(coreMesh);
+
+        this.scene.add(slashGroup);
+
+        this.particles.push({
+            group: slashGroup,
+            isSlashArc: true,
+            life: 0.16,
+            maxLife: 0.16,
+            arcMat: arcMat,
+            coreMat: coreMat,
+            update: (d, pct) => {
+                const scale = 0.8 + (1 - pct) * 0.55;
+                slashGroup.scale.set(scale, scale, scale);
+                arcMat.opacity = pct * 0.95;
+                coreMat.opacity = pct;
+            }
+        });
+
+        // 2. Chispas direccionales en abanico
+        const count = 9;
         const mat = this.materials[element] || this.materials.wood;
 
         for (let i = 0; i < count; i++) {
             const mesh = new THREE.Mesh(this.sparkGeom, mat);
             mesh.position.copy(position);
 
-            const angle = (i / count - 0.5) * Math.PI * 0.7;
+            const angle = (i / count - 0.5) * Math.PI * 0.8;
             const spreadDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-            const speed = 2.5 + Math.random() * 3.5;
+            const speed = 3.5 + Math.random() * 4.5;
 
             this.particles.push({
                 mesh: mesh,
                 velocity: spreadDir.multiplyScalar(speed).add(new THREE.Vector3(0, (Math.random() - 0.3) * 1.5, 0)),
                 life: 0.22 + Math.random() * 0.12,
                 maxLife: 0.35,
-                gravity: 0,
+                gravity: -4.0,
                 shrink: true
             });
             this.scene.add(mesh);
@@ -196,6 +257,20 @@ export class ParticleSystem {
         // 1. Actualizar partículas generales
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
+
+            if (p.isSlashArc) {
+                p.life -= delta;
+                const pct = Math.max(0, p.life / p.maxLife);
+                p.update(delta, pct);
+                if (p.life <= 0) {
+                    this.scene.remove(p.group);
+                    p.arcMat.dispose();
+                    p.coreMat.dispose();
+                    this.particles.splice(i, 1);
+                }
+                continue;
+            }
+
             p.life -= delta;
 
             if (p.life <= 0) {

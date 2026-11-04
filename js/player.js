@@ -49,10 +49,10 @@ export class Player {
         this.moveDirection = new THREE.Vector3();
         this.gravity = -26.0;
 
-        // Cámara en 3ra persona orbital elevada estilo Free Fire (despeja totalmente al héroe)
-        this.cameraDistance = 7.4;
-        this.cameraHeight = 3.8;
-        this.cameraPitch = 0.32;
+        // Cámara en 3ra persona orbital inmersiva estilo Crash Bandicoot / Roblox Blox Fruits
+        this.cameraDistance = 4.8;
+        this.cameraHeight = 2.4;
+        this.cameraPitch = 0.22;
         this.cameraYaw = 0;
         this.isDraggingMouse = false;
         this.isRotatingCamera = false;
@@ -60,6 +60,8 @@ export class Player {
         this.runTime = 0;
         this.getTargetsCallback = null;
         this.onSpawnShadowCallback = null;
+        this.onJumpCallback = null;
+        this.onLandCallback = null;
         this.shadowSpawnTimer = 0;
 
         // Teclas activas
@@ -378,11 +380,13 @@ export class Player {
             this.isGrounded = false;
             this.jumpCount = 1;
             sounds.playJump();
+            if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
         } else if (this.jumpCount < this.maxJumps) {
             // Doble salto estilo plataformas
             this.velocity.y = this.jumpForce * 0.95;
             this.jumpCount = 2;
             sounds.playJump();
+            if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
         }
     }
 
@@ -584,9 +588,11 @@ export class Player {
 
         if (this.dashTimer > 0) {
             this.dashTimer -= delta;
-            currentSpeed = baseSpeed * 2.2;
-            this.velocity.x = this.dashDirection.x * currentSpeed;
-            this.velocity.z = this.dashDirection.z * currentSpeed;
+            currentSpeed = baseSpeed * 2.3;
+            const targetVx = this.dashDirection.x * currentSpeed;
+            const targetVz = this.dashDirection.z * currentSpeed;
+            this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 24.0);
+            this.velocity.z += (targetVz - this.velocity.z) * Math.min(1.0, delta * 24.0);
 
             this.shadowSpawnTimer += delta;
             if (this.shadowSpawnTimer > 0.05 && this.onSpawnShadowCallback) {
@@ -594,17 +600,23 @@ export class Player {
                 this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
             }
         } else if (isMoving) {
-            this.velocity.x = this.moveDirection.x * currentSpeed;
-            this.velocity.z = this.moveDirection.z * currentSpeed;
+            const targetVx = this.moveDirection.x * currentSpeed;
+            const targetVz = this.moveDirection.z * currentSpeed;
+            // Aceleración reactiva y fluida estilo consola
+            this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 18.0);
+            this.velocity.z += (targetVz - this.velocity.z) * Math.min(1.0, delta * 18.0);
         } else {
-            this.velocity.x *= 0.65;
-            this.velocity.z *= 0.65;
-            if (Math.abs(this.velocity.x) < 0.05) this.velocity.x = 0;
-            if (Math.abs(this.velocity.z) < 0.05) this.velocity.z = 0;
+            // Desaceleración atlética suave
+            this.velocity.x += (0 - this.velocity.x) * Math.min(1.0, delta * 14.0);
+            this.velocity.z += (0 - this.velocity.z) * Math.min(1.0, delta * 14.0);
+            if (Math.abs(this.velocity.x) < 0.04) this.velocity.x = 0;
+            if (Math.abs(this.velocity.z) < 0.04) this.velocity.z = 0;
         }
 
         // 2. Gravedad y suelo
-        this.velocity.y += this.gravity * delta;
+        // Caída más rápida para saltos contundentes (snappy jump gravity)
+        const fallMult = this.velocity.y < 0 ? 1.35 : 1.0;
+        this.velocity.y += this.gravity * fallMult * delta;
         this.mesh.position.x += this.velocity.x * delta;
         this.mesh.position.y += this.velocity.y * delta;
         this.mesh.position.z += this.velocity.z * delta;
@@ -614,9 +626,14 @@ export class Player {
             groundY = this.groundCheckProvider(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
         }
 
+        const wasAirborne = !this.isGrounded && this.velocity.y < -2.0;
+
         if (this.mesh.position.y <= groundY) {
             this.mesh.position.y = groundY;
             this.velocity.y = 0;
+            if (wasAirborne && this.onLandCallback) {
+                this.onLandCallback(this.mesh.position.clone());
+            }
             this.isGrounded = true;
             this.jumpCount = 0;
 
@@ -781,14 +798,15 @@ export class Player {
         this.bandanaTail1.rotation.x = 0.35 + flutter;
         this.bandanaTail2.rotation.x = 0.45 - flutter * 0.8;
 
-        // 4. Cámara orbital suave en 3ra persona
+        // 4. Cámara orbital suave en 3ra persona inmersiva y cinematográfica
         const isMobileScreen = window.innerWidth <= 768;
-        const targetPos = this.mesh.position.clone().add(new THREE.Vector3(0, isMobileScreen ? 1.05 : 1.4, 0));
-        const camX = targetPos.x + Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
-        const camY = targetPos.y + Math.sin(this.cameraPitch) * this.cameraDistance + this.cameraHeight * 0.3;
-        const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * this.cameraDistance;
+        const targetDist = this.dashTimer > 0 ? (this.cameraDistance * 1.15) : (isMoving ? this.cameraDistance : (this.cameraDistance * 0.94));
+        const targetPos = this.mesh.position.clone().add(new THREE.Vector3(0, isMobileScreen ? 1.1 : 1.35, 0));
+        const camX = targetPos.x + Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch) * targetDist;
+        const camY = targetPos.y + Math.sin(this.cameraPitch) * targetDist + this.cameraHeight * 0.35;
+        const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * targetDist;
 
-        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.35);
+        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.28);
         this.camera.lookAt(targetPos);
     }
 

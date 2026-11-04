@@ -236,15 +236,213 @@ export class World {
     }
 
     // =========================================================================
+    // MEJORAS GRÁFICAS AAA: DOMO DE CIELO, TERRENO PROCEDURAL Y VEGETACIÓN VIVA
+    // =========================================================================
+    buildSkyDome(topColorHex = '#0284c7', horizColorHex = '#7dd3fc') {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        const grad = ctx.createLinearGradient(0, 0, 0, 512);
+        grad.addColorStop(0, topColorHex);
+        grad.addColorStop(0.58, horizColorHex);
+        grad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 128, 512);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const skyGeom = new THREE.SphereGeometry(140, 24, 16);
+        const skyMat = new THREE.MeshBasicMaterial({
+            map: tex,
+            side: THREE.BackSide,
+            depthWrite: false
+        });
+        const sky = new THREE.Mesh(skyGeom, skyMat);
+        sky.position.y = 8;
+        this.mapRoot.add(sky);
+
+        // Nubes bajas caricaturescas flotantes (Low-Poly Cartoon Clouds)
+        const cloudsGroup = new THREE.Group();
+        const cloudMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.95,
+            metalness: 0.05,
+            flatShading: true
+        });
+
+        const cloudPuffs = [];
+        for (let c = 0; c < 12; c++) {
+            const singleCloud = new THREE.Group();
+            const puffCount = 3 + Math.floor(Math.random() * 3);
+            for (let p = 0; p < puffCount; p++) {
+                const r = 2.4 + Math.random() * 2.0;
+                const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), cloudMat);
+                puff.position.set((p - puffCount / 2) * 2.8, (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 1.8);
+                singleCloud.add(puff);
+            }
+            const ang = (c / 12) * Math.PI * 2;
+            const dist = 38 + Math.random() * 25;
+            singleCloud.position.set(Math.cos(ang) * dist, 26 + (c % 3) * 5, Math.sin(ang) * dist);
+            cloudsGroup.add(singleCloud);
+            cloudPuffs.push(singleCloud);
+        }
+        this.mapRoot.add(cloudsGroup);
+
+        this.animatedUpdaters.push((delta, time) => {
+            for (let i = 0; i < cloudPuffs.length; i++) {
+                const cl = cloudPuffs[i];
+                cl.position.x += delta * 1.4;
+                if (cl.position.x > 75) cl.position.x = -75;
+            }
+        });
+    }
+
+    createStylizedGroundTexture(primaryHex, secondaryHex) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        const col1 = '#' + primaryHex.toString(16).padStart(6, '0');
+        const col2 = '#' + secondaryHex.toString(16).padStart(6, '0');
+
+        ctx.fillStyle = col1;
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Moteado orgánico
+        ctx.fillStyle = col2;
+        for (let i = 0; i < 450; i++) {
+            const x = Math.random() * 512;
+            const y = Math.random() * 512;
+            const r = 1.5 + Math.random() * 4.0;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Briznas estilizadas / adoquines sutiles
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * 512;
+            const y = Math.random() * 512;
+            ctx.fillRect(x, y, Math.random() * 8 + 3, Math.random() * 4 + 1.5);
+        }
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(12, 12);
+        return tex;
+    }
+
+    addGrassAndFlowerPatches(count = 55, radius = 42, grassColor = 0x22c55e, flowerColor = 0xfacc15) {
+        const patchesGroup = new THREE.Group();
+        const grassMat = new THREE.MeshStandardMaterial({
+            color: grassColor,
+            roughness: 0.7,
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
+        const flowerMat = new THREE.MeshStandardMaterial({
+            color: flowerColor,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+
+        const patchMeshes = [];
+        for (let i = 0; i < count; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const r = 5.0 + Math.random() * (radius - 6);
+            const px = Math.cos(ang) * r;
+            const pz = Math.sin(ang) * r;
+
+            const patch = new THREE.Group();
+            patch.position.set(px, 0.05, pz);
+
+            const bladeGeom = new THREE.ConeGeometry(0.12, 0.65, 4);
+            bladeGeom.translate(0, 0.32, 0);
+
+            for (let b = 0; b < 4; b++) {
+                const blade = new THREE.Mesh(bladeGeom, grassMat);
+                blade.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
+                blade.scale.set(0.8 + Math.random() * 0.4, 0.8 + Math.random() * 0.5, 0.8 + Math.random() * 0.4);
+                patch.add(blade);
+            }
+
+            if (i % 3 === 0) {
+                const flower = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), flowerMat);
+                flower.position.y = 0.55;
+                patch.add(flower);
+            }
+
+            patchesGroup.add(patch);
+            patchMeshes.push(patch);
+        }
+        this.mapRoot.add(patchesGroup);
+
+        this.animatedUpdaters.push((delta, time) => {
+            const wind = Math.sin(time * 2.8) * 0.15;
+            for (let i = 0; i < patchMeshes.length; i++) {
+                patchMeshes[i].rotation.z = wind + Math.sin(time * 2.0 + i) * 0.05;
+            }
+        });
+    }
+
+    addAmbientPollenMotes(count = 35) {
+        const motesGroup = new THREE.Group();
+        const moteGeom = new THREE.SphereGeometry(0.08, 6, 6);
+        const moteMat = new THREE.MeshBasicMaterial({
+            color: 0xfef08a,
+            transparent: true,
+            opacity: 0.75
+        });
+
+        const motes = [];
+        for (let i = 0; i < count; i++) {
+            const m = new THREE.Mesh(moteGeom, moteMat);
+            const ang = Math.random() * Math.PI * 2;
+            const r = Math.random() * 38;
+            m.position.set(Math.cos(ang) * r, 1.0 + Math.random() * 6.0, Math.sin(ang) * r);
+            motesGroup.add(m);
+            motes.push({
+                mesh: m,
+                baseY: m.position.y,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.4 + Math.random() * 0.8
+            });
+        }
+        this.mapRoot.add(motesGroup);
+
+        this.animatedUpdaters.push((delta, time) => {
+            for (let i = 0; i < motes.length; i++) {
+                const item = motes[i];
+                item.mesh.position.y = item.baseY + Math.sin(time * item.speed + item.phase) * 0.5;
+                item.mesh.position.x += Math.cos(time * 0.5 + item.phase) * delta * 0.8;
+                item.mesh.position.z += Math.sin(time * 0.5 + item.phase) * delta * 0.8;
+            }
+        });
+    }
+
+    // =========================================================================
     // 1. BIOMA: SELVA AMAZÓNICA
     // =========================================================================
     buildSelvaAmazonica() {
-        const groundMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.85 });
+        this.buildSkyDome('#0284c7', '#7dd3fc');
+
+        const groundTex = this.createStylizedGroundTexture(0x15803d, 0x166534);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: groundTex,
+            roughness: 0.82
+        });
         const groundGeom = new THREE.CylinderGeometry(56, 58, 2.2, 36);
         const ground = new THREE.Mesh(groundGeom, groundMat);
         ground.position.y = -1.1;
         ground.receiveShadow = true;
         this.mapRoot.add(ground);
+
+        this.addGrassAndFlowerPatches(65, 46, 0x22c55e, 0xfacc15);
+        this.addAmbientPollenMotes(40);
 
                 // Plaza Central de Aventura Colombiana en (0,0)
         const plazaGroup = new THREE.Group();
@@ -367,11 +565,21 @@ export class World {
     // 2. BIOMA: EJE CAFETERO
     // =========================================================================
     buildEjeCafetero() {
-        const grassMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.8 });
+        this.buildSkyDome('#0284c7', '#fde047');
+
+        const groundTex = this.createStylizedGroundTexture(0x16a34a, 0x15803d);
+        const grassMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: groundTex,
+            roughness: 0.8
+        });
         const ground = new THREE.Mesh(new THREE.CylinderGeometry(56, 58, 2.2, 36), grassMat);
         ground.position.y = -1.1;
         ground.receiveShadow = true;
         this.mapRoot.add(ground);
+
+        this.addGrassAndFlowerPatches(60, 46, 0x65a30d, 0xef4444);
+        this.addAmbientPollenMotes(35);
 
         // Colinas verdes ondulantes de café
         for (let i = 0; i < 8; i++) {
@@ -443,11 +651,21 @@ export class World {
     // 3. BIOMA: PÁRAMO ANDINO & NEVADO
     // =========================================================================
     buildParamoAndino() {
-        const paramoMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 });
+        this.buildSkyDome('#312e81', '#a5b4fc');
+
+        const groundTex = this.createStylizedGroundTexture(0x475569, 0x334155);
+        const paramoMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: groundTex,
+            roughness: 0.88
+        });
         const ground = new THREE.Mesh(new THREE.CylinderGeometry(56, 58, 2.2, 36), paramoMat);
         ground.position.y = -1.1;
         ground.receiveShadow = true;
         this.mapRoot.add(ground);
+
+        this.addGrassAndFlowerPatches(50, 46, 0x94a3b8, 0x38bdf8);
+        this.addAmbientPollenMotes(30);
 
         // Cumbre del Volcán Nevado al fondo
         const nevadoMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
@@ -510,11 +728,21 @@ export class World {
     // 4. BIOMA: CARIBE COLOMBIANO
     // =========================================================================
     buildCaribeColombiano() {
-        const sandMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.9 });
+        this.buildSkyDome('#0284c7', '#38bdf8');
+
+        const groundTex = this.createStylizedGroundTexture(0xfef08a, 0xfde047);
+        const sandMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            map: groundTex,
+            roughness: 0.88
+        });
         const ground = new THREE.Mesh(new THREE.CylinderGeometry(56, 58, 2.2, 36), sandMat);
         ground.position.y = -1.1;
         ground.receiveShadow = true;
         this.mapRoot.add(ground);
+
+        this.addGrassAndFlowerPatches(45, 46, 0x22c55e, 0xec4899);
+        this.addAmbientPollenMotes(30);
 
         // Océano Caribe con olas turquesas animadas
         const seaGroup = new THREE.Group();
