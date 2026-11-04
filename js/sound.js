@@ -1,5 +1,98 @@
-// js/sound.js - Motor de Sonido Procedural con Web Audio API
-// No requiere descargas de audio externas; genera sonidos en tiempo real con latencia cero.
+// js/sound.js - Motor de Sonido y Música Procedural con Web Audio API
+// No requiere descargas de audio externas; genera efectos y música ambiental en tiempo real.
+
+// Catálogo de Pistas de Música Procedural (Ritmos tropicales, andinos y de batalla)
+const TRACKS = {
+    menu: {
+        tempo: 104,
+        steps: 32,
+        bass: [
+            { step: 0, f: 146.83 }, { step: 4, f: 146.83 }, { step: 8, f: 220.00 }, { step: 12, f: 196.00 },
+            { step: 16, f: 196.00 }, { step: 20, f: 196.00 }, { step: 24, f: 220.00 }, { step: 28, f: 146.83 }
+        ],
+        drums: [
+            { step: 0, type: 'kick' }, { step: 8, type: 'kick' }, { step: 16, type: 'kick' }, { step: 24, type: 'kick' },
+            { step: 2, type: 'shaker' }, { step: 4, type: 'shaker' }, { step: 6, type: 'shaker' },
+            { step: 10, type: 'shaker' }, { step: 12, type: 'shaker' }, { step: 14, type: 'shaker' },
+            { step: 18, type: 'shaker' }, { step: 20, type: 'shaker' }, { step: 22, type: 'shaker' },
+            { step: 26, type: 'shaker' }, { step: 28, type: 'shaker' }, { step: 30, type: 'shaker' }
+        ],
+        melody: [
+            { step: 0, f: 587.33, d: 0.20 },
+            { step: 3, f: 523.25, d: 0.15 },
+            { step: 6, f: 440.00, d: 0.25 },
+            { step: 10, f: 392.00, d: 0.20 },
+            { step: 14, f: 440.00, d: 0.25 },
+            { step: 16, f: 587.33, d: 0.20 },
+            { step: 19, f: 659.25, d: 0.20 },
+            { step: 22, f: 587.33, d: 0.25 },
+            { step: 26, f: 523.25, d: 0.20 },
+            { step: 29, f: 440.00, d: 0.30 }
+        ]
+    },
+    battle: {
+        tempo: 128,
+        steps: 32,
+        bass: [
+            { step: 0, f: 146.83 }, { step: 2, f: 146.83 }, { step: 6, f: 174.61 }, { step: 8, f: 146.83 },
+            { step: 10, f: 220.00 }, { step: 14, f: 196.00 },
+            { step: 16, f: 196.00 }, { step: 18, f: 196.00 }, { step: 22, f: 220.00 }, { step: 24, f: 146.83 },
+            { step: 28, f: 174.61 }, { step: 30, f: 146.83 }
+        ],
+        drums: [
+            { step: 0, type: 'kick' }, { step: 4, type: 'snare' }, { step: 8, type: 'kick' }, { step: 12, type: 'snare' },
+            { step: 16, type: 'kick' }, { step: 20, type: 'snare' }, { step: 24, type: 'kick' }, { step: 28, type: 'snare' },
+            { step: 2, type: 'shaker' }, { step: 6, type: 'shaker' }, { step: 10, type: 'shaker' }, { step: 14, type: 'shaker' },
+            { step: 18, type: 'shaker' }, { step: 22, type: 'shaker' }, { step: 26, type: 'shaker' }, { step: 30, type: 'shaker' }
+        ],
+        melody: [
+            { step: 0, f: 440.00, d: 0.12 },
+            { step: 2, f: 523.25, d: 0.12 },
+            { step: 4, f: 587.33, d: 0.16 },
+            { step: 7, f: 659.25, d: 0.14 },
+            { step: 10, f: 587.33, d: 0.14 },
+            { step: 12, f: 523.25, d: 0.14 },
+            { step: 14, f: 440.00, d: 0.18 },
+            { step: 16, f: 587.33, d: 0.14 },
+            { step: 18, f: 659.25, d: 0.14 },
+            { step: 20, f: 783.99, d: 0.18 },
+            { step: 24, f: 659.25, d: 0.14 },
+            { step: 27, f: 587.33, d: 0.14 },
+            { step: 30, f: 523.25, d: 0.16 }
+        ]
+    },
+    boss: {
+        tempo: 136,
+        steps: 32,
+        bass: [
+            { step: 0, f: 110.00 }, { step: 2, f: 110.00 }, { step: 4, f: 116.54 }, { step: 6, f: 110.00 },
+            { step: 8, f: 130.81 }, { step: 10, f: 110.00 }, { step: 12, f: 146.83 }, { step: 14, f: 116.54 },
+            { step: 16, f: 110.00 }, { step: 18, f: 110.00 }, { step: 20, f: 116.54 }, { step: 22, f: 110.00 },
+            { step: 24, f: 146.83 }, { step: 26, f: 138.59 }, { step: 28, f: 130.81 }, { step: 30, f: 116.54 }
+        ],
+        drums: [
+            { step: 0, type: 'kick' }, { step: 3, type: 'kick' }, { step: 6, type: 'snare' }, { step: 8, type: 'kick' },
+            { step: 11, type: 'kick' }, { step: 14, type: 'snare' }, { step: 16, type: 'kick' }, { step: 19, type: 'kick' },
+            { step: 22, type: 'snare' }, { step: 24, type: 'kick' }, { step: 27, type: 'kick' }, { step: 30, type: 'snare' },
+            { step: 1, type: 'shaker' }, { step: 2, type: 'shaker' }, { step: 4, type: 'shaker' }, { step: 5, type: 'shaker' },
+            { step: 7, type: 'shaker' }, { step: 9, type: 'shaker' }, { step: 10, type: 'shaker' }, { step: 12, type: 'shaker' }
+        ],
+        melody: [
+            { step: 0, f: 440.00, d: 0.10 },
+            { step: 2, f: 466.16, d: 0.10 },
+            { step: 4, f: 440.00, d: 0.10 },
+            { step: 6, f: 523.25, d: 0.14 },
+            { step: 8, f: 587.33, d: 0.12 },
+            { step: 11, f: 554.37, d: 0.12 },
+            { step: 14, f: 440.00, d: 0.18 },
+            { step: 16, f: 659.25, d: 0.14 },
+            { step: 19, f: 587.33, d: 0.12 },
+            { step: 22, f: 554.37, d: 0.12 },
+            { step: 25, f: 466.16, d: 0.12 },
+            { step: 28, f: 440.00, d: 0.22 }
+        ]
+    }
+};
 
 class SoundEngine {
     constructor() {
@@ -8,6 +101,17 @@ class SoundEngine {
         this.volume = 0.5;
         this.coinPitchIndex = 0;
         this.lastCoinTime = 0;
+
+        // Propiedades de Música de Fondo Procedural (BGM)
+        this.musicEnabled = true;
+        this.musicVolume = 0.22;
+        this.musicGain = null;
+        this.currentTrack = null;
+        this.musicTimer = null;
+        this.currentStep = 0;
+        this.nextStepTime = 0;
+        this.tempo = 104;
+        this.isMusicPlaying = false;
     }
 
     init() {
@@ -19,6 +123,11 @@ class SoundEngine {
         }
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
+        }
+        if (this.ctx && !this.musicGain) {
+            this.musicGain = this.ctx.createGain();
+            this.musicGain.gain.setValueAtTime(this.musicVolume * (this.enabled ? 1 : 0), this.ctx.currentTime);
+            this.musicGain.connect(this.ctx.destination);
         }
     }
 
@@ -482,6 +591,256 @@ class SoundEngine {
             osc.start(t);
             osc.stop(t + n.d + 0.05);
         });
+    }
+
+    // =========================================================================
+    // MOTOR DE MÚSICA DE FONDO PROCEDURAL (BGM)
+    // =========================================================================
+    startMusic(trackName = 'menu') {
+        if (!this.enabled || !this.musicEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        if (this.isMusicPlaying && this.currentTrack === trackName) return;
+
+        this.currentTrack = trackName;
+        this.isMusicPlaying = true;
+        this.currentStep = 0;
+        this.nextStepTime = this.ctx.currentTime + 0.05;
+
+        const trackData = TRACKS[trackName] || TRACKS.menu;
+        this.tempo = trackData.tempo || 104;
+
+        if (this.musicGain) {
+            this.musicGain.gain.cancelScheduledValues(this.ctx.currentTime);
+            this.musicGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+            this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, this.ctx.currentTime + 0.5);
+        }
+
+        if (this.musicTimer) clearInterval(this.musicTimer);
+        this.musicTimer = setInterval(() => this.scheduler(), 35);
+    }
+
+    switchTrack(trackName) {
+        if (this.currentTrack === trackName && this.isMusicPlaying) return;
+        if (!this.isMusicPlaying) {
+            this.startMusic(trackName);
+            return;
+        }
+
+        if (!this.ctx || !this.musicGain) return;
+        const now = this.ctx.currentTime;
+        this.musicGain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+        setTimeout(() => {
+            if (this.isMusicPlaying) {
+                this.currentTrack = trackName;
+                const trackData = TRACKS[trackName] || TRACKS.menu;
+                this.tempo = trackData.tempo || 104;
+                this.currentStep = 0;
+                if (this.ctx && this.musicGain) {
+                    this.nextStepTime = this.ctx.currentTime + 0.05;
+                    this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, this.ctx.currentTime + 0.35);
+                }
+            }
+        }, 250);
+    }
+
+    stopMusic() {
+        this.isMusicPlaying = false;
+        if (this.musicTimer) {
+            clearInterval(this.musicTimer);
+            this.musicTimer = null;
+        }
+        if (this.musicGain && this.ctx) {
+            this.musicGain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+        }
+    }
+
+    pauseMusic() {
+        this.stopMusic();
+    }
+
+    resumeMusic() {
+        if (!this.enabled || !this.musicEnabled) return;
+        if (this.currentTrack) {
+            this.startMusic(this.currentTrack);
+        } else {
+            this.startMusic('menu');
+        }
+    }
+
+    toggleMusic() {
+        if (this.isMusicPlaying) {
+            this.stopMusic();
+            this.musicEnabled = false;
+        } else {
+            this.musicEnabled = true;
+            this.resumeMusic();
+        }
+        return this.musicEnabled;
+    }
+
+    scheduler() {
+        if (!this.ctx || !this.isMusicPlaying) return;
+        const lookahead = 0.14;
+        const stepTime = 60 / (this.tempo * 4);
+
+        while (this.nextStepTime < this.ctx.currentTime + lookahead) {
+            this.scheduleStep(this.currentStep, this.nextStepTime);
+            this.nextStepTime += stepTime;
+            const trackData = TRACKS[this.currentTrack] || TRACKS.menu;
+            this.currentStep = (this.currentStep + 1) % (trackData.steps || 32);
+        }
+    }
+
+    scheduleStep(step, time) {
+        const track = TRACKS[this.currentTrack] || TRACKS.menu;
+        if (!track) return;
+
+        // 1. Percusión
+        if (track.drums) {
+            for (let i = 0; i < track.drums.length; i++) {
+                const d = track.drums[i];
+                if (d.step === step) {
+                    this.playPercussion(d.type, time);
+                }
+            }
+        }
+
+        // 2. Línea de Bajo
+        if (track.bass) {
+            for (let i = 0; i < track.bass.length; i++) {
+                const b = track.bass[i];
+                if (b.step === step) {
+                    this.playBassNote(b.f, time, (60 / (this.tempo * 4)) * 3.2);
+                }
+            }
+        }
+
+        // 3. Melodía
+        if (track.melody) {
+            for (let i = 0; i < track.melody.length; i++) {
+                const m = track.melody[i];
+                if (m.step === step) {
+                    this.playMelodyNote(m.f, time, m.d || 0.18);
+                }
+            }
+        }
+    }
+
+    playBassNote(freq, time, duration) {
+        if (!this.ctx || !this.musicGain) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(420, time);
+        filter.frequency.exponentialRampToValueAtTime(140, time + duration);
+
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(0.38, time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.musicGain);
+
+        osc.start(time);
+        osc.stop(time + duration + 0.05);
+    }
+
+    playMelodyNote(freq, time, duration) {
+        if (!this.ctx || !this.musicGain) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(freq * 1.4, time);
+        filter.Q.setValueAtTime(2.2, time);
+
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(0.22, time + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.musicGain);
+
+        osc.start(time);
+        osc.stop(time + duration + 0.05);
+    }
+
+    playPercussion(type, time) {
+        if (!this.ctx || !this.musicGain) return;
+
+        if (type === 'kick') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(115, time);
+            osc.frequency.exponentialRampToValueAtTime(34, time + 0.08);
+
+            gain.gain.setValueAtTime(0.35, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.10);
+
+            osc.connect(gain);
+            gain.connect(this.musicGain);
+            osc.start(time);
+            osc.stop(time + 0.11);
+        } else if (type === 'snare') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(190, time);
+            osc.frequency.exponentialRampToValueAtTime(75, time + 0.07);
+
+            gain.gain.setValueAtTime(0.16, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+
+            osc.connect(gain);
+            gain.connect(this.musicGain);
+            osc.start(time);
+            osc.stop(time + 0.09);
+            this.playNoiseAtTime(time, 0.06, 0.10);
+        } else if (type === 'shaker') {
+            this.playNoiseAtTime(time, 0.035, 0.045);
+        }
+    }
+
+    playNoiseAtTime(time, duration, gainAmount) {
+        if (!this.ctx || !this.musicGain) return;
+        const bufferSize = Math.max(1, Math.floor(this.ctx.sampleRate * duration));
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(3200, time);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(gainAmount, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.musicGain);
+
+        noise.start(time);
+        noise.stop(time + duration + 0.01);
     }
 }
 

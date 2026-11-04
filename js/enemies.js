@@ -861,6 +861,36 @@ export class EnemyManager {
         });
     }
 
+    // Separación física de enemigos contra cajas y obstáculos
+    checkObstacleCollisions(crates) {
+        if (!crates || !crates.length) return;
+        const enemyRadius = 0.65;
+        for (let j = 0; j < this.enemies.length; j++) {
+            const enemy = this.enemies[j];
+            if (!enemy || enemy.type === 'dummy' || enemy.health <= 0) continue;
+            const ePos = enemy.mesh.position;
+
+            for (let i = 0; i < crates.length; i++) {
+                const crate = crates[i];
+                if (!crate || crate.intact === false || crate.isBroken === true) continue;
+                const cPos = crate.position || (crate.mesh && crate.mesh.position);
+                if (!cPos) continue;
+
+                const dx = ePos.x - cPos.x;
+                const dz = ePos.z - cPos.z;
+                const distSq = dx * dx + dz * dz;
+                const minDist = enemyRadius + 0.85;
+
+                if (distSq < minDist * minDist && distSq > 0.0001) {
+                    const dist = Math.sqrt(distSq);
+                    const overlap = minDist - dist;
+                    ePos.x += (dx / dist) * overlap;
+                    ePos.z += (dz / dist) * overlap;
+                }
+            }
+        }
+    }
+
     // =========================================================================
     // SPAWN DE ENEMIGOS PARA NIVELES DE PLATAFORMAS (CAMPAÑA)
     // =========================================================================

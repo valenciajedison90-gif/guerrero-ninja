@@ -457,6 +457,10 @@ class Game {
             this.showBanner('💎 CRISTAL DE BIODIVERSIDAD 💎', `¡Recolectado! (${this.campaignCollectedGems}/3)`);
             sounds.playGemCollect();
             this.particles.createHitSparks(pos.clone().add(new THREE.Vector3(0, 0.5, 0)), true);
+            // Punto de control seguro actualizado en campaña
+            if (this.player) {
+                this.player.lastCheckpointPos = pos.clone().add(new THREE.Vector3(0, 1.2, 0));
+            }
             return;
         }
 
@@ -681,11 +685,31 @@ class Game {
         this.setupMapSelector();
         this.setupPWAInstall();
 
-        // Sonido
+        // Sonido y Música
         safeListener('btn-toggle-sound', 'click', () => {
             sounds.enabled = !sounds.enabled;
             safeText('sound-icon', sounds.enabled ? '🔊' : '🔇');
+            const quickBtn = document.getElementById('btn-quick-sound');
+            if (quickBtn) quickBtn.textContent = sounds.enabled ? '🔊' : '🔇';
+            if (sounds.enabled) {
+                sounds.resumeMusic();
+            } else {
+                sounds.stopMusic();
+            }
         });
+
+        // Iniciar música en la primera interacción del usuario (política de navegadores)
+        const onFirstInteraction = () => {
+            sounds.init();
+            if (sounds.enabled && !sounds.isMusicPlaying) {
+                const track = this.state === 'PLAYING' ? (this.campaignIsBossFight ? 'boss' : 'battle') : 'menu';
+                sounds.startMusic(track);
+            }
+            window.removeEventListener('pointerdown', onFirstInteraction);
+            window.removeEventListener('keydown', onFirstInteraction);
+        };
+        window.addEventListener('pointerdown', onFirstInteraction, { once: true });
+        window.addEventListener('keydown', onFirstInteraction, { once: true });
 
         // Controles táctiles
         safeListener('btn-toggle-touch', 'click', () => {
@@ -1070,7 +1094,7 @@ class Game {
             });
         }
 
-        // Alternar Sonido desde el Menú
+        // Alternar Sonido y Música desde el Menú
         const btnQuickSound = document.getElementById('btn-quick-sound');
         if (btnQuickSound) {
             btnQuickSound.addEventListener('click', () => {
@@ -1078,6 +1102,11 @@ class Game {
                 btnQuickSound.textContent = sounds.enabled ? '🔊' : '🔇';
                 const sIcon = document.getElementById('sound-icon');
                 if (sIcon) sIcon.textContent = sounds.enabled ? '🔊' : '🔇';
+                if (sounds.enabled) {
+                    sounds.resumeMusic();
+                } else {
+                    sounds.stopMusic();
+                }
             });
         }
 
@@ -1464,6 +1493,11 @@ class Game {
         this.state = 'PLAYING';
         document.body.classList.add('playing-state');
         sounds.playGameStart();
+        if (this.campaignIsBossFight) {
+            sounds.switchTrack('boss');
+        } else {
+            sounds.switchTrack('battle');
+        }
 
         // 1. Ocultar Menú Principal por completo
         const menu = document.getElementById('main-menu-overlay');
@@ -1498,6 +1532,7 @@ class Game {
         document.body.classList.remove('playing-state');
         this.isCampaignMode = false;
         if (this.player) this.player.isCampaignMode = false;
+        sounds.switchTrack('menu');
 
         // 1. Mostrar Menú Principal
         const menu = document.getElementById('main-menu-overlay');
@@ -1844,7 +1879,7 @@ class Game {
         }
 
         // Simulación Battle Royale en partida
-        if (storage.getSelectedMode() === 'battle_royale') {
+        if (storage.getSelectedMode() === 'battle_royale' && !this.isCampaignMode) {
             this.battleRoyaleTimer += delta;
             if (this.battleRoyaleTimer > 15) {
                 this.battleRoyaleTimer = 0;
@@ -1858,11 +1893,33 @@ class Game {
                     this.showBanner('¡LA ZONA SEGURA SE REDUCE! ⚠️', 'Permanece dentro del círculo azul');
                 }
             }
+
+            // Daño periódico de tormenta si el jugador está fuera del círculo seguro
+            const pDist = Math.hypot(this.player.mesh.position.x, this.player.mesh.position.z);
+            if (pDist > this.safeZoneRadius) {
+                this.stormTickTimer = (this.stormTickTimer || 0) + delta;
+                if (this.stormTickTimer >= 1.2) {
+                    this.stormTickTimer = 0;
+                    this.player.takeDamage(6);
+                    this.triggerScreenShake(0.14, 0.1);
+                    this.showBanner('¡TORMENTA ELÉCTRICA! ⚡', '¡Entra rápido al círculo seguro!');
+                    sounds.playHit(false);
+                    this.updateHUD();
+                }
+            } else {
+                this.stormTickTimer = 0;
+            }
         }
         this.updateMinimap();
 
         // 1. Actualizar jugador
         this.player.update(delta);
+
+        // Separación física con obstáculos sólidos del mapa (cajas)
+        if (this.world && this.world.crates) {
+            this.player.checkObstacleCollisions(this.world.crates);
+            this.enemyManager.checkObstacleCollisions(this.world.crates);
+        }
 
         // 2. Actualizar mundo (lava, agua, nieve, rotaciones)
         this.world.update(delta);

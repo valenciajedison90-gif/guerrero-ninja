@@ -578,13 +578,13 @@ export class Player {
             this.runTime = 0;
         }
 
-        // Velocidad de movimiento
-        const baseSpeed = 10.5;
+        // Velocidad de movimiento según atributos únicos del animal seleccionado
+        const baseSpeed = this.baseSpeed || 10.5;
         let currentSpeed = baseSpeed;
 
         if (this.dashTimer > 0) {
             this.dashTimer -= delta;
-            currentSpeed = 24.0;
+            currentSpeed = baseSpeed * 2.2;
             this.velocity.x = this.dashDirection.x * currentSpeed;
             this.velocity.z = this.dashDirection.z * currentSpeed;
 
@@ -619,12 +619,22 @@ export class Player {
             this.velocity.y = 0;
             this.isGrounded = true;
             this.jumpCount = 0;
+
+            // Actualizar punto de control dinámico en niveles de plataformas
+            if (this.isCampaignMode && groundY > -2.0) {
+                if (!this.lastCheckpointPos) {
+                    this.lastCheckpointPos = this.mesh.position.clone();
+                } else if (this.mesh.position.z < this.lastCheckpointPos.z - 12.0) {
+                    this.lastCheckpointPos.copy(this.mesh.position);
+                }
+            }
         }
 
         // Caida al abismo en niveles de plataformas
         if (this.mesh.position.y < -12.0) {
             this.takeDamage(20);
-            const respawnPoint = this.lastCheckpointPos || new THREE.Vector3(0, 1.5, 0);
+            const respawnPoint = (this.lastCheckpointPos && this.lastCheckpointPos.clone()) || new THREE.Vector3(0, 1.5, 0);
+            respawnPoint.y = Math.max(1.5, respawnPoint.y + 0.5);
             this.mesh.position.copy(respawnPoint);
             this.velocity.set(0, 0, 0);
         }
@@ -824,4 +834,29 @@ export class Player {
         if (this.bandanaTail2) this.bandanaTail2.rotation.x = 0.45 - flutter * 0.85;
     }
 
+    // Separación física contra obstáculos sólidos (cajas y tótems)
+    checkObstacleCollisions(crates) {
+        if (!crates || !crates.length) return;
+        const playerPos = this.mesh.position;
+        const playerRadius = 0.65;
+
+        for (let i = 0; i < crates.length; i++) {
+            const crate = crates[i];
+            if (!crate || crate.intact === false || crate.isBroken === true) continue;
+            const cPos = crate.position || (crate.mesh && crate.mesh.position);
+            if (!cPos) continue;
+
+            const dx = playerPos.x - cPos.x;
+            const dz = playerPos.z - cPos.z;
+            const distSq = dx * dx + dz * dz;
+            const minDist = playerRadius + 0.85;
+
+            if (distSq < minDist * minDist && distSq > 0.0001) {
+                const dist = Math.sqrt(distSq);
+                const overlap = minDist - dist;
+                playerPos.x += (dx / dist) * overlap;
+                playerPos.z += (dz / dist) * overlap;
+            }
+        }
+    }
 }
