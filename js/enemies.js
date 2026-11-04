@@ -628,6 +628,18 @@ export class EnemyManager {
         }
     }
 
+    disposeMeshRecursive(obj) {
+        if (!obj) return;
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
+        }
+        if (obj.children) {
+            obj.children.forEach(c => this.disposeMeshRecursive(c));
+        }
+    }
+
     defeatEnemy(enemy, onEnemyDefeated) {
         this.particles.createEnemyDefeatBurst(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0)));
 
@@ -645,6 +657,7 @@ export class EnemyManager {
         }
 
         this.scene.remove(enemy.mesh);
+        this.disposeMeshRecursive(enemy.mesh);
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);

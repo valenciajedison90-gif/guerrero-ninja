@@ -221,12 +221,37 @@ export class World {
         }
     }
 
+    isMobileDevice() {
+        return (typeof window !== 'undefined') && (
+            ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 850)
+        );
+    }
+
+    getCrateQuestionTexture() {
+        if (this._crateQTex) return this._crateQTex;
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 96px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', 64, 64);
+        this._crateQTex = new THREE.CanvasTexture(canvas);
+        return this._crateQTex;
+    }
+
     disposeObject(obj) {
         if (obj.geometry) obj.geometry.dispose();
         if (obj.material) {
             if (Array.isArray(obj.material)) {
-                obj.material.forEach(m => m.dispose());
+                obj.material.forEach(m => {
+                    if (m.map && m.map !== this._crateQTex) m.map.dispose();
+                    m.dispose();
+                });
             } else {
+                if (obj.material.map && obj.material.map !== this._crateQTex) obj.material.map.dispose();
                 obj.material.dispose();
             }
         }
@@ -263,6 +288,7 @@ export class World {
         this.mapRoot.add(sky);
 
         // Nubes bajas caricaturescas flotantes (Low-Poly Cartoon Clouds)
+        const isMobile = this.isMobileDevice();
         const cloudsGroup = new THREE.Group();
         const cloudMat = new THREE.MeshStandardMaterial({
             color: 0xffffff,
@@ -272,16 +298,17 @@ export class World {
         });
 
         const cloudPuffs = [];
-        for (let c = 0; c < 12; c++) {
+        const cloudCount = isMobile ? 6 : 12;
+        for (let c = 0; c < cloudCount; c++) {
             const singleCloud = new THREE.Group();
-            const puffCount = 3 + Math.floor(Math.random() * 3);
+            const puffCount = isMobile ? 3 : (3 + Math.floor(Math.random() * 3));
             for (let p = 0; p < puffCount; p++) {
                 const r = 2.4 + Math.random() * 2.0;
                 const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), cloudMat);
                 puff.position.set((p - puffCount / 2) * 2.8, (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 1.8);
                 singleCloud.add(puff);
             }
-            const ang = (c / 12) * Math.PI * 2;
+            const ang = (c / cloudCount) * Math.PI * 2;
             const dist = 38 + Math.random() * 25;
             singleCloud.position.set(Math.cos(ang) * dist, 26 + (c % 3) * 5, Math.sin(ang) * dist);
             cloudsGroup.add(singleCloud);
@@ -336,6 +363,8 @@ export class World {
     }
 
     addGrassAndFlowerPatches(count = 55, radius = 42, grassColor = 0x22c55e, flowerColor = 0xfacc15) {
+        const isMobile = this.isMobileDevice();
+        const effectiveCount = isMobile ? Math.min(count, 22) : count;
         const patchesGroup = new THREE.Group();
         const grassMat = new THREE.MeshStandardMaterial({
             color: grassColor,
@@ -350,7 +379,7 @@ export class World {
         });
 
         const patchMeshes = [];
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < effectiveCount; i++) {
             const ang = Math.random() * Math.PI * 2;
             const r = 5.0 + Math.random() * (radius - 6);
             const px = Math.cos(ang) * r;
@@ -389,6 +418,8 @@ export class World {
     }
 
     addAmbientPollenMotes(count = 35) {
+        const isMobile = this.isMobileDevice();
+        const effectiveCount = isMobile ? Math.min(count, 12) : count;
         const motesGroup = new THREE.Group();
         const moteGeom = new THREE.SphereGeometry(0.08, 6, 6);
         const moteMat = new THREE.MeshBasicMaterial({
@@ -398,7 +429,7 @@ export class World {
         });
 
         const motes = [];
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < effectiveCount; i++) {
             const m = new THREE.Mesh(moteGeom, moteMat);
             const ang = Math.random() * Math.PI * 2;
             const r = Math.random() * 38;
@@ -1056,18 +1087,8 @@ export class World {
         trimBottom.position.y = -0.44;
         crateGroup.add(trimBottom);
 
-        // Signo de interrogación '?' dorado en cada cara
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fef08a';
-        ctx.font = 'bold 96px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('?', 64, 64);
-
-        const tex = new THREE.CanvasTexture(canvas);
+        // Signo de interrogación '?' dorado en cada cara (textura compartida para optimizar memoria en celular)
+        const tex = this.getCrateQuestionTexture();
         const qMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
 
         const qFront = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.65), qMat);

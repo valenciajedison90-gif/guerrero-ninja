@@ -112,6 +112,19 @@ class SoundEngine {
         this.nextStepTime = 0;
         this.tempo = 104;
         this.isMusicPlaying = false;
+        this.noiseBuffer = null;
+    }
+
+    getNoiseBuffer() {
+        if (!this.noiseBuffer && this.ctx) {
+            const bufferSize = Math.floor(this.ctx.sampleRate * 1.0);
+            this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = this.noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+        }
+        return this.noiseBuffer;
     }
 
     init() {
@@ -184,22 +197,21 @@ class SoundEngine {
 
     playNoise(duration = 0.1, gainMultiplier = 0.15) {
         if (!this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * duration;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
+        const buffer = this.getNoiseBuffer();
+        if (!buffer) return;
 
         const noise = this.ctx.createBufferSource();
         noise.buffer = buffer;
+        noise.loop = true;
         const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(this.volume * gainMultiplier, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        const now = this.ctx.currentTime;
+        gain.gain.setValueAtTime(this.volume * gainMultiplier, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
         noise.connect(gain);
         gain.connect(this.ctx.destination);
-        noise.start();
+        noise.start(now);
+        noise.stop(now + duration);
     }
 
     playHit(isCrit = false) {
@@ -846,15 +858,12 @@ class SoundEngine {
 
     playNoiseAtTime(time, duration, gainAmount) {
         if (!this.ctx || !this.musicGain) return;
-        const bufferSize = Math.max(1, Math.floor(this.ctx.sampleRate * duration));
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
+        const buffer = this.getNoiseBuffer();
+        if (!buffer) return;
 
         const noise = this.ctx.createBufferSource();
         noise.buffer = buffer;
+        noise.loop = true;
 
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'highpass';

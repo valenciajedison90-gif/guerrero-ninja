@@ -74,8 +74,8 @@ export class TouchControlsManager {
                 const touch = e.changedTouches[i];
                 // Lado izquierdo de la pantalla (excluyendo zona de menús)
                 if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.48 && touch.clientY > window.innerHeight * 0.15) {
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (target && (target.closest('.modal-overlay') || target.closest('.btn-hud') || target.closest('.player-card') || target.closest('#mission-hud'))) {
+                    const target = touch.target || e.target;
+                    if (target && target.closest && (target.closest('.modal-overlay') || target.closest('.btn-hud') || target.closest('.player-card') || target.closest('#mission-hud'))) {
                         continue;
                     }
 
@@ -177,8 +177,8 @@ export class TouchControlsManager {
                 if (touch.identifier === this.joystickTouchId) continue;
 
                 // Si tocó un botón de acción táctil o elemento interactivo del HUD
-                const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                if (target && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot') || target.closest('.player-card') || target.closest('#mission-hud'))) {
+                const target = touch.target || e.target;
+                if (target && target.closest && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot') || target.closest('.player-card') || target.closest('#mission-hud'))) {
                     continue;
                 }
 
@@ -272,8 +272,12 @@ export class TouchControlsManager {
 
         // B) Botón de Giro Ninja 360° (Estilo Crash Bandicoot)
         if (this.btnSpin) {
+            let lastSpinTime = 0;
             const doSpin = (e) => {
-                e.preventDefault();
+                const now = performance.now();
+                if (now - lastSpinTime < 220) return;
+                lastSpinTime = now;
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 vibrateShort();
                 this.btnSpin.classList.add('pressed');
@@ -285,10 +289,14 @@ export class TouchControlsManager {
             this.btnSpin.addEventListener('mousedown', doSpin);
         }
 
-        // C) Botón de Salto / Doble Salto
+        // C) Botón de Salto / Doble Salto (Debounced contra doble disparo táctil)
         if (this.btnJump) {
+            let lastJumpTime = 0;
             const doJump = (e) => {
-                e.preventDefault();
+                const now = performance.now();
+                if (now - lastJumpTime < 160) return;
+                lastJumpTime = now;
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 vibrateShort();
                 this.btnJump.classList.add('pressed');
@@ -302,8 +310,12 @@ export class TouchControlsManager {
 
         // D) Botón de Esquive / Dash de Sombras Ninja
         if (this.btnDash) {
+            let lastDashTime = 0;
             const doDash = (e) => {
-                e.preventDefault();
+                const now = performance.now();
+                if (now - lastDashTime < 220) return;
+                lastDashTime = now;
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 vibrateShort();
                 this.btnDash.classList.add('pressed');
@@ -317,8 +329,12 @@ export class TouchControlsManager {
 
         // E) Botón de Cambio Rápido de Arma
         if (this.btnSwitch) {
+            let lastSwitchTime = 0;
             const doSwitch = (e) => {
-                e.preventDefault();
+                const now = performance.now();
+                if (now - lastSwitchTime < 180) return;
+                lastSwitchTime = now;
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 this.btnSwitch.classList.add('pressed');
                 if (this.game && this.game.cycleWeaponSlot) {
@@ -333,8 +349,12 @@ export class TouchControlsManager {
 
         // F) Botón de Habilidad Especial del Personaje Animal Colombiano (Rugido, Trueno, Planeo, Escudo, Salto)
         if (this.btnSkill) {
+            let lastSkillTime = 0;
             const doSkill = (e) => {
-                e.preventDefault();
+                const now = performance.now();
+                if (now - lastSkillTime < 250) return;
+                lastSkillTime = now;
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 vibrateShort();
                 this.btnSkill.classList.add('pressed');

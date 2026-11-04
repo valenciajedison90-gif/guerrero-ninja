@@ -124,18 +124,30 @@ class Game {
 
     setupRenderer() {
         this.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 900);
+        this.isContextLost = false;
 
-        // Renderizado HD con Antialiasing y perfil de color sRGB comercial
+        // Recuperación y protección ante pérdida de contexto WebGL en celulares
+        this.canvas.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
+            console.warn('[WebGL] Context lost. Suspending render loop to avoid mobile crash...');
+            this.isContextLost = true;
+        }, false);
+        this.canvas.addEventListener('webglcontextrestored', () => {
+            console.log('[WebGL] Context restored.');
+            this.isContextLost = false;
+        }, false);
+
+        // Renderizado optimizado: en móvil evita antialias 4x para no desbordar VRAM, usa mediump y DPR calibrado
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: true,
+            antialias: !this.isMobile,
             powerPreference: 'high-performance',
-            precision: 'highp'
+            precision: this.isMobile ? 'mediump' : 'highp'
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
 
         const dpr = window.devicePixelRatio || 1;
-        this.renderer.setPixelRatio(Math.min(dpr, 2.0));
+        this.renderer.setPixelRatio(Math.min(dpr, this.isMobile ? 1.5 : 2.0));
 
         // Espacio de color sRGB y mapeo de tonos cinematográfico (Colores tropicales vivos estilo Pixar)
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -158,12 +170,13 @@ class Game {
         const ambientLight = new THREE.AmbientLight(0xfff8ee, 0.72);
         this.scene.add(ambientLight);
 
-        // Luz del sol tropical colombiano con sombras de alta resolución
+        // Luz del sol tropical colombiano con sombras calibradas (1024 en celular para evitar Out of Memory)
         const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
         sunLight.position.set(28, 48, 24);
         sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
+        const shadowRes = this.isMobile ? 1024 : 2048;
+        sunLight.shadow.mapSize.width = shadowRes;
+        sunLight.shadow.mapSize.height = shadowRes;
         sunLight.shadow.camera.near = 0.5;
         sunLight.shadow.camera.far = 145;
 
@@ -224,6 +237,8 @@ class Game {
     }
 
     spawnDamagePopup(pos, damage, isCrit = false) {
+        if (this.damagePopups.length > (this.isMobile ? 6 : 14)) return;
+
         const canvas = document.createElement('canvas');
         canvas.width = 128;
         canvas.height = 64;
@@ -1502,7 +1517,7 @@ class Game {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         const dpr = window.devicePixelRatio || 1;
-        this.renderer.setPixelRatio(Math.min(dpr, 2.0));
+        this.renderer.setPixelRatio(Math.min(dpr, this.isMobile ? 1.5 : 2.0));
     }
 
     startGame() {
@@ -1519,6 +1534,10 @@ class Game {
         } else {
             sounds.switchTrack('battle');
         }
+
+        // Optimización GPU en celular: apagar luces frontales de estudio del menú en gameplay
+        if (this.menuKeyLight) this.menuKeyLight.visible = false;
+        if (this.menuRimLight) this.menuRimLight.visible = false;
 
         // 1. Ocultar Menú Principal por completo
         const menu = document.getElementById('main-menu-overlay');
@@ -1554,6 +1573,10 @@ class Game {
         this.isCampaignMode = false;
         if (this.player) this.player.isCampaignMode = false;
         sounds.switchTrack('menu');
+
+        // Reactivar luces de estudio al volver al menú principal
+        if (this.menuKeyLight) this.menuKeyLight.visible = true;
+        if (this.menuRimLight) this.menuRimLight.visible = true;
 
         // 1. Mostrar Menú Principal
         const menu = document.getElementById('main-menu-overlay');
@@ -1845,6 +1868,9 @@ class Game {
 
     animate() {
         requestAnimationFrame(this.animate);
+
+        // Si se perdió el contexto WebGL en el móvil, esperar a su restauración sin crashear
+        if (this.isContextLost) return;
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
 

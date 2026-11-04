@@ -14,6 +14,17 @@ export class ParticleSystem {
         this.sparkGeom = new THREE.BoxGeometry(0.08, 0.08, 0.08);
         this.smokeGeom = new THREE.DodecahedronGeometry(0.25, 0);
         this.coinGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 10);
+        this.slashArcGeom = new THREE.RingGeometry(1.2, 2.4, 22, 1, -Math.PI * 0.45, Math.PI * 0.9);
+        this.slashCoreGeom = new THREE.RingGeometry(1.5, 2.0, 16, 1, -Math.PI * 0.35, Math.PI * 0.7);
+        this.shockwaveGeom = new THREE.RingGeometry(0.6, 1.4, 22);
+        this.shurikenGeom = new THREE.CylinderGeometry(0.28, 0.28, 0.05, 4);
+        this.shurikenMat = new THREE.MeshStandardMaterial({
+            color: 0x4a5568,
+            metalness: 0.9,
+            roughness: 0.2,
+            emissive: 0x00f0ff,
+            emissiveIntensity: 0.4
+        });
         this.coinMat = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             metalness: 0.8,
@@ -52,7 +63,6 @@ export class ParticleSystem {
         };
         const ec = elemColors[element] || elemColors.steel;
 
-        const arcGeom = new THREE.RingGeometry(1.2, 2.4, 28, 1, -Math.PI * 0.45, Math.PI * 0.9);
         const arcMat = new THREE.MeshBasicMaterial({
             color: ec.main,
             transparent: true,
@@ -60,13 +70,12 @@ export class ParticleSystem {
             side: THREE.DoubleSide,
             depthWrite: false
         });
-        const arcMesh = new THREE.Mesh(arcGeom, arcMat);
+        const arcMesh = new THREE.Mesh(this.slashArcGeom, arcMat);
         const tilt = combo === 1 ? -0.35 : (combo === 2 ? 0.35 : 0);
         arcMesh.rotation.x = Math.PI / 2 + tilt;
         slashGroup.add(arcMesh);
 
         // Núcleo brillante blanco central
-        const coreGeom = new THREE.RingGeometry(1.5, 2.0, 22, 1, -Math.PI * 0.35, Math.PI * 0.7);
         const coreMat = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
@@ -74,7 +83,7 @@ export class ParticleSystem {
             side: THREE.DoubleSide,
             depthWrite: false
         });
-        const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+        const coreMesh = new THREE.Mesh(this.slashCoreGeom, coreMat);
         coreMesh.rotation.x = arcMesh.rotation.x;
         slashGroup.add(coreMesh);
 
@@ -208,7 +217,6 @@ export class ParticleSystem {
     }
 
     createShockwave(position, colorHex = 0xffffff, maxRadius = 8) {
-        const ringGeom = new THREE.RingGeometry(0.6, 1.4, 28);
         const ringMat = new THREE.MeshBasicMaterial({
             color: colorHex,
             transparent: true,
@@ -216,7 +224,7 @@ export class ParticleSystem {
             side: THREE.DoubleSide,
             depthWrite: false
         });
-        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+        const ringMesh = new THREE.Mesh(this.shockwaveGeom, ringMat);
         ringMesh.position.copy(position);
         ringMesh.position.y = 0.15;
         ringMesh.rotation.x = Math.PI / 2;
@@ -280,15 +288,7 @@ export class ParticleSystem {
     }
 
     spawnShurikenProjectile(startPos, direction, damage, element) {
-        const starGeom = new THREE.CylinderGeometry(0.28, 0.28, 0.05, 4);
-        const starMat = new THREE.MeshStandardMaterial({
-            color: 0x4a5568,
-            metalness: 0.9,
-            roughness: 0.2,
-            emissive: 0x00f0ff,
-            emissiveIntensity: 0.4
-        });
-        const mesh = new THREE.Mesh(starGeom, starMat);
+        const mesh = new THREE.Mesh(this.shurikenGeom, this.shurikenMat);
         mesh.position.copy(startPos);
         mesh.rotation.x = Math.PI / 2;
 

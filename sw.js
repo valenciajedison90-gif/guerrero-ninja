@@ -1,14 +1,14 @@
 // sw.js - Service Worker para Ninja Colombia Arena (Soporte Offline e Instalación PWA)
-const CACHE_NAME = 'ninja-colombia-v16.4';
+const CACHE_NAME = 'ninja-colombia-v16.5';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=16.4',
+  './css/style.css?v=16.5',
   './lib/three.module.js',
   './lib/peerjs.min.js',
-  './js/main.js?v=16.4',
+  './js/main.js?v=16.5',
   './js/campaign.js',
   './js/player.js',
   './js/characters.js',
