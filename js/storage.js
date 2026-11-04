@@ -40,7 +40,7 @@ const defaultMissions = {
         completed: false,
         name: 'Eje Cafetero',
         enemiesDefeated: 0,
-        enemiesTarget: 7,
+        enemiesTarget: 6,
         gemsCollected: 0,
         gemsTarget: 4,
         cratesBroken: 0,
@@ -50,21 +50,18 @@ const defaultMissions = {
         completed: false,
         name: 'Páramo Andino',
         enemiesDefeated: 0,
-        enemiesTarget: 8,
+        enemiesTarget: 6,
         gemsCollected: 0,
         gemsTarget: 4,
-        cratesBroken: 0,
-        cratesTarget: 8
+        bossDefeated: false
     },
     caribe: {
         completed: false,
         name: 'Caribe Colombiano',
         enemiesDefeated: 0,
-        enemiesTarget: 10,
+        enemiesTarget: 6,
         gemsCollected: 0,
         gemsTarget: 5,
-        cratesBroken: 0,
-        cratesTarget: 10,
         bossDefeated: false
     }
 };
@@ -312,7 +309,14 @@ class StorageEngine {
         if (!this.data.worldProgress[mapKey]) {
             this.data.worldProgress[mapKey] = { ...(defaultMissions[mapKey] || defaultMissions.selva) };
         }
-        return this.data.worldProgress[mapKey];
+        const prog = this.data.worldProgress[mapKey];
+        const def = defaultMissions[mapKey] || defaultMissions.selva;
+        // Sincronizar dinámicamente metas para no bloquear partidas existentes
+        prog.enemiesTarget = def.enemiesTarget;
+        prog.gemsTarget = def.gemsTarget;
+        if (def.cratesTarget !== undefined) prog.cratesTarget = def.cratesTarget;
+        if (def.bossDefeated !== undefined && prog.bossDefeated === undefined) prog.bossDefeated = false;
+        return prog;
     }
 
     recordMissionEnemy(worldId) {
@@ -354,35 +358,38 @@ class StorageEngine {
 
     recordMissionBoss(worldId) {
         const prog = this.getWorldProgress(worldId);
-        if (prog.bossDefeated !== undefined) {
-            prog.bossDefeated = true;
-            this.save();
-        }
+        prog.bossDefeated = true;
+        this.save();
         return this.isMissionCompleted(worldId);
     }
 
     isMissionCompleted(worldId) {
-        const prog = this.getWorldProgress(worldId);
-        if (prog.bossDefeated !== undefined) {
-            return prog.enemiesDefeated >= prog.enemiesTarget &&
-                   prog.gemsCollected >= prog.gemsTarget &&
-                   prog.cratesBroken >= prog.cratesTarget &&
-                   prog.bossDefeated === true;
+        const mapKey = worldId === 'forest' ? 'selva' : (worldId === 'volcano' ? 'eje_cafetero' : (worldId === 'snow' ? 'paramo' : worldId));
+        const prog = this.getWorldProgress(mapKey);
+
+        if (mapKey === 'selva' || mapKey === 'eje_cafetero') {
+            return (prog.enemiesDefeated >= prog.enemiesTarget) &&
+                   (prog.gemsCollected >= prog.gemsTarget) &&
+                   (prog.cratesBroken >= (prog.cratesTarget || 6));
+        } else if (mapKey === 'paramo' || mapKey === 'caribe') {
+            return (prog.enemiesDefeated >= prog.enemiesTarget) &&
+                   (prog.gemsCollected >= prog.gemsTarget) &&
+                   (prog.bossDefeated === true);
         }
-        return prog.enemiesDefeated >= prog.enemiesTarget &&
-               prog.gemsCollected >= prog.gemsTarget &&
-               prog.cratesBroken >= prog.cratesTarget;
+        return (prog.enemiesDefeated >= prog.enemiesTarget) &&
+               (prog.gemsCollected >= prog.gemsTarget);
     }
 
     completeWorld(worldId) {
-        const prog = this.getWorldProgress(worldId);
+        const mapKey = worldId === 'forest' ? 'selva' : (worldId === 'volcano' ? 'eje_cafetero' : (worldId === 'snow' ? 'paramo' : worldId));
+        const prog = this.getWorldProgress(mapKey);
         prog.completed = true;
 
-        if (worldId === 'selva' && !this.data.unlockedWorlds.includes('eje_cafetero')) {
+        if (mapKey === 'selva' && !this.data.unlockedWorlds.includes('eje_cafetero')) {
             this.data.unlockedWorlds.push('eje_cafetero');
-        } else if (worldId === 'eje_cafetero' && !this.data.unlockedWorlds.includes('paramo')) {
+        } else if (mapKey === 'eje_cafetero' && !this.data.unlockedWorlds.includes('paramo')) {
             this.data.unlockedWorlds.push('paramo');
-        } else if (worldId === 'paramo' && !this.data.unlockedWorlds.includes('caribe')) {
+        } else if (mapKey === 'paramo' && !this.data.unlockedWorlds.includes('caribe')) {
             this.data.unlockedWorlds.push('caribe');
         }
         this.save();

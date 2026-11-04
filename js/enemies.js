@@ -27,12 +27,13 @@ export class EnemyManager {
         this.spawnDummy(new THREE.Vector3(0, 0, -9));
 
         if (worldId === 'selva' || worldId === 'forest') {
-            // Selva Amazónica: Furtivos de la jungla y acróbatas
+            // Selva Amazónica: Furtivos de la jungla y acróbatas (6 ninjas)
             this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0x14532d);
             this.spawnShadowNinja(new THREE.Vector3(14, 0, 8), 1, 0x14532d);
-            this.spawnShadowNinja(new THREE.Vector3(0, 0, -18), 2, 0x166534);
-            this.spawnAcrobatNinja(new THREE.Vector3(-18, 0, -14), 3);
-            this.spawnAcrobatNinja(new THREE.Vector3(18, 0, -14), 4);
+            this.spawnShadowNinja(new THREE.Vector3(-16, 0, -14), 2, 0x166534);
+            this.spawnShadowNinja(new THREE.Vector3(16, 0, -14), 3, 0x166534);
+            this.spawnAcrobatNinja(new THREE.Vector3(-8, 0, 18), 4);
+            this.spawnAcrobatNinja(new THREE.Vector3(8, 0, 18), 5);
         } else if (worldId === 'eje_cafetero' || worldId === 'volcano') {
             // Eje Cafetero: Cazadores y acróbatas con colores café/ámbar
             this.spawnShadowNinja(new THREE.Vector3(-14, 0, 8), 0, 0xb45309);

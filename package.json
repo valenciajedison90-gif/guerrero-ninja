@@ -1,6 +1,6 @@
 {
   "name": "guerrero-ninja-3d",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Videojuego 3D de combate ninja estilo Roblox en WebGL/Three.js con multijugador en tiempo real",
   "main": "js/main.js",
   "author": "jjedi90",

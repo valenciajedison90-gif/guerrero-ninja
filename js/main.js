@@ -522,12 +522,12 @@ class Game {
             } else if (worldId === 'eje_cafetero' || worldId === 'volcano') {
                 const eDone = prog.enemiesDefeated >= prog.enemiesTarget;
                 const gDone = prog.gemsCollected >= prog.gemsTarget;
-                const tDone = prog.totemsDestroyed >= prog.totemsTarget;
+                const cDone = prog.cratesBroken >= prog.cratesTarget;
 
                 tasksList.innerHTML = `
                     <div class="mission-item ${eDone ? 'done' : ''}"><span class="m-icon">☕</span> <span>Cazadores Cafeteros: ${prog.enemiesDefeated}/${prog.enemiesTarget}</span> <span>${eDone ? '✅' : '⏳'}</span></div>
                     <div class="mission-item ${gDone ? 'done' : ''}"><span class="m-icon">🍒</span> <span>Granos de Café Oro: ${prog.gemsCollected}/${prog.gemsTarget}</span> <span>${gDone ? '✅' : '⏳'}</span></div>
-                    <div class="mission-item ${tDone ? 'done' : ''}"><span class="m-icon">🌋</span> <span>Tótems de Fuego: ${prog.totemsDestroyed}/${prog.totemsTarget}</span> <span>${tDone ? '✅' : '⏳'}</span></div>
+                    <div class="mission-item ${cDone ? 'done' : ''}"><span class="m-icon">📦</span> <span>Cajas Cafeteras: ${prog.cratesBroken}/${prog.cratesTarget}</span> <span>${cDone ? '✅' : '⏳'}</span></div>
                 `;
             } else if (worldId === 'paramo' || worldId === 'snow') {
                 const gDone = prog.gemsCollected >= prog.gemsTarget;
@@ -698,9 +698,10 @@ class Game {
             safeClass('level-clear-modal', 'remove', 'open');
             this.portalVictoryTriggered = false;
             const curr = this.world.currentMapId;
-            if (curr === 'forest') this.switchMap('volcano');
-            else if (curr === 'volcano') this.switchMap('snow');
-            else this.switchMap('forest');
+            if (curr === 'selva' || curr === 'forest') this.switchMap('eje_cafetero');
+            else if (curr === 'eje_cafetero' || curr === 'volcano') this.switchMap('paramo');
+            else if (curr === 'paramo' || curr === 'snow') this.switchMap('caribe');
+            else this.switchMap('selva');
         });
 
         this.setupMapSelector();
@@ -1969,8 +1970,19 @@ class Game {
         });
 
         // 6. Comprobar entrada al Portal Místico (Victoria de Mundo)
-        if (!this.portalVictoryTriggered && this.world.checkPortalEntry(this.player.mesh.position)) {
-            this.handlePortalVictory();
+        if (!this.portalVictoryTriggered) {
+            if (this.world.checkPortalEntry(this.player.mesh.position)) {
+                this.handlePortalVictory();
+            } else if (!this.isCampaignMode && this.world.portal && !this.world.portal.isActive) {
+                const distToPortal = Math.hypot(this.player.mesh.position.x - this.world.portal.position.x, this.player.mesh.position.z - this.world.portal.position.z);
+                if (distToPortal < 3.5) {
+                    const now = performance.now();
+                    if (!this.lastPortalWarning || now - this.lastPortalWarning > 3500) {
+                        this.lastPortalWarning = now;
+                        this.showBanner('🔒 PORTAL ANCESTRAL SELLADO', '¡Cumple todos los objetivos del recuadro superior para abrirlo!');
+                    }
+                }
+            }
         }
 
         
@@ -2406,6 +2418,11 @@ class Game {
         const star3 = (elapsedSec <= lvlMeta.targetTime) ? 1 : 0; // Tiempo récord
         const totalStars = star1 + star2 + star3;
 
+        // Recompensas
+        const coinsReward = 50 + totalStars * 20;
+        const gemsReward = totalStars >= 3 ? 5 : (totalStars >= 2 ? 3 : 1);
+        const xpReward = 100 + totalStars * 40;
+
         // Guardar resultado
         storage.recordCampaignLevelResult(worldNum, levelNum, totalStars, elapsedSec, collectedGems);
 
@@ -2423,12 +2440,6 @@ class Game {
             gems: gemsReward,
             xp: xpReward
         });
-
-
-        // Recompensas
-        const coinsReward = 50 + totalStars * 20;
-        const gemsReward = totalStars >= 3 ? 5 : (totalStars >= 2 ? 3 : 1);
-        const xpReward = 100 + totalStars * 40;
 
         storage.addCoins(coinsReward);
         storage.addGems(gemsReward);
@@ -2476,6 +2487,11 @@ class Game {
         const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
         const bossSpec = worldMeta.boss;
 
+        const elapsedSec = Math.floor((performance.now() - this.campaignStartTime) / 1000);
+        const coinsReward = bossSpec.rewardCoins || (250 + worldNum * 50);
+        const gemsReward = bossSpec.rewardGems || (20 + worldNum * 5);
+        const xpReward = 400 + worldNum * 80;
+
         // Registrar jefe derrotado y desbloquear siguiente mundo
         storage.recordCampaignBossDefeated(worldNum);
 
@@ -2493,11 +2509,6 @@ class Game {
             gems: gemsReward,
             xp: xpReward
         });
-
-
-        const coinsReward = bossSpec.rewardCoins || (250 + worldNum * 50);
-        const gemsReward = bossSpec.rewardGems || (20 + worldNum * 5);
-        const xpReward = 400 + worldNum * 80;
 
         storage.addCoins(coinsReward);
         storage.addGems(gemsReward);
@@ -2520,7 +2531,6 @@ class Game {
             ? `¡MUNDO ${worldNum} LIBERADO! EL MUNDO ${worldNum + 1} HA SIDO DESBLOQUEADO`
             : '🏆 ¡EL INVERNAL HA SIDO VENCIDO! ¡HAS SALVADO A TODA COLOMBIA!';
 
-        const elapsedSec = Math.floor((performance.now() - this.campaignStartTime) / 1000);
         if (timeEl) timeEl.textContent = `${elapsedSec}s de combate épico`;
         if (gemsEl) gemsEl.textContent = `¡Biodiversidad Protegida!`;
         if (coinsEl) coinsEl.textContent = `+${coinsReward}`;
