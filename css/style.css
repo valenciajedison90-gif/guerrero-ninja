@@ -3237,6 +3237,521 @@ body.playing-state #mobile-touch-controls {
 }
 
 /* 5. Adaptabilidad Responsive Móvil (Pantalla Completa y Sin Pantallas Que Tapen al Héroe) */
+
+/* ========================================================================= */
+/* MODALES Y ELEMENTOS DE CAMPAÑA INDIVIDUAL (10 MUNDOS & AVENTURA 3D)        */
+/* ========================================================================= */
+.modal-window-extra-large {
+    background: rgba(15, 23, 42, 0.96);
+    border: 3px solid #f59e0b;
+    border-radius: 28px;
+    width: 94%;
+    max-width: 1140px;
+    max-height: 90vh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(245, 158, 11, 0.35);
+    overflow: hidden;
+}
+
+.campaign-levels-window {
+    border-color: #10b981;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(16, 185, 129, 0.35);
+}
+
+.campaign-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.campaign-header-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.campaign-stat-badge {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #fde047;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-star-icon {
+    font-size: 16px;
+}
+
+.btn-campaign-back {
+    background: rgba(51, 65, 85, 0.8);
+    border: 1px solid #64748b;
+    color: #f8fafc;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-campaign-back:hover {
+    background: #475569;
+    border-color: #38bdf8;
+    transform: translateX(-2px);
+}
+
+.modal-body-campaign {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    overflow-y: auto;
+    padding: 10px 4px 16px 4px;
+}
+
+.camp-world-card {
+    background: rgba(30, 41, 59, 0.85);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.camp-world-card.unlocked:hover {
+    transform: translateY(-4px);
+    border-color: #f59e0b;
+    box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+}
+
+.camp-world-card.locked {
+    opacity: 0.65;
+    filter: grayscale(0.5);
+    cursor: not-allowed;
+}
+
+.camp-card-banner {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.camp-card-emoji {
+    font-size: 32px;
+}
+
+.camp-difficulty-pill {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.diff-fácil { background: rgba(16, 185, 129, 0.3); color: #34d399; border: 1px solid #10b981; }
+.diff-media { background: rgba(245, 158, 11, 0.3); color: #fbbf24; border: 1px solid #f59e0b; }
+.diff-difícil { background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid #ef4444; }
+.diff-experto { background: rgba(168, 85, 247, 0.3); color: #c084fc; border: 1px solid #a855f7; }
+.diff-titán-final { background: rgba(236, 72, 153, 0.3); color: #f472b6; border: 1px solid #ec4899; }
+
+.camp-card-content {
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.camp-world-num {
+    font-size: 11px;
+    font-weight: 800;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.camp-world-name {
+    font-size: 17px;
+    font-weight: 900;
+    color: #ffffff;
+}
+
+.camp-world-lore {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.35;
+    flex: 1;
+}
+
+.camp-world-progress-bar {
+    height: 6px;
+    background: rgba(15, 23, 42, 0.7);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.camp-world-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #f59e0b);
+    border-radius: 4px;
+}
+
+.camp-world-meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.camp-boss-status-pill {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.boss-status-defeated { background: rgba(16, 185, 129, 0.25); color: #34d399; }
+.boss-status-ready { background: rgba(245, 158, 11, 0.25); color: #fbbf24; animation: pulse 1.5s infinite; }
+.boss-status-locked { background: rgba(71, 85, 105, 0.35); color: #94a3b8; }
+
+.btn-explore-world {
+    margin-top: 6px;
+    padding: 10px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-weight: 900;
+    font-size: 13px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.btn-explore-world:hover {
+    transform: scale(1.02);
+}
+
+.camp-world-card.locked .btn-explore-world {
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.modal-body-levels {
+    overflow-y: auto;
+    padding: 12px 6px 18px;
+}
+
+.levels-route-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.level-card-node {
+    background: rgba(30, 41, 59, 0.85);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.level-card-node.unlocked:hover {
+    border-color: #38bdf8;
+    transform: translateX(4px);
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.25);
+}
+
+.level-card-node.locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.level-num-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 16px;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.level-title-node {
+    font-size: 15px;
+    font-weight: 800;
+    color: #ffffff;
+    flex: 1;
+}
+
+.level-stars-row {
+    display: flex;
+    gap: 4px;
+    font-size: 18px;
+}
+
+.star-earned { filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.8)); }
+.star-empty { opacity: 0.3; filter: grayscale(1); }
+
+.level-best-time {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 700;
+    min-width: 90px;
+    text-align: right;
+}
+
+.btn-play-level-node {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-weight: 900;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.level-card-node.locked .btn-play-level-node {
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.boss-card-node {
+    background: radial-gradient(circle at left, rgba(239, 68, 68, 0.2), rgba(30, 41, 59, 0.9));
+    border: 2px solid #ef4444;
+    border-radius: 20px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.boss-card-node.unlocked:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+    transform: scale(1.01);
+}
+
+.boss-card-node.locked {
+    opacity: 0.55;
+    border-color: #475569;
+    cursor: not-allowed;
+}
+
+.boss-node-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+}
+
+.boss-node-avatar {
+    font-size: 36px;
+}
+
+.boss-node-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: #f87171;
+}
+
+.boss-node-sub {
+    font-size: 12px;
+    color: #cbd5e1;
+    margin-top: 2px;
+}
+
+.btn-fight-boss-node {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #ffffff;
+    border: none;
+    border-radius: 14px;
+    font-weight: 900;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    flex-shrink: 0;
+}
+
+.boss-card-node.locked .btn-fight-boss-node {
+    background: #334155;
+    color: #94a3b8;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Modal Victoria de Campaña (3 Estrellas) */
+.campaign-victory-window {
+    background: radial-gradient(circle at top, #1e293b, #090d16);
+    border: 3px solid #facc15;
+    border-radius: 28px;
+    padding: 28px 24px;
+    text-align: center;
+    max-width: 480px;
+    width: 92vw;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.95), 0 0 50px rgba(250, 204, 21, 0.35);
+    color: #f8fafc;
+    position: relative;
+    animation: victoryPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.victory-stars-cluster {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin: 16px 0 20px;
+}
+
+.c-star {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.35;
+    filter: grayscale(1);
+    transition: all 0.3s ease;
+}
+
+.c-star.earned {
+    opacity: 1;
+    filter: grayscale(0) drop-shadow(0 0 10px rgba(250, 204, 21, 0.8));
+    transform: scale(1.1);
+}
+
+.c-star .star-icon {
+    font-size: 38px;
+}
+
+.c-star .star-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.camp-victory-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
+}
+
+.c-stat-box {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.c-stat-label {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.c-stat-val {
+    font-size: 16px;
+    color: #f8fafc;
+    font-weight: 900;
+}
+
+.camp-victory-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-camp-next {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 900;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+    transition: transform 0.15s ease;
+}
+
+.btn-camp-next:hover {
+    transform: scale(1.02);
+}
+
+.btn-camp-retry {
+    width: 100%;
+    padding: 12px;
+    background: rgba(51, 65, 85, 0.8);
+    color: #f1f5f9;
+    font-size: 14px;
+    font-weight: 800;
+    border: 1px solid #64748b;
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.btn-camp-retry:hover {
+    background: #475569;
+}
+
+.btn-camp-map {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(59, 130, 246, 0.4);
+}
+
+.btn-camp-map:hover {
+    transform: scale(1.02);
+}
+
 @media (max-width: 768px) {
     /* ============================================================= */
     /* A. MENÚ PRINCIPAL EN CELULARES (100% LIBRE PARA EL HÉROE)     */

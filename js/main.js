@@ -571,17 +571,16 @@ class Game {
         const pill = document.getElementById('portal-status-pill');
         const text = document.getElementById('portal-status-text');
 
+        if (!this.world.portal || !this.world.portal.isActive) {
+            this.world.activatePortal();
+        }
+
         if (isComplete) {
-            if (!this.world.portal || !this.world.portal.isActive) {
-                this.world.activatePortal();
-                sounds.playPortalActivate();
-                this.showBanner('¡PORTAL ANCESTRAL ABIERTO! ⛩️', '¡Cruza el portal para liberar esta región!');
-            }
             if (pill) pill.classList.add('unlocked');
-            if (text) text.textContent = '⚡ ¡PORTAL ABIERTO! CRUZA AQUÍ';
+            if (text) text.textContent = '🌟 ¡MISIÓN CUMPLIDA! CRUZA EL PORTAL ➔';
         } else {
-            if (pill) pill.classList.remove('unlocked');
-            if (text) text.textContent = '🔒 PORTAL SELLADO';
+            if (pill) pill.classList.add('unlocked');
+            if (text) text.textContent = '⚡ ¡PORTAL ACTIVO! CRUZA PARA PASAR DE MUNDO';
         }
     }
 
@@ -1391,8 +1390,11 @@ class Game {
     switchMap(mapId) {
         if (!MAPS_CONFIG[mapId]) return;
         if (!storage.isWorldUnlocked(mapId)) {
-            this.showBanner('🔒 MUNDO BLOQUEADO', 'Completa la misión anterior para desbloquearlo');
-            return;
+            storage.completeWorld(this.world.currentMapId);
+            if (!storage.isWorldUnlocked(mapId)) {
+                storage.data.unlockedWorlds.push(mapId);
+                storage.save();
+            }
         }
 
         this.portalVictoryTriggered = false;
@@ -1526,6 +1528,7 @@ class Game {
             return;
         }
 
+        this.portalVictoryTriggered = false;
         this.state = 'PLAYING';
         document.body.classList.add('playing-state');
         sounds.playGameStart();
@@ -1568,6 +1571,7 @@ class Game {
     }
 
     returnToMenu() {
+        this.portalVictoryTriggered = false;
         this.state = 'MENU';
         document.body.classList.remove('playing-state');
         this.isCampaignMode = false;
@@ -2309,16 +2313,19 @@ class Game {
         const bossNode = document.createElement('div');
         bossNode.className = `boss-card-node ${bossUnlocked ? 'unlocked' : 'locked'}`;
 
+        const bossHp = bossSpec.health || bossSpec.hp || 200;
+        const bossDmg = bossSpec.damage || 14;
+
         bossNode.innerHTML = `
             <div class="boss-node-info">
                 <div class="boss-node-avatar">👑</div>
                 <div>
                     <div class="boss-node-title">${bossSpec.name}</div>
-                    <div class="boss-node-sub">${bossSpec.title} • HP: ${bossSpec.hp} • Daño: ${bossSpec.damage}</div>
+                    <div class="boss-node-sub">${bossSpec.title} • Vida: ${bossHp} HP • Daño: ${bossDmg}</div>
                 </div>
             </div>
             <button class="btn-fight-boss-node">
-                ${bossUnlocked ? (bossDefeated ? 'DERROTADO (REPETIR ⚔️)' : '¡LUCHAR CONTRA JEFE! ⚔️') : '🔒 SUPERA LOS 5 NIVELES'}
+                ${bossUnlocked ? (bossDefeated ? 'DERROTADO (REPETIR ⚔️)' : '¡LUCHAR CONTRA JEFE! ⚔️') : '🔒 SUPERA UN NIVEL'}
             </button>
         `;
 

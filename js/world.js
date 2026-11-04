@@ -552,8 +552,9 @@ export class World {
         // Monolito precolombino dorado
         this.buildPrecolumbianMonolith(new THREE.Vector3(0, 0, -32));
 
-        // Portal Místico de la Selva
+        // Portal Místico de la Selva (Siempre activo y reluciente)
         this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x10b981);
+        this.activatePortal();
 
         // Trampolines de lianas
         this.buildTrampoline(new THREE.Vector3(-14, 0, 4));
@@ -637,8 +638,9 @@ export class World {
         // Hacienda Paisa tradicional con tejado de teja de barro rojo y balcones
         this.buildPaisaHacienda(new THREE.Vector3(0, 0, -30));
 
-        // Portal Místico Cafetero
+        // Portal Místico Cafetero (Siempre activo y reluciente)
         this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0xf59e0b);
+        this.activatePortal();
 
         // Trampolines de costales de café
         this.buildTrampoline(new THREE.Vector3(-12, 0, 0));
@@ -718,8 +720,9 @@ export class World {
         // Santuario Andino de Piedra
         this.buildAndeanShrine(new THREE.Vector3(0, 0, -30));
 
-        // Portal Místico Andino
+        // Portal Místico Andino (Siempre activo y reluciente)
         this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x06b6d4);
+        this.activatePortal();
 
         // Géiseres y manantiales termales
         this.buildThermalSpring(new THREE.Vector3(-12, 0, 0));
@@ -806,8 +809,9 @@ export class World {
         // Murallas históricas de piedra coralina de Cartagena
         this.buildCartagenaFortress(new THREE.Vector3(0, 0, -32));
 
-        // Portal Místico Caribeño
+        // Portal Místico Caribeño (Siempre activo y reluciente)
         this.buildMysticPortal(new THREE.Vector3(0, 0, 26), 0, 0x0284c7);
+        this.activatePortal();
 
         // Trampolines de red de pesca
         this.buildTrampoline(new THREE.Vector3(-14, 0, 0));
@@ -1246,9 +1250,9 @@ export class World {
     }
 
     checkPortalEntry(playerPos) {
-        if (!this.portal || !this.portal.isActive) return false;
+        if (!this.portal) return false;
         const dist = Math.hypot(playerPos.x - this.portal.position.x, playerPos.z - this.portal.position.z);
-        return dist < 2.8;
+        return dist < 4.2;
     }
 
     buildTrampoline(pos) {

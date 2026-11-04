@@ -30,21 +30,21 @@ const defaultMissions = {
         completed: false,
         name: 'Selva Amazónica',
         enemiesDefeated: 0,
-        enemiesTarget: 6,
+        enemiesTarget: 4,
         gemsCollected: 0,
-        gemsTarget: 3,
+        gemsTarget: 2,
         cratesBroken: 0,
-        cratesTarget: 6
+        cratesTarget: 3
     },
     eje_cafetero: {
         completed: false,
         name: 'Eje Cafetero',
         enemiesDefeated: 0,
-        enemiesTarget: 6,
+        enemiesTarget: 4,
         gemsCollected: 0,
-        gemsTarget: 4,
+        gemsTarget: 3,
         cratesBroken: 0,
-        cratesTarget: 6
+        cratesTarget: 3
     },
     paramo: {
         completed: false,
@@ -132,12 +132,14 @@ class StorageEngine {
                 for (let w = 1; w <= 10; w++) {
                     const defW = defaultCamp.worlds[w];
                     const savW = savedCamp.worlds?.[w] || {};
+                    const lvl1 = { ...defW.levels[1], ...(savW.levels?.[1] || {}) };
+                    const isW1Done = w === 1 && (lvl1.completed || savW.bossDefeated);
                     mergedWorlds[w] = {
-                        unlocked: savW.unlocked !== undefined ? savW.unlocked : defW.unlocked,
-                        bossUnlocked: savW.bossUnlocked !== undefined ? savW.bossUnlocked : defW.bossUnlocked,
+                        unlocked: w === 1 ? true : (savW.unlocked !== undefined ? savW.unlocked : (w === 2 && isW1Done ? true : defW.unlocked)),
+                        bossUnlocked: (w === 1) ? true : (savW.bossUnlocked !== undefined ? savW.bossUnlocked : defW.bossUnlocked),
                         bossDefeated: savW.bossDefeated !== undefined ? savW.bossDefeated : defW.bossDefeated,
                         levels: {
-                            1: { ...defW.levels[1], ...(savW.levels?.[1] || {}) },
+                            1: lvl1,
                             2: { ...defW.levels[2], ...(savW.levels?.[2] || {}) },
                             3: { ...defW.levels[3], ...(savW.levels?.[3] || {}) },
                             4: { ...defW.levels[4], ...(savW.levels?.[4] || {}) },
@@ -150,8 +152,8 @@ class StorageEngine {
                     ...defaultState,
                     ...parsed,
                     worldProgress: {
-                        selva: { ...defaultMissions.selva, ...(parsed.worldProgress?.selva || {}) },
-                        eje_cafetero: { ...defaultMissions.eje_cafetero, ...(parsed.worldProgress?.eje_cafetero || {}) },
+                        selva: { ...defaultMissions.selva, ...(parsed.worldProgress?.selva || {}), enemiesTarget: 4, gemsTarget: 2, cratesTarget: 3 },
+                        eje_cafetero: { ...defaultMissions.eje_cafetero, ...(parsed.worldProgress?.eje_cafetero || {}), enemiesTarget: 4, gemsTarget: 3, cratesTarget: 3 },
                         paramo: { ...defaultMissions.paramo, ...(parsed.worldProgress?.paramo || {}) },
                         caribe: { ...defaultMissions.caribe, ...(parsed.worldProgress?.caribe || {}) }
                     },
@@ -366,18 +368,14 @@ class StorageEngine {
     isMissionCompleted(worldId) {
         const mapKey = worldId === 'forest' ? 'selva' : (worldId === 'volcano' ? 'eje_cafetero' : (worldId === 'snow' ? 'paramo' : worldId));
         const prog = this.getWorldProgress(mapKey);
+        if (prog.completed) return true;
 
-        if (mapKey === 'selva' || mapKey === 'eje_cafetero') {
-            return (prog.enemiesDefeated >= prog.enemiesTarget) &&
-                   (prog.gemsCollected >= prog.gemsTarget) &&
-                   (prog.cratesBroken >= (prog.cratesTarget || 6));
-        } else if (mapKey === 'paramo' || mapKey === 'caribe') {
-            return (prog.enemiesDefeated >= prog.enemiesTarget) &&
-                   (prog.gemsCollected >= prog.gemsTarget) &&
-                   (prog.bossDefeated === true);
-        }
-        return (prog.enemiesDefeated >= prog.enemiesTarget) &&
-               (prog.gemsCollected >= prog.gemsTarget);
+        // Reglas de juego claras y accesibles para pasar de mundo:
+        // Si derrota al menos 2 enemigos O recoge al menos 1 gema O rompe 2 cajas O vence al jefe
+        const enemies = prog.enemiesDefeated || 0;
+        const gems = prog.gemsCollected || 0;
+        const crates = prog.cratesBroken || 0;
+        return enemies >= 2 || gems >= 1 || crates >= 2 || prog.bossDefeated === true;
     }
 
     completeWorld(worldId) {
@@ -450,9 +448,13 @@ class StorageEngine {
             // Desbloquear el siguiente nivel del mundo
             if (levelNum < 5 && w.levels[levelNum + 1]) {
                 w.levels[levelNum + 1].unlocked = true;
-            } else if (levelNum === 5) {
-                // Al completar el nivel 5, se desbloquea el jefe del mundo
-                w.bossUnlocked = true;
+            }
+            // Al superar un nivel, se habilita el combate contra el jefe
+            w.bossUnlocked = true;
+
+            // Al superar el nivel o derrotar al jefe, desbloquear el siguiente mundo de Colombia
+            if (worldNum < 10 && camp.worlds[worldNum + 1]) {
+                camp.worlds[worldNum + 1].unlocked = true;
             }
         }
 

@@ -916,7 +916,7 @@ export class EnemyManager {
         const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
 
         spawns.forEach((s, idx) => {
-            const pos = s.pos || new THREE.Vector3(0, 0, 0);
+            const pos = (s && s.isVector3) ? s.clone() : (s && s.pos ? s.pos.clone() : new THREE.Vector3(0, 0, 0));
             const range = s.range || 5.0;
             const enemyGroup = new THREE.Group();
             enemyGroup.position.copy(pos);
@@ -1009,22 +1009,24 @@ export class EnemyManager {
         const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
         const bossSpec = worldMeta.boss || {
             name: 'Jefe Guardián',
-            hp: 250,
-            damage: 18,
+            health: 200,
+            damage: 14,
             speed: 6.5,
             themeColor: 0x10b981
         };
+        const bossHp = bossSpec.health || bossSpec.hp || 200;
+        const bossThemeColor = bossSpec.color || bossSpec.themeColor || 0x10b981;
 
         const group = new THREE.Group();
         group.position.copy(pos);
         group.scale.set(1.5, 1.5, 1.5);
 
         const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.2 });
-        const themeMat = new THREE.MeshStandardMaterial({ color: bossSpec.themeColor, roughness: 0.3, metalness: 0.5 });
+        const themeMat = new THREE.MeshStandardMaterial({ color: bossThemeColor, roughness: 0.3, metalness: 0.5 });
         const darkMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.5 });
         const energyMat = new THREE.MeshStandardMaterial({
-            color: bossSpec.themeColor,
-            emissive: bossSpec.themeColor,
+            color: bossThemeColor,
+            emissive: bossThemeColor,
             emissiveIntensity: 0.65,
             roughness: 0.1
         });
@@ -1271,7 +1273,7 @@ export class EnemyManager {
             torsoGroup.add(rightLegPivot);
         }
 
-        const healthBar = this.createHealthBar(bossSpec.hp);
+        const healthBar = this.createHealthBar(bossHp);
         healthBar.scale.set(1.8, 1.8, 1.8);
         healthBar.position.y = 4.2;
         group.add(healthBar);
@@ -1282,8 +1284,8 @@ export class EnemyManager {
             isCampaignBoss: true,
             worldNum: worldNum,
             name: `${bossSpec.name} — ${bossSpec.title || 'Guardián Regional'}`,
-            health: bossSpec.hp,
-            maxHealth: bossSpec.hp,
+            health: bossHp,
+            maxHealth: bossHp,
             healthBar: healthBar,
             coinsDrop: bossSpec.rewardCoins || (200 + worldNum * 50),
             xpDrop: 300 + worldNum * 60,
