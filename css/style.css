@@ -4300,3 +4300,49 @@ body.playing-state #mobile-touch-controls {
         padding: 12px 6px !important;
     }
 }
+
+
+/* E) Botón de Bloqueo y Perfect Parry */
+.btn-touch-parry {
+    bottom: 96px;
+    right: 86px;
+    width: 58px;
+    height: 58px;
+    background: radial-gradient(circle at 35% 35%, #3b82f6, #1d4ed8 70%, #1e3a8a 100%);
+    border: 3px solid #bfdbfe;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.65), 0 4px 14px rgba(0,0,0,0.45);
+}
+
+.btn-touch-parry .touch-label {
+    color: #dbeafe;
+}
+
+/* F) Botón de Shuriken a Distancia */
+.btn-touch-shuriken {
+    bottom: 160px;
+    right: 28px;
+    width: 52px;
+    height: 52px;
+    background: radial-gradient(circle at 35% 35%, #10b981, #059669 70%, #047857 100%);
+    border: 2.5px solid #a7f3d0;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.btn-touch-shuriken .touch-label {
+    color: #d1fae5;
+}
+
+@media (max-width: 900px), (max-height: 520px) {
+    .btn-touch-parry {
+        width: 48px !important;
+        height: 48px !important;
+        bottom: 58px !important;
+        right: 68px !important;
+    }
+    .btn-touch-shuriken {
+        width: 42px !important;
+        height: 42px !important;
+        bottom: 114px !important;
+        right: 18px !important;
+    }
+}

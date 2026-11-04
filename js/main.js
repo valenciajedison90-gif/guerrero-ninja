@@ -104,7 +104,26 @@ class Game {
         this.screenShakeIntensity = 0;
         this.screenShakeDuration = 0;
         this.hitStopDuration = 0;
+        this.slowMoDuration = 0;
         this.damagePopups = [];
+
+        // Callbacks de Combate Ninja Técnico 2.5D
+        this.player.onParrySuccessCallback = (contactPos, attacker) => {
+            this.particles.createParrySparks(contactPos);
+            this.triggerScreenShake(0.28, 0.14);
+            this.hitStopDuration = 0.08;
+            this.spawnDamagePopup(contactPos.clone().add(new THREE.Vector3(0, 0.5, 0)), '⚡ ¡PERFECT PARRY!', true);
+            this.showBanner('¡PERFECT PARRY! 🛡️⚡', '¡Enemigo desestabilizado y vulnerable a contragolpe x2.5!');
+        };
+
+        this.player.onDodgeCallback = (pos) => {
+            this.particles.createDodgeDust(pos);
+        };
+
+        this.player.onShurikenCallback = (spawnPos, dir) => {
+            const activeWeapon = WEAPONS[storage.getActiveWeaponId()] || WEAPONS.bokken;
+            this.particles.spawnShurikenProjectile(spawnPos, dir, Math.round(activeWeapon.damage * 0.9), activeWeapon.element || 'metal');
+        };
 
         // 3. Inicializar Interfaz de Usuario, Menú y Misiones
         this.setupUI();
@@ -415,11 +434,26 @@ class Game {
         }
     }
 
+    triggerSlowMoFinisher(victim) {
+        this.slowMoDuration = 1.15;
+        sounds.playSlowMoImpact();
+        if (victim && victim.mesh) {
+            this.particles.createParrySparks(victim.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
+        }
+        this.triggerScreenShake(0.38, 0.22);
+        this.showBanner('¡REMATE NINJA CINEMÁTICO! ⚡', '¡Impacto letal en cámara lenta!');
+    }
+
     handleEnemyDefeated(enemy) {
         storage.incrementEnemiesDefeated();
         if (enemy.isCampaignBoss) {
+            this.triggerSlowMoFinisher(enemy);
             this.handleCampaignBossDefeated(enemy);
             return;
+        }
+
+        if (enemy.type === 'boss' || (this.isCampaignMode && this.enemyManager.enemies.filter(e => e.type !== 'dummy' && e.health > 0).length <= 1)) {
+            this.triggerSlowMoFinisher(enemy);
         }
 
         // Registrar en la misión del mundo
@@ -1929,9 +1963,12 @@ class Game {
             return;
         }
 
-        // Hit-Stop táctil: micro-ralentización fluida de impacto (sin congelar la simulación ni perder frames)
+        // Ralentización cinemática de remate y Hit-Stop de impacto
         let simDelta = delta;
-        if (this.hitStopDuration > 0) {
+        if (this.slowMoDuration > 0) {
+            this.slowMoDuration -= delta;
+            simDelta = delta * 0.16;
+        } else if (this.hitStopDuration > 0) {
             this.hitStopDuration -= delta;
             simDelta = delta * 0.18;
         }

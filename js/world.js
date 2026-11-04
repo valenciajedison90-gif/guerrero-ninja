@@ -1251,8 +1251,10 @@ export class World {
 
     checkPortalEntry(playerPos) {
         if (!this.portal) return false;
-        const dist = Math.hypot(playerPos.x - this.portal.position.x, playerPos.z - this.portal.position.z);
-        return dist < 4.2;
+        const dx = Math.abs(playerPos.x - this.portal.position.x);
+        const dy = Math.abs(playerPos.y - this.portal.position.y);
+        const dz = Math.abs(playerPos.z - this.portal.position.z);
+        return (dx < 3.2 && dy < 3.8 && dz < 4.5);
     }
 
     buildTrampoline(pos) {
@@ -1437,7 +1439,8 @@ export class World {
     checkTrampolines(player) {
         for (const t of this.trampolines) {
             const dist = Math.hypot(player.mesh.position.x - t.position.x, player.mesh.position.z - t.position.z);
-            if (dist < t.radius && player.mesh.position.y < 0.8 && player.velocity.y <= 0) {
+            const dy = Math.abs(player.mesh.position.y - t.position.y);
+            if (dist < t.radius && dy < 1.1 && player.velocity.y <= 0) {
                 player.bounceTrampoline(t.boostForce);
                 break;
             }
@@ -1449,7 +1452,8 @@ export class World {
             for (const enemy of enemies) {
                 if (enemy.type === 'dummy') continue;
                 const dist = Math.hypot(enemy.mesh.position.x - t.position.x, enemy.mesh.position.z - t.position.z);
-                if (dist < t.radius && enemy.mesh.position.y < 0.8 && enemy.velocity.y <= 0) {
+                const dy = Math.abs(enemy.mesh.position.y - t.position.y);
+                if (dist < t.radius && dy < 1.1 && enemy.velocity.y <= 0) {
                     enemy.velocity.y = t.boostForce;
                     enemy.isGrounded = false;
                 }
@@ -1553,20 +1557,21 @@ export class World {
         const poleMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
         const bannerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
 
-        [-3.2, 3.2].forEach(px => {
+        [-3.2, 3.2].forEach(pz => {
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 4.5, 12), poleMat);
-            pole.position.set(px, 2.25, 0);
+            pole.position.set(0, 2.25, pz);
             pole.castShadow = true;
             gate.add(pole);
         });
 
         const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 6.8, 12), poleMat);
-        crossbar.rotation.z = Math.PI / 2;
+        crossbar.rotation.x = Math.PI / 2;
         crossbar.position.y = 4.2;
         gate.add(crossbar);
 
         const banner = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.2), bannerMat);
         banner.position.y = 3.4;
+        banner.rotation.y = Math.PI / 2;
         gate.add(banner);
 
         this.mapRoot.add(gate);
@@ -1738,7 +1743,7 @@ export class World {
     }
 
     // =========================================================================
-    // GENERADOR DE NIVELES 3D PROCEDURAL DE CAMPAÑA
+    // GENERADOR DE NIVELES 2.5D PROCEDURAL DE CAMPAÑA CINEMÁTICA
     // =========================================================================
     buildCampaignLevel(worldNum = 1, levelNum = 1) {
         this.isCampaignMode = true;
@@ -1747,7 +1752,7 @@ export class World {
         this.currentCampaignLevelNum = levelNum;
 
         const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
-        const lvlMeta = (worldMeta.levels && worldMeta.levels[levelNum - 1]) ? worldMeta.levels[levelNum - 1] : { length: 80, targetTime: 70 };
+        const lvlMeta = (worldMeta.levels && worldMeta.levels[levelNum - 1]) ? worldMeta.levels[levelNum - 1] : { length: 110, targetTime: 70 };
 
         while (this.mapRoot.children.length > 0) {
             const child = this.mapRoot.children[0];
@@ -1765,7 +1770,7 @@ export class World {
         this.platforms = [];
         this.animatedUpdaters = [];
 
-        // Atmósfera según el mundo
+        // Atmósfera visual según el mundo de Colombia
         if (this.scene.background && this.scene.background.setHex) {
             this.scene.background.setHex(worldMeta.skyColor);
         } else {
@@ -1783,91 +1788,94 @@ export class World {
         });
         const goldAccentMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
 
-        // 1. Plataforma de Inicio
-        this.addPlatformMesh(0, 0, 0, 11, 14, themeMat);
-        this.buildStartGate(new THREE.Vector3(0, 0, 4));
+        // 1. Plataforma de Inicio 2.5D
+        this.addPlatformMesh(0, 0, 0, 16, 10, themeMat);
+        this.buildStartGate(new THREE.Vector3(-4, 0, 0));
 
-        // 2. Circuito de Plataformas
-        const totalLength = lvlMeta.length || 80;
-        let currentZ = -9;
+        // 2. Circuito de Plataformas a lo largo del eje X (Side-scroller)
+        const totalLength = lvlMeta.length || 110;
+        let currentX = 8.0;
         let currentY = 0;
         let sectionIndex = 0;
 
-        const gemPlacements = [Math.floor(totalLength * 0.25), Math.floor(totalLength * 0.55), Math.floor(totalLength * 0.82)];
+        const gemPlacements = [Math.floor(totalLength * 0.28), Math.floor(totalLength * 0.58), Math.floor(totalLength * 0.84)];
         let gemsPlaced = 0;
 
-        while (Math.abs(currentZ) < totalLength) {
+        while (currentX < totalLength) {
             sectionIndex++;
-            const heightVariation = Math.sin(sectionIndex * 0.75) * 1.6;
+            const platWidth = 7.5 + (sectionIndex % 3) * 2.5;
+            const platDepth = 10.0;
+            const gap = 3.2 + (worldNum > 4 ? 0.6 : 0) + (worldNum > 7 ? 0.6 : 0);
+            const platX = currentX + gap + platWidth / 2;
+
+            const heightVariation = Math.sin(sectionIndex * 0.85) * 1.8;
             currentY = Math.max(0, heightVariation);
 
-            const platWidth = 5.5 + Math.sin(sectionIndex) * 2.0;
-            const platLength = 6.0 + (sectionIndex % 3) * 2.5;
-            const gap = 2.8 + (worldNum > 4 ? 0.6 : 0) + (worldNum > 7 ? 0.7 : 0);
-            const platZ = currentZ - gap - platLength / 2;
-            const platX = (sectionIndex % 2 === 0 ? 1 : -1) * (Math.sin(sectionIndex * 1.3) * 4.2);
-
             const isMoving = (worldNum >= 4 && sectionIndex % 3 === 0);
-            const platGroup = this.addPlatformMesh(platX, currentY, platZ, platWidth, platLength, themeMat, isMoving);
+            const platGroup = this.addPlatformMesh(platX, currentY, 0, platWidth, platDepth, themeMat, isMoving);
 
             if (isMoving) {
-                const startX = platX;
-                const moveDist = 4.2;
-                const speed = 1.6 + worldNum * 0.12;
+                const startY = currentY;
+                const moveDist = 2.2;
+                const speed = 1.3 + worldNum * 0.09;
                 this.animatedUpdaters.push((delta, time) => {
                     const offset = Math.sin(time * speed) * moveDist;
-                    platGroup.position.x = startX + offset;
-                    this.updatePlatformHitbox(platGroup, startX + offset, currentY, platZ, platWidth, platLength);
+                    platGroup.position.y = startY + offset;
+                    this.updatePlatformHitbox(platGroup, platX, startY + offset, 0, platWidth, platDepth);
                 });
             }
 
-            // Trampolín en saltos grandes
+            // Trampolín en saltos con abismos
             if (gap > 3.4 && sectionIndex % 2 === 1) {
-                this.buildTrampoline(new THREE.Vector3(platX, currentY, platZ + platLength / 2 - 1.2));
+                this.buildTrampoline(new THREE.Vector3(platX - platWidth / 2 + 1.2, currentY, 0));
             }
 
             // Cajas Sorpresa con '?'
             if (sectionIndex % 2 === 0) {
-                this.buildCrate(new THREE.Vector3(platX + 1.2, currentY + 0.46, platZ), (sectionIndex % 4 === 0) ? 'fruit' : 'coins');
+                this.buildCrate(new THREE.Vector3(platX, currentY + 0.46, 0), (sectionIndex % 4 === 0) ? 'fruit' : 'coins');
             }
 
             // Cristales de Energía de la Biodiversidad (3 por nivel)
-            if (gemsPlaced < 3 && Math.abs(currentZ) >= gemPlacements[gemsPlaced]) {
+            if (gemsPlaced < 3 && platX >= gemPlacements[gemsPlaced]) {
                 gemsPlaced++;
-                this.buildBiodiversityCrystal(new THREE.Vector3(platX, currentY + 1.4, platZ), `gem_w${worldNum}_l${levelNum}_${gemsPlaced}`);
+                this.buildBiodiversityCrystal(new THREE.Vector3(platX, currentY + 1.4, 0), `gem_w${worldNum}_l${levelNum}_${gemsPlaced}`);
             }
 
             // Monedas flotantes
-            this.buildFloatingCoinsArc(platX, currentY, platZ, 3);
+            this.buildFloatingCoinsArc(platX - 1.5, currentY, 0, 3);
 
-            // Spawns de enemigos de nivel
+            // Spawns de enemigos de nivel (alineados en el plano 2.5D)
             if (sectionIndex > 1 && sectionIndex % 2 === 0) {
-                this.campaignEnemySpawns.push(new THREE.Vector3(platX, currentY, platZ));
+                this.campaignEnemySpawns.push(new THREE.Vector3(platX, currentY, 0));
             }
 
-            // Props del bioma a los lados
-            this.spawnBiomeProps(worldNum, platX, currentY, platZ);
+            // Capas de Profundidad Parallax (Fondo Z=-14 y Z=-24, Primer plano Z=+4.5)
+            this.spawnBiomeProps(worldNum, platX, currentY, -14);
+            this.spawnBiomeProps(worldNum, platX + 3.5, currentY, -24);
+            if (sectionIndex % 3 === 0) {
+                this.spawnBiomeProps(worldNum, platX, currentY - 0.5, 4.5);
+            }
 
-            currentZ = platZ - platLength / 2;
+            currentX = platX + platWidth / 2;
         }
 
-        // 3. Plataforma Final de Meta
-        const endZ = currentZ - 6;
+        // 3. Plataforma Final de Meta con el Portal Dimensional
+        const endX = currentX + 8;
         const endY = currentY;
-        this.addPlatformMesh(0, endY, endZ, 12, 14, goldAccentMat);
+        this.addPlatformMesh(endX, endY, 0, 16, 12, goldAccentMat);
 
-        // Portal Místico de Victoria
-        this.buildMysticPortal(new THREE.Vector3(0, endY, endZ), 0, worldMeta.groundColor);
+        // Portal Místico de Victoria (Perpendicular al camino lateral)
+        this.buildMysticPortal(new THREE.Vector3(endX, endY, 0), Math.PI / 2, worldMeta.groundColor);
         if (this.portal) {
             this.portal.isActive = true;
         }
     }
 
     // =========================================================================
-    // ARENA CIRCULAR PARA ENFRENTAMIENTO CONTRA JEFE DE MUNDO
+    // ARENA 2.5D CINEMÁTICA PARA ENFRENTAMIENTO CONTRA JEFE DE MUNDO
     // =========================================================================
     buildCampaignBossArena(worldNum = 1) {
-        this.isCampaignMode = false;
+        this.isCampaignMode = true;
         this.campaignEnemySpawns = [];
         this.currentCampaignWorldNum = worldNum;
         const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
@@ -1896,30 +1904,22 @@ export class World {
             this.scene.fog.density = 0.015;
         }
 
-        // Suelo de la arena (Radio 28m)
+        // Suelo de la arena 2.5D (de X = -28 a +28, profundidad Z = 12m)
         const arenaMat = new THREE.MeshStandardMaterial({ color: worldMeta.groundColor, roughness: 0.85 });
-        const arenaMesh = new THREE.Mesh(new THREE.CylinderGeometry(28, 30, 2.0, 36), arenaMat);
-        arenaMesh.position.y = -1.0;
-        arenaMesh.receiveShadow = true;
-        this.mapRoot.add(arenaMesh);
+        this.addPlatformMesh(0, 0, 0, 56, 12, arenaMat);
 
-        // Pilares periféricos
-        for (let i = 0; i < 16; i++) {
-            const angle = (i / 16) * Math.PI * 2;
-            const px = Math.cos(angle) * 27;
-            const pz = Math.sin(angle) * 27;
-            this.spawnBiomeProps(worldNum, px * 0.7, 0, pz * 0.7);
+        // Pilares y estatuas de fondo a lo largo del eje X
+        for (let px = -24; px <= 24; px += 6) {
+            this.spawnBiomeProps(worldNum, px, 0, -14);
+            this.spawnBiomeProps(worldNum, px + 2.5, 0, -24);
         }
 
-        // Cajas de fruta curativa en esquinas
-        [
-            [-14, -14], [14, -14], [-14, 14], [14, 14]
-        ].forEach(([cx, cz]) => {
-            this.buildCrate(new THREE.Vector3(cx, 0.45, cz), 'fruit');
-        });
+        // Cajas de fruta curativa en los extremos de la arena
+        this.buildCrate(new THREE.Vector3(-18, 0.45, 0), 'fruit');
+        this.buildCrate(new THREE.Vector3(18, 0.45, 0), 'fruit');
 
         // Cristal de Biodiversidad como recompensa central
-        this.buildBiodiversityCrystal(new THREE.Vector3(0, 1.8, -18), `boss_reward_w${worldNum}`);
+        this.buildBiodiversityCrystal(new THREE.Vector3(0, 2.0, 0), `boss_reward_w${worldNum}`);
     }
 
 }

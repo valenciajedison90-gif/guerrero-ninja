@@ -19,6 +19,8 @@ export class TouchControlsManager {
         this.btnDash = document.getElementById('btn-touch-dash');
         this.btnSkill = document.getElementById('btn-touch-skill');
         this.btnSwitch = document.getElementById('btn-touch-switch');
+        this.btnParry = document.getElementById('btn-touch-parry');
+        this.btnShuriken = document.getElementById('btn-touch-shuriken');
         this.weaponIconEl = document.getElementById('touch-weapon-icon');
 
         // Estado de toques
@@ -308,7 +310,7 @@ export class TouchControlsManager {
             this.btnJump.addEventListener('mousedown', doJump);
         }
 
-        // D) Botón de Esquive / Dash de Sombras Ninja
+        // D) Botón de Esquive / Rodada Ninja (i-frames)
         if (this.btnDash) {
             let lastDashTime = 0;
             const doDash = (e) => {
@@ -319,7 +321,7 @@ export class TouchControlsManager {
                 e.stopPropagation();
                 vibrateShort();
                 this.btnDash.classList.add('pressed');
-                this.player.dash();
+                this.player.triggerDodge();
                 setTimeout(() => this.btnDash.classList.remove('pressed'), 180);
             };
 
@@ -327,7 +329,51 @@ export class TouchControlsManager {
             this.btnDash.addEventListener('mousedown', doDash);
         }
 
-        // E) Botón de Cambio Rápido de Arma
+        // E) Botón de Bloqueo y Perfect Parry
+        if (this.btnParry) {
+            const startBlock = (e) => {
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
+                vibrateShort();
+                this.btnParry.classList.add('pressed');
+                this.player.setBlocking(true);
+            };
+
+            const endBlock = (e) => {
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
+                this.btnParry.classList.remove('pressed');
+                this.player.setBlocking(false);
+            };
+
+            this.btnParry.addEventListener('touchstart', startBlock, { passive: false });
+            this.btnParry.addEventListener('touchend', endBlock, { passive: false });
+            this.btnParry.addEventListener('touchcancel', endBlock, { passive: false });
+            this.btnParry.addEventListener('mousedown', startBlock);
+            this.btnParry.addEventListener('mouseup', endBlock);
+            this.btnParry.addEventListener('mouseleave', endBlock);
+        }
+
+        // F) Botón de Lanzamiento de Shuriken
+        if (this.btnShuriken) {
+            let lastShurikenTime = 0;
+            const doShuriken = (e) => {
+                const now = performance.now();
+                if (now - lastShurikenTime < 200) return;
+                lastShurikenTime = now;
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
+                vibrateShort();
+                this.btnShuriken.classList.add('pressed');
+                this.player.triggerShuriken();
+                setTimeout(() => this.btnShuriken.classList.remove('pressed'), 140);
+            };
+
+            this.btnShuriken.addEventListener('touchstart', doShuriken, { passive: false });
+            this.btnShuriken.addEventListener('mousedown', doShuriken);
+        }
+
+        // G) Botón de Cambio Rápido de Arma
         if (this.btnSwitch) {
             let lastSwitchTime = 0;
             const doSwitch = (e) => {
@@ -347,7 +393,7 @@ export class TouchControlsManager {
             this.btnSwitch.addEventListener('mousedown', doSwitch);
         }
 
-        // F) Botón de Habilidad Especial del Personaje Animal Colombiano (Rugido, Trueno, Planeo, Escudo, Salto)
+        // H) Botón de Habilidad Especial del Personaje Animal Colombiano
         if (this.btnSkill) {
             let lastSkillTime = 0;
             const doSkill = (e) => {

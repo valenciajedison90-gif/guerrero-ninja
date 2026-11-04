@@ -33,6 +33,20 @@ export class Player {
         this.onSpinAttackCallback = null;
         this.onSpecialSkillCallback = null;
 
+        // Combate Ninja Técnico 2.5D (Parry, Bloqueo, Rodar, Shurikens)
+        this.is2DMode = true;
+        this.facing = 1; // 1 = derecha (+X), -1 = izquierda (-X)
+        this.isBlocking = false;
+        this.parryTimer = 0; // Ventana activa de parry perfecto (0.28s)
+        this.parryCooldown = 0;
+        this.isRolling = false;
+        this.rollTimer = 0; // Duración activa con i-frames (0.35s)
+        this.rollCooldown = 0;
+        this.shurikenCooldown = 0;
+        this.onParrySuccessCallback = null;
+        this.onDodgeCallback = null;
+        this.onShurikenCallback = null;
+
         // Habilidad Especial Única
         this.specialCooldownTimer = 0;
         this.isGliding = false;
@@ -247,7 +261,10 @@ export class Player {
     setupInputListeners() {
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
-            if (key === 'w' || key === 'arrowup') this.keys.w = true;
+            if (key === 'w' || key === 'arrowup') {
+                this.keys.w = true;
+                this.jump();
+            }
             if (key === 's' || key === 'arrowdown') this.keys.s = true;
             if (key === 'a' || key === 'arrowleft') this.keys.a = true;
             if (key === 'd' || key === 'arrowright') this.keys.d = true;
@@ -256,11 +273,17 @@ export class Player {
                 this.jump();
                 e.preventDefault();
             }
-            if (key === 'shift') {
-                this.dash();
+            if (key === 'shift' || key === 'l') {
+                this.triggerDodge();
             }
             if (key === 'f' || key === 'j') {
                 this.triggerAttack();
+            }
+            if (key === 'k') {
+                this.setBlocking(true);
+            }
+            if (key === 'u') {
+                this.triggerShuriken();
             }
             if (key === 'e') {
                 this.triggerSpinAttack();
@@ -277,41 +300,27 @@ export class Player {
             if (key === 'a' || key === 'arrowleft') this.keys.a = false;
             if (key === 'd' || key === 'arrowright') this.keys.d = false;
             if (e.code === 'Space') this.keys.space = false;
+            if (key === 'k') {
+                this.setBlocking(false);
+            }
         });
 
-        // Controles de ratón para apuntado y cámara
+        // Controles de ratón: Click izquierdo ataca, Click derecho bloquea/parry
         this.domElement.addEventListener('mousedown', (e) => {
             if (e.button === 0) {
                 this.triggerAttack();
-            }
-            if (e.button === 2 || e.button === 0) {
-                this.isDraggingMouse = true;
-                this.previousMousePosition = { x: e.clientX, y: e.clientY };
+            } else if (e.button === 2) {
+                this.setBlocking(true);
             }
         });
 
-        window.addEventListener('mousemove', (e) => {
-            if (this.isDraggingMouse) {
-                const deltaX = e.clientX - this.previousMousePosition.x;
-                const deltaY = e.clientY - this.previousMousePosition.y;
-
-                this.cameraYaw -= deltaX * 0.007;
-                this.cameraPitch += deltaY * 0.005;
-                this.cameraPitch = Math.max(-0.2, Math.min(1.1, this.cameraPitch));
-
-                this.previousMousePosition = { x: e.clientX, y: e.clientY };
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 2) {
+                this.setBlocking(false);
             }
-        });
-
-        window.addEventListener('mouseup', () => {
-            this.isDraggingMouse = false;
         });
 
         this.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-
-        window.addEventListener('wheel', (e) => {
-            this.cameraDistance = Math.max(3.5, Math.min(12.0, this.cameraDistance + e.deltaY * 0.005));
-        });
     }
 
     setTouchMovement(x, y) {
@@ -393,44 +402,74 @@ export class Player {
     }
 
     dash() {
-        if (this.dashCooldown > 0) return;
-        this.dashCooldown = 0.55; // Esquive ágil y rápido
-        this.dashTimer = 0.22;
-        sounds.playDash();
+        this.triggerDodge();
+    }
 
-        if (this.moveDirection.lengthSq() > 0.001) {
-            this.dashDirection.copy(this.moveDirection).normalize();
-        } else {
-            this.dashDirection.set(
-                Math.sin(this.mesh.rotation.y),
-                0,
-                Math.cos(this.mesh.rotation.y)
-            ).normalize();
+    triggerDodge() {
+        if (this.rollCooldown > 0 || this.isRolling) return;
+        this.isRolling = true;
+        this.rollTimer = 0.35;
+        this.rollCooldown = 0.52;
+        this.isBlocking = false;
+        this.parryTimer = 0;
+
+        // Impulso veloz y acrobático rodando hacia adelante en el eje X
+        this.velocity.x = this.facing * 16.5;
+        sounds.playDodgeRoll();
+
+        if (this.onDodgeCallback) {
+            this.onDodgeCallback(this.mesh.position.clone());
         }
-
         if (this.onSpawnShadowCallback) {
             this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
         }
     }
 
-    triggerAttack() {
-        if (this.attackCooldown > 0) return;
-
-        // Auto-Apuntado Asistido (Soft Aim Assist estilo Free Fire / Brawl Stars)
-        const best = this.findBestTarget(8.5);
-        if (best) {
-            this.mesh.rotation.y = best.angleToTarget;
-            // Paso de acometida magnético hacia el objetivo
-            if (best.dist > 1.3) {
-                const lungeDist = Math.min(2.0, best.dist - 1.0);
-                this.mesh.position.x += Math.sin(best.angleToTarget) * lungeDist;
-                this.mesh.position.z += Math.cos(best.angleToTarget) * lungeDist;
-            }
-        } else if (this.moveDirection.lengthSq() > 0.01) {
-            this.mesh.rotation.y = Math.atan2(this.moveDirection.x, this.moveDirection.z);
-        } else {
-            this.mesh.rotation.y = this.cameraYaw + Math.PI;
+    setBlocking(active) {
+        if (this.isRolling) return;
+        if (active && !this.isBlocking) {
+            this.isBlocking = true;
+            this.parryTimer = 0.28; // Ventana activa de parry perfecto (280ms)
+            sounds.playSlash('light');
+        } else if (!active) {
+            this.isBlocking = false;
+            this.parryTimer = 0;
         }
+    }
+
+    triggerParry() {
+        this.setBlocking(true);
+    }
+
+    triggerShuriken() {
+        if (this.shurikenCooldown > 0) return;
+        this.shurikenCooldown = 0.42;
+        sounds.playSlash('light');
+
+        if (this.onShurikenCallback) {
+            const spawnPos = this.mesh.position.clone().add(new THREE.Vector3(this.facing * 0.8, 1.25, 0));
+            const dir = new THREE.Vector3(this.facing, 0.05, 0).normalize();
+            this.onShurikenCallback(spawnPos, dir);
+        }
+    }
+
+    triggerAttack() {
+        if (this.attackCooldown > 0 || this.isRolling) return;
+
+        // Auto-Apuntado Asistido lateral (2.5D)
+        const best = this.findBestTarget(8.5);
+        if (best && best.mesh) {
+            const dx = best.mesh.position.x - this.mesh.position.x;
+            if (Math.abs(dx) > 0.3) {
+                this.facing = dx > 0 ? 1 : -1;
+            }
+        }
+
+        this.mesh.rotation.y = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
+
+        // Acometida de avance con katana según combo
+        const lungeImpulse = [4.2, 5.0, 7.5];
+        this.velocity.x = this.facing * (lungeImpulse[this.attackCombo] || 4.2);
 
         const weaponData = WEAPONS[this.currentWeaponId] || WEAPONS.bokken;
         this.isAttacking = true;
@@ -452,26 +491,19 @@ export class Player {
 
     // Ataque de Giro Ninja 360° estilo Crash Bandicoot
     triggerSpinAttack() {
-        if (this.spinCooldown > 0) return;
+        if (this.spinCooldown > 0 || this.isRolling) return;
         this.spinCooldown = 0.52;
         this.isSpinning = true;
         this.spinTimer = 0.35;
         this.isAttacking = true;
         this.attackCombo = 2;
 
-        const best = this.findBestTarget(6.5);
-        if (best && best.dist > 1.2) {
-            const lungeDist = Math.min(1.4, best.dist - 0.8);
-            this.mesh.position.x += Math.sin(best.angleToTarget) * lungeDist;
-            this.mesh.position.z += Math.cos(best.angleToTarget) * lungeDist;
-        }
-
         sounds.playSlash('heavy');
 
         if (this.onSpinAttackCallback) {
             this.onSpinAttackCallback();
         } else if (this.onAttackCallback) {
-            this.onAttackCallback(this.currentWeaponId, 2, best ? best.target : null);
+            this.onAttackCallback(this.currentWeaponId, 2, null);
         }
     }
 
@@ -482,21 +514,53 @@ export class Player {
         sounds.playTrampoline();
     }
 
-    takeDamage(amount) {
-        // Invulnerabilidad (i-frames) durante el dash ninja
-        if (this.dashTimer > 0) return;
+    takeDamage(amount, attacker = null) {
+        // 1. Invulnerabilidad total durante rodada (i-frames) o dash ninja
+        if (this.rollTimer > 0 || this.dashTimer > 0) {
+            return { parried: false, blocked: false, damage: 0 };
+        }
 
-        // Escudo de Lodo de Capibú absorbe 60% del impacto
+        // 2. Perfect Parry (Ventana de 280ms de bloqueo activo)
+        if (this.parryTimer > 0) {
+            sounds.playParry();
+            if (attacker) {
+                attacker.aiState = 'stunned';
+                attacker.stateTimer = 1.4;
+                attacker.isStunned = true;
+                if (attacker.knockbackVelocity) {
+                    attacker.knockbackVelocity.set(-this.facing * 8.5, 0, 0);
+                }
+            }
+            if (this.onParrySuccessCallback) {
+                const sparkPos = this.mesh.position.clone().add(new THREE.Vector3(this.facing * 0.7, 1.25, 0));
+                this.onParrySuccessCallback(sparkPos, attacker);
+            }
+            return { parried: true, blocked: false, damage: 0 };
+        }
+
+        // 3. Bloqueo normal (Katana en guardia) - Reduce 75% del daño recibido
+        let wasBlocked = false;
+        if (this.isBlocking) {
+            amount = Math.max(1, Math.round(amount * 0.25));
+            sounds.playBlock();
+            wasBlocked = true;
+            this.velocity.x = -this.facing * 4.0; // Retroceso táctico en guardia
+        }
+
+        // Escudo de Lodo de Capibú absorbe otro 60% del impacto
         if (this.mudShieldTimer > 0) {
             amount = Math.round(amount * 0.4);
         }
 
         this.health = Math.max(0, this.health - amount);
-        sounds.playHit(false);
+        if (!wasBlocked) {
+            sounds.playHit(false);
+        }
 
         if (this.health <= 0) {
             this.respawn();
         }
+        return { parried: false, blocked: wasBlocked, damage: amount };
     }
 
     heal(amount) {
@@ -512,12 +576,17 @@ export class Player {
     }
 
     update(delta) {
-        // Enfriamiento de ataque, combo, giro y habilidad especial
+        // Enfriamiento de ataque, combo, giro, esquive, bloqueo y habilidad especial
         if (this.attackCooldown > 0) this.attackCooldown -= delta;
         if (this.spinCooldown > 0) this.spinCooldown -= delta;
         if (this.dashCooldown > 0) this.dashCooldown -= delta;
         if (this.specialCooldownTimer > 0) this.specialCooldownTimer -= delta;
         if (this.mudShieldTimer > 0) this.mudShieldTimer -= delta;
+        if (this.parryTimer > 0) this.parryTimer -= delta;
+        if (this.parryCooldown > 0) this.parryCooldown -= delta;
+        if (this.rollTimer > 0) this.rollTimer -= delta;
+        if (this.rollCooldown > 0) this.rollCooldown -= delta;
+        if (this.shurikenCooldown > 0) this.shurikenCooldown -= delta;
 
         // Planeo de Guaca
         if (this.isGliding) {
@@ -533,90 +602,49 @@ export class Player {
             }
         }
 
-        // 1. Vector de movimiento relativo a la cámara
-        const forward = new THREE.Vector3(
-            -Math.sin(this.cameraYaw),
-            0,
-            -Math.cos(this.cameraYaw)
-        ).normalize();
-
-        const right = new THREE.Vector3(
-            Math.cos(this.cameraYaw),
-            0,
-            -Math.sin(this.cameraYaw)
-        ).normalize();
-
-        this.moveDirection.set(0, 0, 0);
-
-        if (this.keys.w) this.moveDirection.add(forward);
-        if (this.keys.s) this.moveDirection.sub(forward);
-        if (this.keys.d) this.moveDirection.add(right);
-        if (this.keys.a) this.moveDirection.sub(right);
-
-        if (this.touchMoveVector.lengthSq() > 0.01) {
-            this.moveDirection.addScaledVector(forward, this.touchMoveVector.y);
-            this.moveDirection.addScaledVector(right, this.touchMoveVector.x);
+        // 1. Movimiento lateral 2.5D Cinemático (Eje X)
+        let moveX = 0;
+        if (this.keys.d) moveX += 1.0;
+        if (this.keys.a) moveX -= 1.0;
+        if (Math.abs(this.touchMoveVector.x) > 0.05) {
+            moveX += this.touchMoveVector.x;
         }
+        moveX = Math.max(-1.0, Math.min(1.0, moveX));
 
-        const isMoving = this.moveDirection.lengthSq() > 0.001;
+        const isMoving = Math.abs(moveX) > 0.08 && !this.isRolling && !this.isBlocking;
 
         if (isMoving) {
-            this.moveDirection.normalize();
-            if (!this.isAttacking && !this.isSpinning) {
-                const targetRotation = Math.atan2(this.moveDirection.x, this.moveDirection.z);
-                let diff = targetRotation - this.mesh.rotation.y;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                this.mesh.rotation.y += diff * 0.25;
-            }
-
-            // Auto-alineación suave de la cámara al correr estilo Free Fire
-            this.runTime += delta;
-            if (this.runTime > 0.35 && !this.isRotatingCamera && !this.isAttacking && !this.isSpinning) {
-                const moveAngle = Math.atan2(this.moveDirection.x, this.moveDirection.z);
-                const desiredYaw = moveAngle - Math.PI;
-                let diffYaw = desiredYaw - this.cameraYaw;
-                while (diffYaw < -Math.PI) diffYaw += Math.PI * 2;
-                while (diffYaw > Math.PI) diffYaw -= Math.PI * 2;
-                this.cameraYaw += diffYaw * Math.min(1.0, delta * 3.2);
-            }
-        } else {
-            this.runTime = 0;
+            this.facing = moveX > 0 ? 1 : -1;
         }
 
-        // Velocidad de movimiento según atributos únicos del animal seleccionado
+        // Suave giro hacia la dirección que mira en el plano 2.5D
+        const targetRotY = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
+        let diffRot = targetRotY - this.mesh.rotation.y;
+        while (diffRot < -Math.PI) diffRot += Math.PI * 2;
+        while (diffRot > Math.PI) diffRot -= Math.PI * 2;
+        this.mesh.rotation.y += diffRot * Math.min(1.0, delta * 20.0);
+
         const baseSpeed = this.baseSpeed || 10.5;
-        let currentSpeed = baseSpeed;
+        let targetVx = 0;
 
-        if (this.dashTimer > 0) {
-            this.dashTimer -= delta;
-            currentSpeed = baseSpeed * 2.3;
-            const targetVx = this.dashDirection.x * currentSpeed;
-            const targetVz = this.dashDirection.z * currentSpeed;
-            this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 24.0);
-            this.velocity.z += (targetVz - this.velocity.z) * Math.min(1.0, delta * 24.0);
-
-            this.shadowSpawnTimer += delta;
-            if (this.shadowSpawnTimer > 0.05 && this.onSpawnShadowCallback) {
-                this.shadowSpawnTimer = 0;
-                this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
-            }
+        if (this.isRolling) {
+            const progress = Math.max(0, this.rollTimer / 0.35);
+            targetVx = this.facing * (11.0 + progress * 6.5);
+        } else if (this.isBlocking) {
+            targetVx = moveX * (baseSpeed * 0.32);
         } else if (isMoving) {
-            const targetVx = this.moveDirection.x * currentSpeed;
-            const targetVz = this.moveDirection.z * currentSpeed;
-            // Aceleración reactiva y fluida estilo consola
-            this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 18.0);
-            this.velocity.z += (targetVz - this.velocity.z) * Math.min(1.0, delta * 18.0);
+            targetVx = moveX * baseSpeed;
         } else {
-            // Desaceleración atlética suave
-            this.velocity.x += (0 - this.velocity.x) * Math.min(1.0, delta * 14.0);
-            this.velocity.z += (0 - this.velocity.z) * Math.min(1.0, delta * 14.0);
-            if (Math.abs(this.velocity.x) < 0.04) this.velocity.x = 0;
-            if (Math.abs(this.velocity.z) < 0.04) this.velocity.z = 0;
+            targetVx = 0;
         }
+
+        this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 20.0);
+
+        // Fijar plano lateral 2D (Z = 0)
+        this.velocity.z = 0;
+        this.mesh.position.z += (0 - this.mesh.position.z) * Math.min(1.0, delta * 24.0);
 
         // 2. Gravedad y suelo
-        // Control de caída atlético y suave
         const fallMult = this.velocity.y < 0 ? 1.15 : 1.0;
         this.velocity.y += this.gravity * fallMult * delta;
         this.mesh.position.x += this.velocity.x * delta;
@@ -630,8 +658,6 @@ export class Player {
 
         const wasAirborne = !this.isGrounded && this.velocity.y < -2.0;
 
-        // Regla de Oro: Solo aterrizar si está cayendo hacia abajo (velocity.y <= 0)
-        // Esto evita que el impulso del salto sea interrumpido o pegado al suelo al ascender
         if (this.velocity.y <= 0 && this.mesh.position.y <= groundY) {
             this.mesh.position.y = groundY;
             this.velocity.y = 0;
@@ -641,11 +667,11 @@ export class Player {
             this.isGrounded = true;
             this.jumpCount = 0;
 
-            // Actualizar punto de control dinámico en niveles de plataformas
+            // Actualizar punto de control dinámico en niveles de plataformas a lo largo del avance X
             if (this.isCampaignMode && groundY > -2.0) {
                 if (!this.lastCheckpointPos) {
                     this.lastCheckpointPos = this.mesh.position.clone();
-                } else if (this.mesh.position.z < this.lastCheckpointPos.z - 12.0) {
+                } else if (this.mesh.position.x > this.lastCheckpointPos.x + 12.0) {
                     this.lastCheckpointPos.copy(this.mesh.position);
                 }
             }
@@ -653,7 +679,7 @@ export class Player {
             this.isGrounded = false;
         }
 
-        // Caida al abismo en niveles de plataformas
+        // Caída al abismo en plataformas
         if (this.mesh.position.y < -12.0) {
             this.takeDamage(20);
             const respawnPoint = (this.lastCheckpointPos && this.lastCheckpointPos.clone()) || new THREE.Vector3(0, 1.5, 0);
@@ -662,19 +688,9 @@ export class Player {
             this.velocity.set(0, 0, 0);
         }
 
-        // Límites del mapa
+        // Límites del mapa en arenas
         if (!this.isCampaignMode) {
-            const arenaRadius = 55.0;
-            const currentDist = Math.hypot(this.mesh.position.x, this.mesh.position.z);
-            if (currentDist > arenaRadius) {
-                const angle = Math.atan2(this.mesh.position.z, this.mesh.position.x);
-                this.mesh.position.x = Math.cos(angle) * arenaRadius;
-                this.mesh.position.z = Math.sin(angle) * arenaRadius;
-            }
-        } else {
-            // Limites laterales en el circuito de campana
-            this.mesh.position.x = Math.max(-26, Math.min(26, this.mesh.position.x));
-            if (this.mesh.position.z > 12) this.mesh.position.z = 12;
+            this.mesh.position.x = Math.max(-28, Math.min(28, this.mesh.position.x));
         }
 
         // =====================================================================
@@ -682,7 +698,35 @@ export class Player {
         // =====================================================================
         const time = performance.now() * 0.013;
 
-        if (this.isSpinning) {
+        if (this.isRolling) {
+            // Giro acrobático 360° en voltereta ninja
+            const rollProgress = Math.min(1.0, Math.max(0, 1.0 - (this.rollTimer / 0.35)));
+            this.torso.position.y = 0.72;
+            this.modelGroup.rotation.z = -this.facing * rollProgress * Math.PI * 2;
+
+            if (this.rollTimer <= 0) {
+                this.isRolling = false;
+                this.modelGroup.rotation.z = 0;
+                this.torso.position.y = 1.35;
+            }
+        } else if (this.isBlocking) {
+            // Postura de guardia firme con katana cruzada
+            this.modelGroup.rotation.z = 0;
+            this.torso.position.y = 1.25;
+            this.torso.rotation.set(0.08, this.facing * 0.25, 0);
+
+            this.rightArmPivot.rotation.set(0.68, -0.35, 0.45);
+            this.rightElbowPivot.rotation.set(-0.85, 0, 0);
+            this.leftArmPivot.rotation.set(0.68, 0.35, -0.45);
+            this.leftElbowPivot.rotation.set(-0.85, 0, 0);
+
+            this.leftLegPivot.rotation.set(-0.25, 0, 0);
+            this.rightLegPivot.rotation.set(0.25, 0, 0);
+            this.leftKneePivot.rotation.set(0.4, 0, 0);
+            this.rightKneePivot.rotation.set(0.4, 0, 0);
+
+        } else if (this.isSpinning) {
+            this.modelGroup.rotation.z = 0;
             this.spinTimer -= delta;
             if (this.spinTimer <= 0) {
                 this.isSpinning = false;
@@ -694,7 +738,6 @@ export class Player {
             this.torso.position.y = 1.35;
             this.torso.rotation.set(0, 0, 0);
 
-            // Brazos abiertos con espada horizontal
             this.rightArmPivot.rotation.set(0, 0, Math.PI * 0.45);
             this.rightElbowPivot.rotation.set(0, 0, 0);
             this.leftArmPivot.rotation.set(0, 0, -Math.PI * 0.45);
@@ -706,6 +749,7 @@ export class Player {
             this.rightKneePivot.rotation.set(0.3, 0, 0);
 
         } else if (this.isAttacking) {
+            this.modelGroup.rotation.z = 0;
             this.attackTimer += delta * 8;
             if (this.attackTimer > Math.PI) {
                 this.isAttacking = false;
@@ -733,6 +777,7 @@ export class Player {
             }
 
         } else {
+            this.modelGroup.rotation.z = 0;
             if (!this.isGrounded) {
                 // Salto natural con flexión de rodillas
                 this.torso.position.y = 1.35;
@@ -742,37 +787,26 @@ export class Player {
 
                 this.leftLegPivot.rotation.x = -0.35;
                 this.rightLegPivot.rotation.x = 0.25;
-                // Rodillas flexionadas en el aire
                 this.leftKneePivot.rotation.x = 0.85;
                 this.rightKneePivot.rotation.x = 0.65;
 
-                // Brazos elevados en equilibrio
                 this.leftArmPivot.rotation.x = -Math.PI * 0.65;
                 this.rightArmPivot.rotation.x = -Math.PI * 0.65;
                 this.leftElbowPivot.rotation.x = -0.4;
                 this.rightElbowPivot.rotation.x = -0.4;
 
             } else if (isMoving) {
-                // Carrera orgánica: balanceo de cadera + flexión de rodillas y codos
                 const swing = Math.sin(time) * 0.82;
-
-                // 1. Rebote rítmico vertical de la pelvis (bobbing)
                 this.torso.position.y = 1.35 + Math.abs(Math.sin(time)) * 0.08;
-
-                // 2. Inclinación hacia adelante atlética
                 this.torso.rotation.x = 0.18;
-                this.torso.rotation.y = -swing * 0.12; // Suave torsión de pecho
+                this.torso.rotation.y = -swing * 0.12;
                 this.torso.rotation.z = 0;
 
-                // 3. Piernas con flexión activa de rodillas
                 this.leftLegPivot.rotation.x = swing;
                 this.rightLegPivot.rotation.x = -swing;
-
-                // Rodilla se dobla hacia atrás cuando la pierna va hacia atrás
                 this.leftKneePivot.rotation.x = Math.max(0, -swing * 1.35);
                 this.rightKneePivot.rotation.x = Math.max(0, swing * 1.35);
 
-                // 4. Brazos flexionados en ángulo de carrera (45-70°)
                 this.leftArmPivot.rotation.x = -swing * 0.75;
                 this.rightArmPivot.rotation.x = swing * 0.75;
                 this.leftArmPivot.rotation.z = -0.12;
@@ -782,7 +816,6 @@ export class Player {
                 this.rightElbowPivot.rotation.x = -0.65 - Math.max(0, swing * 0.5);
 
             } else {
-                // Postura de reposo (respiración suave y relajada)
                 const breath = Math.sin(time * 0.35) * 0.04;
                 this.torso.position.y = 1.35 + breath;
                 this.torso.rotation.set(0, 0, 0);
@@ -804,20 +837,27 @@ export class Player {
         this.bandanaTail1.rotation.x = 0.35 + flutter;
         this.bandanaTail2.rotation.x = 0.45 - flutter * 0.8;
 
-        // 4. Cámara orbital suave en 3ra persona inmersiva y cinematográfica
+        // 4. Cámara Cinemática 2.5D lateral estilo Dead Cells / Shadow Fight
         const isMobileScreen = window.innerWidth <= 768;
-        const targetDist = this.dashTimer > 0 ? (this.cameraDistance * 1.15) : (isMoving ? this.cameraDistance : (this.cameraDistance * 0.94));
-        const targetPos = this.mesh.position.clone().add(new THREE.Vector3(0, isMobileScreen ? 1.1 : 1.35, 0));
-        const camX = targetPos.x + Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch) * targetDist;
-        const camY = targetPos.y + Math.sin(this.cameraPitch) * targetDist + this.cameraHeight * 0.35;
-        const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * targetDist;
+        const leadX = this.facing * (isMobileScreen ? 1.8 : 2.4);
+        const targetCamX = this.mesh.position.x + leadX;
+        const targetCamY = Math.max(2.1, this.mesh.position.y + 1.3);
+        const camDistZ = isMobileScreen ? 12.0 : 10.5;
 
+        this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1.0, delta * 7.5);
+        this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1.0, delta * 7.5);
+        this.camera.position.z += (camDistZ - this.camera.position.z) * Math.min(1.0, delta * 7.5);
+
+        const lookTarget = new THREE.Vector3(
+            this.mesh.position.x + this.facing * 0.9,
+            Math.max(1.4, this.mesh.position.y + 1.1),
+            0
+        );
         if (!this.camLookTarget) {
-            this.camLookTarget = targetPos.clone();
+            this.camLookTarget = lookTarget.clone();
         } else {
-            this.camLookTarget.lerp(targetPos, Math.min(1.0, delta * 14.0));
+            this.camLookTarget.lerp(lookTarget, Math.min(1.0, delta * 9.0));
         }
-        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), Math.min(1.0, delta * 12.0));
         this.camera.lookAt(this.camLookTarget);
     }
 

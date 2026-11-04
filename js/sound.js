@@ -237,6 +237,116 @@ class SoundEngine {
         this.playNoise(isCrit ? 0.12 : 0.06, 0.25);
     }
 
+    playParry() {
+        if (!this.enabled || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        // 1. Tono metálico agudo de choque de katanas
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1450, now);
+        osc.frequency.exponentialRampToValueAtTime(750, now + 0.28);
+
+        gain.gain.setValueAtTime(this.volume * 0.75, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.33);
+
+        // 2. Resonancia armónica de campana de acero
+        const oscRing = this.ctx.createOscillator();
+        const gainRing = this.ctx.createGain();
+        oscRing.type = 'sine';
+        oscRing.frequency.setValueAtTime(2100, now);
+        oscRing.frequency.exponentialRampToValueAtTime(1850, now + 0.45);
+
+        gainRing.gain.setValueAtTime(this.volume * 0.45, now);
+        gainRing.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+        oscRing.connect(gainRing);
+        gainRing.connect(this.ctx.destination);
+        oscRing.start(now);
+        oscRing.stop(now + 0.46);
+
+        this.playNoise(0.09, 0.35);
+    }
+
+    playBlock() {
+        if (!this.enabled || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(450, now);
+        osc.frequency.exponentialRampToValueAtTime(160, now + 0.12);
+
+        gain.gain.setValueAtTime(this.volume * 0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.15);
+        this.playNoise(0.06, 0.22);
+    }
+
+    playDodgeRoll() {
+        if (!this.enabled || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.22);
+
+        gain.gain.setValueAtTime(this.volume * 0.38, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+        this.playNoise(0.18, 0.28);
+    }
+
+    playSlowMoImpact() {
+        if (!this.enabled || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        // Impacto sub-grave de película
+        const subOsc = this.ctx.createOscillator();
+        const subGain = this.ctx.createGain();
+
+        subOsc.type = 'sine';
+        subOsc.frequency.setValueAtTime(140, now);
+        subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.6);
+
+        subGain.gain.setValueAtTime(this.volume * 0.85, now);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+        subOsc.connect(subGain);
+        subGain.connect(this.ctx.destination);
+
+        subOsc.start(now);
+        subOsc.stop(now + 0.7);
+        this.playNoise(0.35, 0.3);
+    }
+
     playShurikenThrow() {
         if (!this.enabled || !this.ctx) return;
         this.init();

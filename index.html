@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=16.6">
+    <link rel="stylesheet" href="css/style.css?v=17.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -326,15 +326,15 @@
                 </div>
             </div>
 
-            <!-- Guía rápida de controles de teclado -->
+            <!-- Guía rápida de controles de teclado 2.5D Cinemático -->
             <div class="controls-hint">
-                <span><span class="key-badge">W A S D</span> Moverse</span>
-                <span><span class="key-badge">ESPACIO</span> Saltar / Doble Salto</span>
-                <span><span class="key-badge">CLIC</span> Atacar</span>
-                <span><span class="key-badge">E</span> Giro 360°</span>
-                <span><span class="key-badge">Q / R</span> Habilidad Especial</span>
-                <span><span class="key-badge">SHIFT</span> Impulso Dash</span>
-                <span><span class="key-badge">1 - 5</span> Cambiar Arma</span>
+                <span><span class="key-badge">A / D</span> Moverse</span>
+                <span><span class="key-badge">W / ESPACIO</span> Saltar</span>
+                <span><span class="key-badge">J / CLIC IZQ</span> Katana Combo</span>
+                <span><span class="key-badge">K / CLIC DER</span> Parry & Bloqueo</span>
+                <span><span class="key-badge">L / SHIFT</span> Rodar</span>
+                <span><span class="key-badge">U</span> Shuriken</span>
+                <span><span class="key-badge">Q / R</span> Poder Animal</span>
             </div>
         </div>
     </div>
@@ -350,18 +350,24 @@
             </div>
         </div>
 
-        <!-- Zona Derecha: Clúster Táctil de Botones de Acción Estilo Free Fire -->
+        <!-- Zona Derecha: Clúster Táctil de Combate Ninja Técnico 2.5D -->
         <div id="mobile-actions">
-            <!-- Botón Cambio Rápido de Arma -->
-            <button class="btn-touch-action btn-touch-switch" id="btn-touch-switch" title="Cambiar Arma">
-                <span class="touch-icon" id="touch-weapon-icon">🪵</span>
-                <span class="touch-label">ARMA</span>
+            <!-- Botón Shuriken a Distancia -->
+            <button class="btn-touch-action btn-touch-shuriken" id="btn-touch-shuriken" title="Lanzar Shuriken">
+                <span class="touch-icon">🎯</span>
+                <span class="touch-label">SHURIKEN</span>
             </button>
 
-            <!-- Botón Impulso / Sprint Ninja -->
-            <button class="btn-touch-action btn-touch-dash" id="btn-touch-dash" title="Impulso Ninja">
-                <span class="touch-icon">⚡</span>
-                <span class="touch-label">DASH</span>
+            <!-- Botón Bloqueo y Perfect Parry -->
+            <button class="btn-touch-action btn-touch-parry" id="btn-touch-parry" title="Bloqueo y Parry">
+                <span class="touch-icon">🛡️</span>
+                <span class="touch-label">PARRY</span>
+            </button>
+
+            <!-- Botón Rodar y Esquivar (i-frames) -->
+            <button class="btn-touch-action btn-touch-dash" id="btn-touch-dash" title="Rodar / Esquivar">
+                <span class="touch-icon">💨</span>
+                <span class="touch-label">RODAR</span>
             </button>
 
             <!-- Botón de Habilidad Especial Única del Animal Héroe -->
@@ -373,17 +379,11 @@
 
             <!-- Botón Salto -->
             <button class="btn-touch-action btn-touch-jump" id="btn-touch-jump" title="Saltar">
-                <span class="touch-icon">🥾</span>
+                <span class="touch-icon">🥷</span>
                 <span class="touch-label">SALTO</span>
             </button>
 
-            <!-- Botón Giro Ninja 360° estilo Crash Bandicoot -->
-            <button class="btn-touch-action btn-touch-spin" id="btn-touch-spin" title="Giro Ninja 360°">
-                <span class="touch-icon">🌀</span>
-                <span class="touch-label">GIRO</span>
-            </button>
-
-            <!-- Botón de Disparo / Ataque Principal (Grande estilo Free Fire) -->
+            <!-- Botón de Disparo / Ataque Principal (Combos de Katana) -->
             <button class="btn-touch-action btn-touch-attack" id="btn-touch-attack" title="Atacar">
                 <div class="attack-inner-ring">
                     <span class="attack-icon">⚔️</span>
@@ -973,6 +973,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=16.6"></script>
+    <script type="module" src="js/main.js?v=17.0"></script>
 </body>
 </html>

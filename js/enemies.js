@@ -594,6 +594,12 @@ export class EnemyManager {
     }
 
     damageEnemy(enemy, amount, isCrit, hitDirection, onEnemyDefeated) {
+        // Contraataque crítico masivo si el enemigo está aturdido tras un Perfect Parry
+        if (enemy.aiState === 'stunned' || enemy.isStunned) {
+            amount = Math.round(amount * 2.5);
+            isCrit = true;
+        }
+
         enemy.health = Math.max(0, enemy.health - amount);
         this.updateHealthBar(enemy.healthBar, enemy.health);
 
@@ -706,13 +712,15 @@ export class EnemyManager {
                 enemy.isGrounded = true;
             }
 
+            // Fijar plano 2.5D (Z = 0)
+            enemy.mesh.position.z += (0 - enemy.mesh.position.z) * Math.min(1.0, delta * 20.0);
+
             // Inercia de retroceso por golpe de espada (Knockback)
             if (enemy.knockbackVelocity && enemy.knockbackVelocity.lengthSq() > 0.01) {
                 enemy.mesh.position.addScaledVector(enemy.knockbackVelocity, delta);
                 enemy.knockbackVelocity.multiplyScalar(0.82);
             }
 
-            
             // Caída al abismo para esbirros de plataformas
             if (enemy.isCampaign && enemy.mesh.position.y < -12.0) {
                 this.defeatEnemy(enemy, null);
@@ -723,116 +731,134 @@ export class EnemyManager {
             if (enemy.stateTimer > 0) enemy.stateTimer -= delta;
 
             const dist = enemy.mesh.position.distanceTo(playerPos);
+            const dx = playerPos.x - enemy.mesh.position.x;
 
             // =================================================================
-            // IA TÁCTICA: RODEO EN ANILLO PERIMÉTRICO (SIN FILA INDIA)
+            // IA TÁCTICA 2.5D: ENFRENTAMIENTO LATERAL Y COMBATE TÉCNICO
             // =================================================================
             if (dist <= 40.0) {
-                // Mirar siempre hacia el jugador
-                enemy.mesh.lookAt(playerPos.x, enemy.mesh.position.y, playerPos.z);
+                // Mirar lateralmente hacia el jugador en el plano 2.5D
+                enemy.facing = dx >= 0 ? 1 : -1;
+                enemy.mesh.rotation.y = enemy.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
 
-                // 1. Fuerza de repulsión entre enemigos (Anti-amontonamiento / Boids)
-                const separation = new THREE.Vector3();
+                // Estado de ATURDIMIENTO (Generado por Perfect Parry del Jugador)
+                if (enemy.aiState === 'stunned') {
+                    if (enemy.torso) enemy.torso.rotation.x = -0.35;
+                    if (enemy.rightArmPivot) enemy.rightArmPivot.rotation.x = -0.6;
+                    if (enemy.leftArmPivot) enemy.leftArmPivot.rotation.x = -0.6;
+
+                    if (enemy.stateTimer <= 0) {
+                        enemy.aiState = 'retreating';
+                        enemy.stateTimer = 0.8;
+                        enemy.isStunned = false;
+                        if (enemy.torso) enemy.torso.rotation.x = 0;
+                    }
+                    return;
+                }
+
+                // Separación horizontal lateral entre enemigos
+                let sepX = 0;
                 for (let j = 0; j < this.enemies.length; j++) {
                     const other = this.enemies[j];
                     if (other === enemy || other.type === 'dummy') continue;
-                    const d = enemy.mesh.position.distanceTo(other.mesh.position);
-                    if (d < 2.5 && d > 0.01) {
-                        const rep = new THREE.Vector3().subVectors(enemy.mesh.position, other.mesh.position).normalize();
-                        separation.addScaledVector(rep, (2.5 - d) * 3.5);
+                    const diffX = enemy.mesh.position.x - other.mesh.position.x;
+                    if (Math.abs(diffX) < 2.2 && Math.abs(diffX) > 0.01) {
+                        sepX += (diffX > 0 ? 1 : -1) * (2.2 - Math.abs(diffX)) * 2.5;
                     }
                 }
 
                 // 2. Transiciones de estados de combate
                 if (enemy.aiState === 'circling') {
-                    // Posición asignada en el anillo perimétrico alrededor del ninja
-                    const slotAngle = (idx / totalCombat) * Math.PI * 2 + time * 0.15;
-                    const targetX = playerPos.x + Math.cos(slotAngle) * enemy.combatRadius;
-                    const targetZ = playerPos.z + Math.sin(slotAngle) * enemy.combatRadius;
-                    const targetPos = new THREE.Vector3(targetX, enemy.mesh.position.y, targetZ);
+                    // Mantener distancia táctica de acecho
+                    const desiredDist = enemy.combatRadius || 4.2;
+                    const targetX = playerPos.x + (idx % 2 === 0 ? desiredDist : -desiredDist);
+                    const diffTargetX = targetX - enemy.mesh.position.x;
 
-                    const moveDir = new THREE.Vector3().subVectors(targetPos, enemy.mesh.position);
-                    const distToSlot = moveDir.length();
-
-                    if (distToSlot > 0.4) {
-                        moveDir.normalize();
-                        moveDir.addScaledVector(separation, delta * 2.0).normalize();
-                        enemy.mesh.position.addScaledVector(moveDir, enemy.speed * 0.85 * delta);
+                    if (Math.abs(diffTargetX) > 0.4) {
+                        const moveSign = diffTargetX > 0 ? 1 : -1;
+                        enemy.mesh.position.x += (moveSign * enemy.speed * 0.85 + sepX) * delta;
                     }
 
-                    // Si está listo para embestir y se le acaba el temporizador de acecho
+                    // Señal de ataque telegráfico
                     if (enemy.stateTimer <= 0 && enemy.timer <= 0) {
-                        enemy.aiState = 'lunging';
-                        enemy.stateTimer = 1.4; // Tiempo máximo de embestida
+                        enemy.aiState = 'telegraph';
+                        enemy.stateTimer = 0.35; // 350ms con katana en alto para permitir reacción de parry
                     }
 
-                    // Animación de acecho lateral
+                    // Animación de acecho
                     if (enemy.leftLegPivot && enemy.rightLegPivot) {
-                        const swing = Math.sin(time * 0.8) * 0.5;
+                        const swing = Math.sin(time * 0.8) * 0.4;
                         enemy.leftLegPivot.rotation.x = swing;
                         enemy.rightLegPivot.rotation.x = -swing;
-                        if (enemy.leftKneePivot) enemy.leftKneePivot.rotation.x = Math.max(0, -swing * 0.8);
-                        if (enemy.rightKneePivot) enemy.rightKneePivot.rotation.x = Math.max(0, swing * 0.8);
                     }
                     if (enemy.rightArmPivot) {
-                        enemy.rightArmPivot.rotation.x = Math.PI * 0.35; // Guardia de espada en alto
+                        enemy.rightArmPivot.rotation.x = Math.PI * 0.35;
+                    }
+
+                } else if (enemy.aiState === 'telegraph') {
+                    // ¡Katana alzada! Señal visual para que el jugador se prepare a bloquear/parrear
+                    if (enemy.rightArmPivot) {
+                        enemy.rightArmPivot.rotation.x = Math.PI * 0.95;
+                        enemy.rightArmPivot.rotation.z = -0.25;
+                    }
+                    if (enemy.stateTimer <= 0) {
+                        enemy.aiState = 'lunging';
+                        enemy.stateTimer = 1.2;
                     }
 
                 } else if (enemy.aiState === 'lunging') {
-                    // ¡EMBESTIDA TELEGRÁFICA HACIA EL JUGADOR!
-                    const chargeDir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).normalize();
-                    chargeDir.addScaledVector(separation, delta).normalize();
-                    enemy.mesh.position.addScaledVector(chargeDir, enemy.speed * 1.35 * delta);
+                    // ¡Acometida frontal con katana hacia el jugador!
+                    const chargeDirX = dx > 0 ? 1 : -1;
+                    enemy.mesh.position.x += (chargeDirX * enemy.speed * 1.35 + sepX) * delta;
 
-                    // Salto acrobático en embestida
-                    if (enemy.isGrounded && enemy.jumpTimer <= 0 && dist > 3.0 && dist < 12.0) {
-                        enemy.velocity.y = enemy.type === 'acrobat' ? 14.0 : 11.5;
+                    // Salto acrobático en embestida si está en plataforma
+                    if (enemy.isGrounded && enemy.jumpTimer <= 0 && Math.abs(dx) > 3.0 && Math.abs(dx) < 8.0) {
+                        enemy.velocity.y = enemy.type === 'acrobat' ? 14.0 : 11.0;
                         enemy.isGrounded = false;
                         enemy.jumpTimer = 2.0;
                         sounds.playJump();
                     }
 
-                    // Animación de carrera rápida con flexión
+                    // Animación de carrera rápida
                     if (enemy.leftLegPivot && enemy.rightLegPivot) {
                         const swing = Math.sin(time * 1.6) * 0.85;
                         enemy.leftLegPivot.rotation.x = swing;
                         enemy.rightLegPivot.rotation.x = -swing;
-                        if (enemy.leftKneePivot) enemy.leftKneePivot.rotation.x = Math.max(0, -swing * 1.3);
-                        if (enemy.rightKneePivot) enemy.rightKneePivot.rotation.x = Math.max(0, swing * 1.3);
                     }
                     if (enemy.rightArmPivot) {
-                        enemy.rightArmPivot.rotation.x = Math.PI * 0.65;
+                        enemy.rightArmPivot.rotation.x = Math.PI * 0.7;
                     }
 
-                    // Si llega a rango de golpe
-                    if (dist <= enemy.attackRange) {
-                        // Conectar golpe
-                        player.takeDamage(enemy.damage);
-                        sounds.playSlash('normal');
-                        enemy.timer = enemy.attackCooldown;
+                    // Rango de golpe
+                    if (Math.abs(dx) <= enemy.attackRange && Math.abs(enemy.mesh.position.y - playerPos.y) < 1.8) {
+                        const hitResult = player.takeDamage(enemy.damage, enemy);
 
-                        // Animación de tajo
+                        if (hitResult && hitResult.parried) {
+                            // ¡El jugador ejecutó un Perfect Parry!
+                            // enemy.aiState ya fue puesto en 'stunned' por takeDamage
+                        } else {
+                            sounds.playSlash('normal');
+                            enemy.timer = enemy.attackCooldown;
+                            enemy.aiState = 'retreating';
+                            enemy.stateTimer = 0.9;
+                        }
+
                         if (enemy.rightArmPivot) {
                             enemy.rightArmPivot.rotation.x = Math.PI;
                         }
-
-                        // Cambiar inmediatamente a repliegue táctico
-                        enemy.aiState = 'retreating';
-                        enemy.stateTimer = 0.9;
                     } else if (enemy.stateTimer <= 0) {
-                        // Se acabó el tiempo de embestida sin alcanzar al jugador
                         enemy.aiState = 'retreating';
                         enemy.stateTimer = 0.7;
                     }
 
                 } else if (enemy.aiState === 'retreating') {
-                    // Salto o paso atrás evasivo para recuperar distancia
-                    const retreatDir = new THREE.Vector3().subVectors(enemy.mesh.position, playerPos).normalize();
-                    enemy.mesh.position.addScaledVector(retreatDir, enemy.speed * 0.9 * delta);
+                    // Repliegue o salto atrás táctico
+                    const retreatSign = dx > 0 ? -1 : 1;
+                    enemy.mesh.position.x += (retreatSign * enemy.speed * 0.9 + sepX) * delta;
 
                     if (enemy.stateTimer <= 0) {
                         enemy.aiState = 'circling';
-                        enemy.stateTimer = 1.5 + Math.random() * 2.0;
+                        enemy.stateTimer = 1.4 + Math.random() * 1.6;
                     }
                 }
 

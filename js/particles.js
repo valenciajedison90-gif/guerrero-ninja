@@ -154,6 +154,64 @@ export class ParticleSystem {
         }
     }
 
+    createParrySparks(position) {
+        // Destello radial de choque de espadas (Parry Perfecto)
+        const goldSparkMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
+        const cyanSparkMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+        for (let i = 0; i < 18; i++) {
+            const isGold = i % 2 === 0;
+            const mesh = new THREE.Mesh(this.sparkGeom, isGold ? goldSparkMat : cyanSparkMat);
+            mesh.position.copy(position);
+            mesh.scale.set(1.6, 1.6, 1.6);
+
+            const angle = (i / 18) * Math.PI * 2;
+            const speed = 7.0 + Math.random() * 3.5;
+            const vel = new THREE.Vector3(
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed * 0.75 + 1.5,
+                (Math.random() - 0.5) * 1.5
+            );
+
+            this.particles.push({
+                mesh: mesh,
+                velocity: vel,
+                life: 0.4 + Math.random() * 0.15,
+                maxLife: 0.55,
+                gravity: -6.0,
+                shrink: true
+            });
+            this.scene.add(mesh);
+        }
+
+        // Anillo de choque de energía
+        this.createShockwave(position, 0x38bdf8, 4.0);
+    }
+
+    createDodgeDust(position) {
+        const count = 3;
+        for (let i = 0; i < count; i++) {
+            const mesh = new THREE.Mesh(this.smokeGeom, this.materials.smoke);
+            mesh.position.set(
+                position.x + (Math.random() - 0.5) * 0.4,
+                position.y + 0.15,
+                position.z + (Math.random() - 0.5) * 0.2
+            );
+            mesh.scale.set(0.6, 0.6, 0.6);
+
+            this.particles.push({
+                mesh: mesh,
+                velocity: new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 0.4, 0),
+                life: 0.25,
+                maxLife: 0.25,
+                gravity: 0,
+                scaleSpeed: 1.8,
+                fade: true
+            });
+            this.scene.add(mesh);
+        }
+    }
+
     createSmokePoof(position, scale = 1.0) {
         const count = 5;
         const mat = this.materials.smoke;
