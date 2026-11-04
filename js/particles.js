@@ -200,6 +200,59 @@ export class ParticleSystem {
         }
     }
 
+    createEnemyDefeatBurst(position) {
+        this.createSmokePoof(position, 1.5);
+        this.createHitSparks(position, true);
+        if (sounds && sounds.playPoof) sounds.playPoof();
+    }
+
+    createShockwave(position, colorHex = 0xffffff, maxRadius = 8) {
+        const ringGeom = new THREE.RingGeometry(0.6, 1.4, 28);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: colorHex,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+        ringMesh.position.copy(position);
+        ringMesh.position.y = 0.15;
+        ringMesh.rotation.x = Math.PI / 2;
+        this.scene.add(ringMesh);
+
+        this.particles.push({
+            group: ringMesh,
+            isSlashArc: true,
+            life: 0.35,
+            maxLife: 0.35,
+            arcMat: ringMat,
+            coreMat: ringMat,
+            update: (d, pct) => {
+                const scale = 1.0 + (1 - pct) * (maxRadius * 0.7);
+                ringMesh.scale.set(scale, scale, 1);
+                ringMat.opacity = pct * 0.9;
+            }
+        });
+
+        // Chispas radiales circulares
+        for (let i = 0; i < 14; i++) {
+            const angle = (i / 14) * Math.PI * 2;
+            const mesh = new THREE.Mesh(this.sparkGeom, this.materials.critSpark);
+            mesh.position.copy(position).add(new THREE.Vector3(0, 0.25, 0));
+            const speed = 4.0 + Math.random() * 3.0;
+            this.particles.push({
+                mesh: mesh,
+                velocity: new THREE.Vector3(Math.cos(angle) * speed, 1.6 + Math.random(), Math.sin(angle) * speed),
+                life: 0.28,
+                maxLife: 0.28,
+                gravity: -4.5,
+                shrink: true
+            });
+            this.scene.add(mesh);
+        }
+    }
+
     spawnCoin(position, value = 5) {
         const coinMesh = new THREE.Mesh(this.coinGeom, this.coinMat);
         coinMesh.position.copy(position);

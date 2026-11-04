@@ -864,6 +864,10 @@ export class Player {
             const cPos = crate.position || (crate.mesh && crate.mesh.position);
             if (!cPos) continue;
 
+            // Solo colisionar horizontalmente si el jugador está a la altura física de la caja
+            const dy = Math.abs(playerPos.y - cPos.y);
+            if (dy > 1.35) continue;
+
             const dx = playerPos.x - cPos.x;
             const dz = playerPos.z - cPos.z;
             const distSq = dx * dx + dz * dz;

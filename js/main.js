@@ -96,9 +96,9 @@ class Game {
             this.particles.createSmokePoof(pos, 0.75);
         };
         this.player.onLandCallback = (pos) => {
-            this.particles.createSmokePoof(pos, 0.95);
+            if (this.particles && this.particles.createSmokePoof) this.particles.createSmokePoof(pos, 0.95);
             this.triggerScreenShake(0.09, 0.08);
-            sounds.playStep();
+            if (sounds && sounds.playStep) sounds.playStep();
         };
 
         // Sistemas de Game Juice (Screen Shake, Hit-Stop & Números de Daño Flotantes)
@@ -1899,16 +1899,11 @@ class Game {
             return;
         }
 
-        // Hit-Stop táctil: congela microsegundos los frames de impacto para dar contundencia a los espadazos
+        // Hit-Stop táctil: micro-ralentización fluida de impacto (sin congelar la simulación ni perder frames)
+        let simDelta = delta;
         if (this.hitStopDuration > 0) {
             this.hitStopDuration -= delta;
-            if (this.screenShakeDuration > 0) {
-                this.screenShakeDuration -= delta;
-                this.camera.position.x += (Math.random() - 0.5) * this.screenShakeIntensity;
-                this.camera.position.y += (Math.random() - 0.5) * this.screenShakeIntensity;
-            }
-            this.renderer.render(this.scene, this.camera);
-            return;
+            simDelta = delta * 0.18;
         }
 
         // Simulación Battle Royale en partida
@@ -1946,7 +1941,7 @@ class Game {
         this.updateMinimap();
 
         // 1. Actualizar jugador
-        this.player.update(delta);
+        this.player.update(simDelta);
 
         // Separación física con obstáculos sólidos del mapa (cajas)
         if (this.world && this.world.crates) {
@@ -1989,7 +1984,7 @@ class Game {
         }
 
         // 7. Actualizar enemigos con IA táctica
-        this.enemyManager.update(delta, this.player, this.camera);
+        this.enemyManager.update(simDelta, this.player, this.camera);
 
         // 8. Actualizar partículas y monedas
         this.particles.update(delta, this.player.mesh.position, (coins) => {

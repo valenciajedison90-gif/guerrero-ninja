@@ -302,6 +302,28 @@ class SoundEngine {
         osc.stop(now + 0.21);
     }
 
+    playStep() {
+        if (!this.enabled || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(85, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.06);
+
+        gain.gain.setValueAtTime(this.volume * 0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.075);
+    }
+
     playDash() {
         if (!this.enabled || !this.ctx) return;
         this.init();
@@ -684,6 +706,11 @@ class SoundEngine {
         if (!this.ctx || !this.isMusicPlaying) return;
         const lookahead = 0.14;
         const stepTime = 60 / (this.tempo * 4);
+
+        // Protección contra congelamiento por acumulación de tiempo en pestañas en segundo plano
+        if (this.nextStepTime < this.ctx.currentTime) {
+            this.nextStepTime = this.ctx.currentTime;
+        }
 
         while (this.nextStepTime < this.ctx.currentTime + lookahead) {
             this.scheduleStep(this.currentStep, this.nextStepTime);

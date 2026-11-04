@@ -342,6 +342,16 @@ class StorageEngine {
         return this.isMissionCompleted(worldId);
     }
 
+    recordMissionTotem(worldId) {
+        const prog = this.getWorldProgress(worldId);
+        if (prog.totemsDestroyed === undefined) {
+            prog.totemsDestroyed = 0;
+        }
+        prog.totemsDestroyed += 1;
+        this.save();
+        return this.isMissionCompleted(worldId);
+    }
+
     recordMissionBoss(worldId) {
         const prog = this.getWorldProgress(worldId);
         if (prog.bossDefeated !== undefined) {

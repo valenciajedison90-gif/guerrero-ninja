@@ -876,6 +876,9 @@ export class EnemyManager {
                 const cPos = crate.position || (crate.mesh && crate.mesh.position);
                 if (!cPos) continue;
 
+                const dy = Math.abs(ePos.y - cPos.y);
+                if (dy > 1.35) continue;
+
                 const dx = ePos.x - cPos.x;
                 const dz = ePos.z - cPos.z;
                 const distSq = dx * dx + dz * dz;
