@@ -281,8 +281,9 @@ class SoundEngine {
     }
 
     playJump() {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -303,8 +304,9 @@ class SoundEngine {
     }
 
     playStep() {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();

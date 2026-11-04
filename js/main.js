@@ -91,13 +91,12 @@ class Game {
             this.spawnShadowClone(pos, rotY);
         });
 
-        // Respuesta táctil y visual de salto y aterrizaje
+        // Respuesta táctil y visual suave de salto y aterrizaje (sin screen shake brusco)
         this.player.onJumpCallback = (pos) => {
-            this.particles.createSmokePoof(pos, 0.75);
+            if (this.particles && this.particles.createSmokePoof) this.particles.createSmokePoof(pos, 0.5);
         };
         this.player.onLandCallback = (pos) => {
-            if (this.particles && this.particles.createSmokePoof) this.particles.createSmokePoof(pos, 0.95);
-            this.triggerScreenShake(0.09, 0.08);
+            if (this.particles && this.particles.createSmokePoof) this.particles.createSmokePoof(pos, 0.65);
             if (sounds && sounds.playStep) sounds.playStep();
         };
 

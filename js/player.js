@@ -376,6 +376,7 @@ export class Player {
 
     jump() {
         if (this.isGrounded) {
+            this.mesh.position.y += 0.08;
             this.velocity.y = this.jumpForce;
             this.isGrounded = false;
             this.jumpCount = 1;
@@ -383,6 +384,7 @@ export class Player {
             if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
         } else if (this.jumpCount < this.maxJumps) {
             // Doble salto estilo plataformas
+            this.mesh.position.y += 0.08;
             this.velocity.y = this.jumpForce * 0.95;
             this.jumpCount = 2;
             sounds.playJump();
@@ -614,8 +616,8 @@ export class Player {
         }
 
         // 2. Gravedad y suelo
-        // Caída más rápida para saltos contundentes (snappy jump gravity)
-        const fallMult = this.velocity.y < 0 ? 1.35 : 1.0;
+        // Control de caída atlético y suave
+        const fallMult = this.velocity.y < 0 ? 1.15 : 1.0;
         this.velocity.y += this.gravity * fallMult * delta;
         this.mesh.position.x += this.velocity.x * delta;
         this.mesh.position.y += this.velocity.y * delta;
@@ -628,7 +630,9 @@ export class Player {
 
         const wasAirborne = !this.isGrounded && this.velocity.y < -2.0;
 
-        if (this.mesh.position.y <= groundY) {
+        // Regla de Oro: Solo aterrizar si está cayendo hacia abajo (velocity.y <= 0)
+        // Esto evita que el impulso del salto sea interrumpido o pegado al suelo al ascender
+        if (this.velocity.y <= 0 && this.mesh.position.y <= groundY) {
             this.mesh.position.y = groundY;
             this.velocity.y = 0;
             if (wasAirborne && this.onLandCallback) {
@@ -645,6 +649,8 @@ export class Player {
                     this.lastCheckpointPos.copy(this.mesh.position);
                 }
             }
+        } else if (this.mesh.position.y > groundY + 0.05) {
+            this.isGrounded = false;
         }
 
         // Caida al abismo en niveles de plataformas
@@ -806,8 +812,13 @@ export class Player {
         const camY = targetPos.y + Math.sin(this.cameraPitch) * targetDist + this.cameraHeight * 0.35;
         const camZ = targetPos.z + Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch) * targetDist;
 
-        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), 0.28);
-        this.camera.lookAt(targetPos);
+        if (!this.camLookTarget) {
+            this.camLookTarget = targetPos.clone();
+        } else {
+            this.camLookTarget.lerp(targetPos, Math.min(1.0, delta * 14.0));
+        }
+        this.camera.position.lerp(new THREE.Vector3(camX, Math.max(0.5, camY), camZ), Math.min(1.0, delta * 12.0));
+        this.camera.lookAt(this.camLookTarget);
     }
 
     // =========================================================================

@@ -194,7 +194,8 @@ export class ParticleSystem {
                 life: 1.5 + Math.random() * 0.8,
                 maxLife: 2.3,
                 gravity: -6.0,
-                shrink: false
+                shrink: false,
+                isCustomMat: true
             });
             this.scene.add(mesh);
         }
@@ -327,10 +328,13 @@ export class ParticleSystem {
             p.life -= delta;
 
             if (p.life <= 0) {
-                this.scene.remove(p.mesh);
-                p.mesh.geometry.dispose();
-                if (Array.isArray(p.mesh.material)) p.mesh.material.forEach(m => m.dispose());
-                else p.mesh.material.dispose();
+                if (p.mesh) {
+                    this.scene.remove(p.mesh);
+                    if (p.isCustomMat && p.mesh.material) {
+                        if (Array.isArray(p.mesh.material)) p.mesh.material.forEach(m => m.dispose());
+                        else p.mesh.material.dispose();
+                    }
+                }
                 this.particles.splice(i, 1);
                 continue;
             }
