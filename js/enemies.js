@@ -1018,8 +1018,9 @@ export class EnemyManager {
                 patrolTimer: 0,
                 originalPos: pos.clone(),
                 slotIndex: idx % 6,
-                aiState: 'patrolling',
-                stateTimer: 2.0
+                aiState: 'circling',
+                combatRadius: 3.8,
+                stateTimer: 1.0 + Math.random() * 1.5
             };
 
             this.enemies.push(enemy);

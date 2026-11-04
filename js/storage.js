@@ -105,7 +105,7 @@ const defaultState = {
     unlockedWeapons: ['bokken', 'machete_dorado', 'katana'],
     hotbar: ['bokken', 'machete_dorado', null, null, null],
     currentSlot: 0,
-    selectedMode: 'battle_royale', // 'battle_royale' | 'adventure' | 'squads' | 'events'
+    selectedMode: 'adventure', // 'adventure' (2.5D Cinemático por defecto) | 'battle_royale' | 'squads' | 'events'
     enemiesDefeated: 12,
     soundMuted: false,
     currentWorld: 'selva',
@@ -146,6 +146,11 @@ class StorageEngine {
                             5: { ...defW.levels[5], ...(savW.levels?.[5] || {}) }
                         }
                     };
+                }
+
+                // Migrar modo antiguo battle_royale a aventura 2.5D por defecto
+                if (!parsed.selectedMode || parsed.selectedMode === 'battle_royale') {
+                    parsed.selectedMode = 'adventure';
                 }
 
                 return {
@@ -194,7 +199,7 @@ class StorageEngine {
     }
 
     getSelectedMode() {
-        return this.data.selectedMode || 'battle_royale';
+        return this.data.selectedMode || 'adventure';
     }
 
     setSelectedMode(modeId) {

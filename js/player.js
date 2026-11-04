@@ -611,6 +611,14 @@ export class Player {
         }
         moveX = Math.max(-1.0, Math.min(1.0, moveX));
 
+        // Salto asistido al empujar el joystick hacia arriba en celular
+        if (this.touchMoveVector.y > 0.65 && !this.wasJoystickUp) {
+            this.jump();
+            this.wasJoystickUp = true;
+        } else if (this.touchMoveVector.y < 0.3) {
+            this.wasJoystickUp = false;
+        }
+
         const isMoving = Math.abs(moveX) > 0.08 && !this.isRolling && !this.isBlocking;
 
         if (isMoving) {

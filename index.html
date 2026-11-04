@@ -6,7 +6,24 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Ninja Colombia Arena - Aventura & Battle Royale</title>
+    <script>
+        // Purgar caché obsoleta y forzar actualización inmediata en celulares
+        const APP_BUILD_VER = 'v17.5';
+        if (localStorage.getItem('ninja_build_ver') !== APP_BUILD_VER) {
+            localStorage.setItem('ninja_build_ver', APP_BUILD_VER);
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    for (let n of names) caches.delete(n);
+                });
+            }
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(regs => {
+                    for (let r of regs) r.unregister();
+                });
+            }
+        }
+    </script>
+    <title>Ninja Colombia Arena - Aventura 2.5D Cinemática</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +34,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=17.0">
+    <link rel="stylesheet" href="css/style.css?v=17.5">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -55,7 +72,7 @@
 
             <!-- Título Central / Logo de Alto Impacto Estilo Referencia -->
             <div class="menu-logo-banner">
-                <div class="logo-top-tag"><span class="flag-icon">🇨🇴</span> BIODIVERSIDAD COLOMBIANA</div>
+                <div class="logo-top-tag"><span class="flag-icon">🇨🇴</span> BIODIVERSIDAD COLOMBIANA • v1.7.5 (2.5D Cinemático)</div>
                 <h1 class="game-logo-title">
                     <span class="logo-title-row">
                         <span class="logo-text-ninja">NINJA</span>
@@ -973,6 +990,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=17.0"></script>
+    <script type="module" src="js/main.js?v=17.5"></script>
 </body>
 </html>

@@ -1557,8 +1557,10 @@ class Game {
     }
 
     startGame() {
-        if (storage.getSelectedMode() === 'adventure' && !this.isCampaignMode) {
-            this.openCampaignWorldsModal();
+        if (!this.isCampaignMode) {
+            const currentWorld = (storage.data.campaign && storage.data.campaign.currentWorld) || 1;
+            const currentLevel = (storage.data.campaign && storage.data.campaign.currentLevel) || 1;
+            this.startCampaignLevel(currentWorld, currentLevel);
             return;
         }
 
@@ -2392,12 +2394,19 @@ class Game {
         // Construir nivel 3D con plataformas y trampas
         this.world.buildCampaignLevel(worldNum, levelNum);
 
-        // Posicionar jugador al inicio
+        // Posicionar jugador al inicio 2.5D
         this.player.isCampaignMode = true;
         this.player.lastCheckpointPos = new THREE.Vector3(0, 1.5, 0);
         this.player.mesh.position.set(0, 1.5, 0);
+        this.player.facing = 1;
+        this.player.mesh.rotation.y = Math.PI / 2;
         this.player.velocity.set(0, 0, 0);
         this.player.health = this.player.maxHealth;
+
+        // Posicionar cámara inmediatamente en modo 2.5D
+        this.camera.position.set(2.4, 2.4, this.isMobile ? 12.0 : 10.5);
+        this.camera.lookAt(1.0, 1.4, 0);
+        this.player.camLookTarget = new THREE.Vector3(1.0, 1.4, 0);
 
         // Generar enemigos caricaturescos a lo largo del recorrido
         this.enemyManager.spawnCampaignLevelEnemies(this.world.campaignEnemySpawns, worldNum);
@@ -2440,14 +2449,21 @@ class Game {
         // Construir arena de combate circular del jefe
         this.world.buildCampaignBossArena(worldNum);
 
-        // Posicionar jugador en un extremo de la arena
-        this.player.isCampaignMode = false;
-        this.player.mesh.position.set(0, 1.5, 18);
+        // Posicionar jugador en el lado izquierdo de la arena 2.5D
+        this.player.isCampaignMode = true;
+        this.player.mesh.position.set(-14, 1.5, 0);
+        this.player.facing = 1;
+        this.player.mesh.rotation.y = Math.PI / 2;
         this.player.velocity.set(0, 0, 0);
         this.player.health = this.player.maxHealth;
 
-        // Generar jefe final en el centro opuesto
-        const bossEnemy = this.enemyManager.spawnCampaignBoss(worldNum, new THREE.Vector3(0, 0, -12));
+        // Posicionar cámara inmediatamente en la arena 2.5D
+        this.camera.position.set(-6, 2.8, this.isMobile ? 12.5 : 11.0);
+        this.camera.lookAt(0, 1.5, 0);
+        this.player.camLookTarget = new THREE.Vector3(0, 1.5, 0);
+
+        // Generar jefe final en el lado derecho de la arena 2.5D
+        const bossEnemy = this.enemyManager.spawnCampaignBoss(worldNum, new THREE.Vector3(12, 0, 0));
 
         // Configurar HUD
         const campHud = document.getElementById('campaign-hud');
