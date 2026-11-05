@@ -763,6 +763,9 @@ export class Player {
         }
 
         this.health = Math.max(0, this.health - amount);
+        if (typeof this.onDamageTaken === 'function') {
+            this.onDamageTaken(amount);
+        }
         if (!wasBlocked) {
             sounds.playHit(false);
         }

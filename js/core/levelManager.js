@@ -107,6 +107,10 @@ export class LevelManager {
         this.game.campaignCurrentWorld = worldNum;
         this.game.campaignCurrentLevel = levelNum;
         this.game.campaignIsBossFight = false;
+        this.game.campaignCollectedGems = 0;
+        this.game.maxComboAchieved = 0;
+        this.game.playerDamageTakenThisLevel = 0;
+        this.game.enemiesDefeatedThisLevel = 0;
 
         this._setupHUD(worldMeta, lvlMeta);
 

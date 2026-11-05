@@ -111,10 +111,30 @@ const defaultState = {
     currentWorld: 'selva',
     unlockedWorlds: ['selva', 'eje_cafetero', 'paramo', 'caribe'],
     worldProgress: JSON.parse(JSON.stringify(defaultMissions)),
-    campaign: createDefaultCampaign()
+    campaign: createDefaultCampaign(),
+    settings: {
+        leftHanded: false,
+        buttonSize: 'normal',
+        vibrationEnabled: true,
+        screenShakeIntensity: 1.0,
+        highContrast: false,
+        graphicsProfile: 'HIGH',
+        sfxEnabled: true,
+        musicEnabled: true
+    }
 };
 
 class StorageEngine {
+    getSetting(key, defaultVal = null) {
+        if (!this.data.settings) this.data.settings = {};
+        return this.data.settings[key] !== undefined ? this.data.settings[key] : defaultVal;
+    }
+
+    setSetting(key, val) {
+        if (!this.data.settings) this.data.settings = {};
+        this.data.settings[key] = val;
+        this.save();
+    }
     constructor() {
         this.data = this.load();
     }
@@ -126,6 +146,17 @@ class StorageEngine {
                 const parsed = JSON.parse(raw);
                 const defaultCamp = createDefaultCampaign();
                 const savedCamp = parsed.campaign || {};
+                if (!parsed.settings) parsed.settings = {};
+                parsed.settings = Object.assign({
+                    leftHanded: false,
+                    buttonSize: 'normal',
+                    vibrationEnabled: true,
+                    screenShakeIntensity: 1.0,
+                    highContrast: false,
+                    graphicsProfile: 'HIGH',
+                    sfxEnabled: true,
+                    musicEnabled: true
+                }, parsed.settings);
                 
                 // Asegurar que los 10 mundos existen
                 const mergedWorlds = {};
@@ -438,29 +469,64 @@ class StorageEngine {
         return (w && w.levels) ? w.levels[levelNum] : null;
     }
 
-    recordCampaignLevelResult(worldNum, levelNum, stars, time, gems) {
+    recordCampaignLevelResult(worldNum, levelNum, statsOrStars, legacyTime, legacyGems) {
         const camp = this.getCampaign();
         const w = camp.worlds[worldNum];
-        if (!w) return;
+        if (!w) return 1;
 
         const lvl = w.levels[levelNum];
-        if (lvl) {
-            lvl.completed = true;
-            lvl.stars = Math.max(lvl.stars || 0, Math.min(3, stars));
-            lvl.bestTime = (lvl.bestTime === 0 || time < lvl.bestTime) ? Math.round(time) : lvl.bestTime;
-            lvl.gemsCollected = Math.max(lvl.gemsCollected || 0, gems || 0);
+        if (!lvl) return 1;
 
-            // Desbloquear el siguiente nivel del mundo
-            if (levelNum < 5 && w.levels[levelNum + 1]) {
-                w.levels[levelNum + 1].unlocked = true;
-            }
-            // Al superar un nivel, se habilita el combate contra el jefe
-            w.bossUnlocked = true;
+        let stars = 1;
+        let time = 0;
+        let gems = 0;
+        let maxCombo = 0;
+        let damageTaken = 0;
+        let enemiesDefeated = 0;
 
-            // Al superar el nivel o derrotar al jefe, desbloquear el siguiente mundo de Colombia
-            if (worldNum < 10 && camp.worlds[worldNum + 1]) {
-                camp.worlds[worldNum + 1].unlocked = true;
+        if (typeof statsOrStars === 'object' && statsOrStars !== null) {
+            time = statsOrStars.time || 0;
+            gems = statsOrStars.gemsCollected || statsOrStars.gems || 0;
+            maxCombo = statsOrStars.maxCombo || 0;
+            damageTaken = statsOrStars.damageTaken !== undefined ? statsOrStars.damageTaken : 0;
+            enemiesDefeated = statsOrStars.enemiesDefeated || 0;
+
+            // Criterios de 1 a 3 Estrellas:
+            // 1 estrella: Superar el nivel
+            stars = 1;
+            // 2 estrellas: Tiempo objetivo cumplido O todas las gemas recolectadas
+            const targetTime = statsOrStars.targetTime || 75;
+            if ((time > 0 && time <= targetTime) || gems >= 3) {
+                stars = 2;
             }
+            // 3 estrellas: Sin recibir daño (0 daño) O combo máximo >= 5 con 3 gemas
+            if (damageTaken === 0 || (maxCombo >= 5 && gems >= 3)) {
+                stars = 3;
+            }
+        } else {
+            stars = Number(statsOrStars) || 1;
+            time = Number(legacyTime) || 0;
+            gems = Number(legacyGems) || 0;
+        }
+
+        lvl.completed = true;
+        lvl.stars = Math.max(lvl.stars || 0, Math.min(3, stars));
+        lvl.bestTime = (lvl.bestTime === 0 || (time > 0 && time < lvl.bestTime)) ? Math.round(time) : lvl.bestTime;
+        lvl.gemsCollected = Math.max(lvl.gemsCollected || 0, gems || 0);
+        lvl.maxCombo = Math.max(lvl.maxCombo || 0, maxCombo);
+        lvl.leastDamage = (lvl.leastDamage === undefined || damageTaken < lvl.leastDamage) ? damageTaken : lvl.leastDamage;
+        lvl.enemiesDefeated = Math.max(lvl.enemiesDefeated || 0, enemiesDefeated);
+
+        // Desbloquear el siguiente nivel del mundo
+        if (levelNum < 5 && w.levels[levelNum + 1]) {
+            w.levels[levelNum + 1].unlocked = true;
+        }
+        // Al superar un nivel, se habilita el combate contra el jefe
+        w.bossUnlocked = true;
+
+        // Al superar el nivel o derrotar al jefe, desbloquear el siguiente mundo de Colombia
+        if (worldNum < 10 && camp.worlds[worldNum + 1]) {
+            camp.worlds[worldNum + 1].unlocked = true;
         }
 
         // Recompensas inmediatas
@@ -469,6 +535,7 @@ class StorageEngine {
         this.addXP(stars * 40);
 
         this.save();
+        return stars;
     }
 
     recordCampaignBossDefeated(worldNum) {

@@ -1422,6 +1422,72 @@ body.playing-state #mobile-touch-controls {
 .btn-touch-action.btn-touch-skill .touch-label {
     color: #f3e8ff;
 }
+/* Modo Zurdo Ergonómico (Invertir Joystick a la derecha y Botones a la izquierda) */
+#mobile-touch-controls.controls-left-handed #joystick-zone {
+    right: 30px !important;
+    left: auto !important;
+}
+
+#mobile-touch-controls.controls-left-handed #mobile-actions {
+    left: 20px !important;
+    right: auto !important;
+}
+
+/* Escalas configurables de tamaño de botones táctiles */
+#mobile-touch-controls.touch-size-small #mobile-actions,
+#mobile-touch-controls.touch-size-small #joystick-zone {
+    transform: scale(0.85);
+    transform-origin: bottom right;
+}
+#mobile-touch-controls.controls-left-handed.touch-size-small #mobile-actions {
+    transform-origin: bottom left;
+}
+#mobile-touch-controls.controls-left-handed.touch-size-small #joystick-zone {
+    transform-origin: bottom right;
+}
+
+#mobile-touch-controls.touch-size-large #mobile-actions,
+#mobile-touch-controls.touch-size-large #joystick-zone {
+    transform: scale(1.18);
+    transform-origin: bottom right;
+}
+#mobile-touch-controls.controls-left-handed.touch-size-large #mobile-actions {
+    transform-origin: bottom left;
+}
+#mobile-touch-controls.controls-left-handed.touch-size-large #joystick-zone {
+    transform-origin: bottom right;
+}
+
+/* Indicador de Habilidad Lista (Ready Glow) */
+.skill-ready-glow {
+    box-shadow: 0 0 28px #facc15, 0 0 14px #eab308 !important;
+    border-color: #ffffff !important;
+    animation: skillReadyPulse 1.4s infinite ease-in-out !important;
+}
+
+@keyframes skillReadyPulse {
+    0%, 100% { transform: scale(1); filter: brightness(1.0); }
+    50% { transform: scale(1.08); filter: brightness(1.35); }
+}
+
+/* Accesibilidad: Modo Alto Contraste */
+body.high-contrast-mode .btn-touch-action {
+    border-width: 3.5px !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 2px #000000, 0 0 15px rgba(255, 255, 255, 0.4) !important;
+}
+body.high-contrast-mode #joystick-base {
+    border: 4px solid #ffffff !important;
+    background: #000000 !important;
+}
+
+/* Adaptación a Pantallas con Notch / Safe Areas */
+#mobile-touch-controls {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
 
 /* =======================================================
    OPTIMIZACIÓN RESPONSIVA PARA CELULARES Y TABLETS

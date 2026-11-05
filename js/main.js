@@ -54,6 +54,22 @@ class Game {
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
         this.levelManager = new LevelManager(this);
 
+        // Controles táctiles móviles adaptables
+        this.touchControls = new TouchControlsManager(this.player, this);
+        this.touchControls.setLeftHanded(storage.getSetting('leftHanded', false));
+        this.touchControls.setButtonSize(storage.getSetting('buttonSize', 'normal'));
+
+        // Accesibilidad: Alto contraste inicial
+        if (storage.getSetting('highContrast', false)) {
+            document.body.classList.add('high-contrast-mode');
+        }
+
+        // Perfil de rendimiento gráfico inicial
+        const initialGfx = storage.getSetting('graphicsProfile', this.isMobile ? 'MEDIUM' : 'HIGH');
+        if (this.perfMonitor) {
+            this.perfMonitor.applyProfile(initialGfx, this.renderer, this.scene);
+        }
+
         // Conectar proveedores de física y mecánicas ninja 2.5D
         if (this.player) {
             this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
@@ -65,6 +81,9 @@ class Game {
             this.player.onAttackCallback = (weaponId, combo, target, isAir) => this.handlePlayerAttack(weaponId, combo, target, isAir);
             this.player.onSpinAttackCallback = () => this.handlePlayerSpinAttack();
             this.player.onSpecialSkillCallback = (charId, skill) => this.handleSpecialSkillVisuals(charId, skill);
+            this.player.onDamageTaken = (dmg) => {
+                this.playerDamageTakenThisLevel = (this.playerDamageTakenThisLevel || 0) + dmg;
+            };
         }
         if (this.enemyManager) this.enemyManager.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
 
@@ -307,7 +326,8 @@ class Game {
     }
 
     triggerScreenShake(intensity = 0.2, duration = 0.12) {
-        this.screenShakeIntensity = intensity;
+        const factor = (typeof storage !== 'undefined' && storage.getSetting) ? storage.getSetting('screenShakeIntensity', 1.0) : 1.0;
+        this.screenShakeIntensity = intensity * factor;
         this.screenShakeDuration = duration;
     }
 
@@ -526,6 +546,7 @@ class Game {
 
     handleEnemyDefeated(enemy) {
         storage.incrementEnemiesDefeated();
+        this.enemiesDefeatedThisLevel = (this.enemiesDefeatedThisLevel || 0) + 1;
         if (enemy.isCampaignBoss) {
             this.triggerSlowMoFinisher(enemy);
             this.handleCampaignBossDefeated(enemy);
@@ -1300,21 +1321,171 @@ class Game {
             });
         });
 
-        // Botones de Ajustes
-        const toggleBtnSetting = (id, labelOn, labelOff) => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    const isActive = btn.classList.toggle('active');
-                    btn.textContent = isActive ? labelOn : labelOff;
-                    sounds.playSlash('wood');
-                });
-            }
-        };
-        toggleBtnSetting('btn-toggle-sfx', 'ACTIVADO', 'SILENCIADO');
-        toggleBtnSetting('btn-toggle-music', 'ACTIVADA', 'DESACTIVADA');
-        toggleBtnSetting('btn-toggle-touch-setting', 'AUTO', 'FORZADO');
-        toggleBtnSetting('btn-toggle-graphics', 'ALTA (60 FPS)', 'BATERÍA (30 FPS)');
+        // Botones de Ajustes y Accesibilidad v20.0
+        // 1. SFX
+        const btnSfx = document.getElementById('btn-toggle-sfx');
+        if (btnSfx) {
+            const isSfx = storage.getSetting('sfxEnabled', true);
+            btnSfx.textContent = isSfx ? 'ACTIVADO' : 'SILENCIADO';
+            btnSfx.classList.toggle('active', isSfx);
+            btnSfx.addEventListener('click', () => {
+                const next = !storage.getSetting('sfxEnabled', true);
+                storage.setSetting('sfxEnabled', next);
+                sounds.sfxEnabled = next;
+                btnSfx.textContent = next ? 'ACTIVADO' : 'SILENCIADO';
+                btnSfx.classList.toggle('active', next);
+                if (next && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 2. Música
+        const btnMusic = document.getElementById('btn-toggle-music');
+        if (btnMusic) {
+            const isMus = storage.getSetting('musicEnabled', true);
+            btnMusic.textContent = isMus ? 'ACTIVADA' : 'DESACTIVADA';
+            btnMusic.classList.toggle('active', isMus);
+            btnMusic.addEventListener('click', () => {
+                const next = !storage.getSetting('musicEnabled', true);
+                storage.setSetting('musicEnabled', next);
+                sounds.musicEnabled = next;
+                btnMusic.textContent = next ? 'ACTIVADA' : 'DESACTIVADA';
+                btnMusic.classList.toggle('active', next);
+                if (next) { sounds.resumeMusic(); } else { sounds.stopMusic(); }
+            });
+        }
+
+        // 3. Calidad Gráfica (Profiles: LOW, MEDIUM, HIGH, ULTRA)
+        const btnGfx = document.getElementById('btn-toggle-graphics');
+        if (btnGfx) {
+            const profiles = ['LOW', 'MEDIUM', 'HIGH', 'ULTRA'];
+            const profileLabels = {
+                'LOW': 'BAJA (30 FPS)',
+                'MEDIUM': 'MEDIA (45 FPS)',
+                'HIGH': 'ALTA (60 FPS)',
+                'ULTRA': 'ULTRA (60 FPS+)'
+            };
+            let curGfx = storage.getSetting('graphicsProfile', this.isMobile ? 'MEDIUM' : 'HIGH');
+            btnGfx.textContent = profileLabels[curGfx] || 'ALTA (60 FPS)';
+            btnGfx.addEventListener('click', () => {
+                let idx = profiles.indexOf(curGfx);
+                idx = (idx + 1) % profiles.length;
+                curGfx = profiles[idx];
+                storage.setSetting('graphicsProfile', curGfx);
+                btnGfx.textContent = profileLabels[curGfx];
+                if (this.perfMonitor) {
+                    this.perfMonitor.applyProfile(curGfx, this.renderer, this.scene);
+                }
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 4. Modo de visualización táctil
+        const btnTouch = document.getElementById('btn-toggle-touch-setting');
+        if (btnTouch) {
+            const touchModes = ['auto', 'always', 'hidden'];
+            const touchLabels = { 'auto': 'AUTO', 'always': 'SIEMPRE', 'hidden': 'OCULTO' };
+            let curTouch = storage.getSetting('touchControls', 'auto');
+            btnTouch.textContent = touchLabels[curTouch] || 'AUTO';
+            btnTouch.addEventListener('click', () => {
+                let idx = touchModes.indexOf(curTouch);
+                idx = (idx + 1) % touchModes.length;
+                curTouch = touchModes[idx];
+                storage.setSetting('touchControls', curTouch);
+                btnTouch.textContent = touchLabels[curTouch];
+                const tc = document.getElementById('mobile-touch-controls');
+                if (tc && this.state === 'PLAYING') {
+                    const shouldShow = (curTouch === 'always') || (curTouch === 'auto' && (this.isMobile || window.innerWidth <= 900));
+                    tc.style.display = shouldShow ? 'block' : 'none';
+                    document.body.classList.toggle('touch-enabled', shouldShow);
+                    document.body.classList.toggle('touch-active', shouldShow);
+                }
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 5. Modo Zurdo
+        const btnLeftHanded = document.getElementById('btn-toggle-left-handed');
+        if (btnLeftHanded) {
+            const isLeft = storage.getSetting('leftHanded', false);
+            btnLeftHanded.textContent = isLeft ? 'ACTIVADO' : 'DESACTIVADO';
+            btnLeftHanded.classList.toggle('active', isLeft);
+            btnLeftHanded.addEventListener('click', () => {
+                const next = !storage.getSetting('leftHanded', false);
+                storage.setSetting('leftHanded', next);
+                btnLeftHanded.textContent = next ? 'ACTIVADO' : 'DESACTIVADO';
+                btnLeftHanded.classList.toggle('active', next);
+                if (this.touchControls) this.touchControls.setLeftHanded(next);
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 6. Tamaño Botones Táctiles
+        const btnSize = document.getElementById('btn-toggle-btn-size');
+        if (btnSize) {
+            const sizes = ['small', 'normal', 'large'];
+            const sizeLabels = { 'small': 'PEQUEÑO', 'normal': 'NORMAL', 'large': 'GRANDE' };
+            let curSize = storage.getSetting('buttonSize', 'normal');
+            btnSize.textContent = sizeLabels[curSize] || 'NORMAL';
+            btnSize.addEventListener('click', () => {
+                let idx = sizes.indexOf(curSize);
+                idx = (idx + 1) % sizes.length;
+                curSize = sizes[idx];
+                storage.setSetting('buttonSize', curSize);
+                btnSize.textContent = sizeLabels[curSize];
+                if (this.touchControls) this.touchControls.setButtonSize(curSize);
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 7. Vibración Háptica
+        const btnVib = document.getElementById('btn-toggle-vibration');
+        if (btnVib) {
+            const isVib = storage.getSetting('vibrationEnabled', true);
+            btnVib.textContent = isVib ? 'ACTIVADA' : 'DESACTIVADA';
+            btnVib.classList.toggle('active', isVib);
+            btnVib.addEventListener('click', () => {
+                const next = !storage.getSetting('vibrationEnabled', true);
+                storage.setSetting('vibrationEnabled', next);
+                btnVib.textContent = next ? 'ACTIVADA' : 'DESACTIVADA';
+                btnVib.classList.toggle('active', next);
+                if (next && navigator.vibrate) navigator.vibrate(25);
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 8. Vibración de Pantalla (Screen Shake)
+        const btnShake = document.getElementById('btn-toggle-screenshake');
+        if (btnShake) {
+            const shakes = [1.0, 0.4, 0.0];
+            const shakeLabels = { '1': 'NORMAL', '0.4': 'SUAVE', '0': 'DESACTIVADO' };
+            let curShake = storage.getSetting('screenShakeIntensity', 1.0);
+            btnShake.textContent = shakeLabels[String(curShake)] || 'NORMAL';
+            btnShake.addEventListener('click', () => {
+                let idx = shakes.indexOf(curShake);
+                idx = (idx + 1) % shakes.length;
+                curShake = shakes[idx];
+                storage.setSetting('screenShakeIntensity', curShake);
+                btnShake.textContent = shakeLabels[String(curShake)];
+                this.triggerScreenShake(0.25, 0.12);
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
+
+        // 9. Accesibilidad: Alto Contraste
+        const btnHC = document.getElementById('btn-toggle-high-contrast');
+        if (btnHC) {
+            const isHC = storage.getSetting('highContrast', false);
+            btnHC.textContent = isHC ? 'ACTIVADO' : 'DESACTIVADO';
+            btnHC.classList.toggle('active', isHC);
+            btnHC.addEventListener('click', () => {
+                const next = !storage.getSetting('highContrast', false);
+                storage.setSetting('highContrast', next);
+                btnHC.textContent = next ? 'ACTIVADO' : 'DESACTIVADO';
+                btnHC.classList.toggle('active', next);
+                document.body.classList.toggle('high-contrast-mode', next);
+                if (sounds && sounds.playSlash) sounds.playSlash('wood');
+            });
+        }
     }
 
     updateLobbyPlayersList(players) {
@@ -1696,9 +1867,17 @@ class Game {
 
         // 3. Controles táctiles en celulares o pantallas táctiles
         const tc = document.getElementById('mobile-touch-controls');
-        if (tc && (this.isMobile || window.innerWidth <= 900)) {
-            tc.style.display = 'block';
-            document.body.classList.add('touch-enabled', 'touch-active');
+        const touchSetting = storage.getSetting('touchControls', 'auto');
+        const shouldShowTouch = touchSetting === 'always' || (touchSetting === 'auto' && (this.isMobile || window.innerWidth <= 900));
+        if (tc) {
+            tc.style.display = shouldShowTouch ? 'block' : 'none';
+            document.body.classList.toggle('touch-enabled', shouldShowTouch);
+            document.body.classList.toggle('touch-active', shouldShowTouch);
+        }
+        if (this.touchControls) {
+            this.touchControls.player = this.player;
+            this.touchControls.setLeftHanded(storage.getSetting('leftHanded', false));
+            this.touchControls.setButtonSize(storage.getSetting('buttonSize', 'normal'));
         }
 
         if (this.campaignIsBossFight) {
@@ -2220,6 +2399,14 @@ class Game {
         // 7. Actualizar enemigos con IA táctica
         this.enemyManager.update(simDelta, this.player, this.camera);
 
+        // Actualizar controles táctiles móviles (cooldowns & glow)
+        if (this.touchControls) {
+            this.touchControls.update(this.player);
+        }
+        if (this.player) {
+            this.maxComboAchieved = Math.max(this.maxComboAchieved || 0, this.player.comboCount || 0);
+        }
+
         // 8. Actualizar partículas y monedas
         this.particles.update(delta, this.player.mesh.position, (coins) => {
             storage.addCoins(coins);
@@ -2566,8 +2753,16 @@ class Game {
         const gemsReward = totalStars >= 3 ? 5 : (totalStars >= 2 ? 3 : 1);
         const xpReward = 100 + totalStars * 40;
 
-        // Guardar resultado
-        storage.recordCampaignLevelResult(worldNum, levelNum, totalStars, elapsedSec, collectedGems);
+        // Guardar resultado con métricas avanzadas v20.0
+        const resultStats = {
+            stars: totalStars,
+            time: elapsedSec,
+            gems: collectedGems,
+            maxCombo: this.maxComboAchieved || (this.player ? this.player.comboCount : 0) || 0,
+            damageTaken: this.playerDamageTakenThisLevel || 0,
+            enemiesDefeated: this.enemiesDefeatedThisLevel || 0
+        };
+        storage.recordCampaignLevelResult(worldNum, levelNum, resultStats);
 
         // Registrar partida en el historial
         storage.recordMatchResult({

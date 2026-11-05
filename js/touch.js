@@ -1,4 +1,6 @@
 // js/touch.js - Controles Táctiles para Celular Estilo Free Fire
+import { storage } from './storage.js?v=20.0';
+import { CHARACTERS_DATA } from './characters.js?v=20.0';
 // Soporta Multi-Touch simultáneo, joystick responsivo con zona muerta y cámara panorámica suave
 
 export class TouchControlsManager {
@@ -34,6 +36,8 @@ export class TouchControlsManager {
         this.deadzone = 8;   // Zona muerta mínima para evitar temblores
         this.baseCenter = { x: 0, y: 0 };
 
+        this.isLeftHanded = storage.getSetting('leftHanded', false);
+        this.buttonSize = storage.getSetting('buttonSize', 'normal');
         this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024);
 
         this.init();
@@ -48,6 +52,8 @@ export class TouchControlsManager {
         this.setupJoystickEvents();
         this.setupCameraTouchEvents();
         this.setupActionButtons();
+        this.setLeftHanded(this.isLeftHanded);
+        this.setButtonSize(this.buttonSize);
 
         // Al tocar por primera vez, asegurar activación de clases visuales
         window.addEventListener('touchstart', () => {
@@ -78,7 +84,10 @@ export class TouchControlsManager {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 // Lado izquierdo de la pantalla (excluyendo zona de menús o modales)
-                if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.48 && touch.clientY > window.innerHeight * 0.15) {
+                const isLeftZone = touch.clientX < window.innerWidth * 0.48;
+                const isRightZone = touch.clientX > window.innerWidth * 0.52;
+                const isInJoyZone = this.isLeftHanded ? isRightZone : isLeftZone;
+                if (this.joystickTouchId === null && isInJoyZone && touch.clientY > window.innerHeight * 0.15) {
                     const target = touch.target || e.target;
                     if (target && target.closest && (
                         target.closest('#main-menu-overlay') ||
@@ -264,7 +273,7 @@ export class TouchControlsManager {
     setupActionButtons() {
         const vibrateShort = () => {
             try {
-                if ('vibrate' in navigator) navigator.vibrate(18);
+                if (storage.getSetting('vibrationEnabled', true) && 'vibrate' in navigator) navigator.vibrate(18);
             } catch (_) {}
         };
 
@@ -438,6 +447,62 @@ export class TouchControlsManager {
 
             this.btnSkill.addEventListener('touchstart', doSkill, { passive: false });
             this.btnSkill.addEventListener('mousedown', doSkill);
+        }
+    }
+
+    setLeftHanded(enabled) {
+        this.isLeftHanded = !!enabled;
+        if (this.container) {
+            this.container.classList.toggle('controls-left-handed', this.isLeftHanded);
+        }
+        if (this.joystickZone) {
+            if (this.isLeftHanded) {
+                this.joystickZone.style.right = '30px';
+                this.joystickZone.style.left = 'auto';
+            } else {
+                this.joystickZone.style.left = '30px';
+                this.joystickZone.style.right = 'auto';
+            }
+            this.joystickZone.style.bottom = '30px';
+            this.joystickZone.style.top = 'auto';
+        }
+    }
+
+    setButtonSize(size = 'normal') {
+        this.buttonSize = size;
+        if (!this.container) return;
+        this.container.classList.remove('touch-size-small', 'touch-size-normal', 'touch-size-large');
+        this.container.classList.add(`touch-size-${size}`);
+    }
+
+    update(player) {
+        if (!player) return;
+
+        // Feedback visual del botón de Habilidad Especial y Cooldown
+        if (this.btnSkill) {
+            const overlay = document.getElementById('skill-cooldown-overlay');
+            if (player.specialCooldownTimer > 0) {
+                this.btnSkill.classList.remove('skill-ready-glow');
+                if (overlay) {
+                    const charData = CHARACTERS_DATA[player.characterId] || CHARACTERS_DATA.chucho;
+                    const maxCd = (charData && charData.skill && charData.skill.cooldown) || 5.0;
+                    const pct = Math.min(100, Math.round((player.specialCooldownTimer / maxCd) * 100));
+                    overlay.style.height = `${pct}%`;
+                    overlay.style.display = 'block';
+                }
+            } else {
+                this.btnSkill.classList.add('skill-ready-glow');
+                if (overlay) overlay.style.display = 'none';
+            }
+        }
+
+        // Feedback visual en botón de Dash / Air Dash
+        if (this.btnDash) {
+            if (player.dashCooldown > 0 || (!player.isGrounded && !player.canAirDash)) {
+                this.btnDash.style.opacity = '0.55';
+            } else {
+                this.btnDash.style.opacity = '1.0';
+            }
         }
     }
 
