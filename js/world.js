@@ -2191,6 +2191,140 @@ export class World {
         }
     }
 
+    buildSecretCave(pos, gemId) {
+        const caveGroup = new THREE.Group();
+        caveGroup.position.copy(pos);
+
+        // 1. Arco de piedra ancestral tallada (Entrada a la cueva)
+        const archMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.95 });
+        const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.4, 1.2), archMat);
+        leftPillar.position.set(-1.8, 1.7, 0);
+        caveGroup.add(leftPillar);
+
+        const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.4, 1.2), archMat);
+        rightPillar.position.set(1.8, 1.7, 0);
+        caveGroup.add(rightPillar);
+
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.9, 1.4), archMat);
+        lintel.position.set(0, 3.5, 0);
+        caveGroup.add(lintel);
+
+        // 2. Interior oscuro de la cueva con fondo místico
+        const darkBackdrop = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.6, 3.2),
+            new THREE.MeshBasicMaterial({ color: 0x09090b, side: THREE.DoubleSide })
+        );
+        darkBackdrop.position.set(0, 1.7, -0.6);
+        caveGroup.add(darkBackdrop);
+
+        // 3. Petroglifo precolombino dorado sobre el dintel
+        const glyphMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.6,
+            metalness: 0.8
+        });
+        const glyph = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0), glyphMat);
+        glyph.position.set(0, 3.5, 0.75);
+        caveGroup.add(glyph);
+
+        // 4. Cristal secreto oculto en el corazón de la cueva
+        this.buildBiodiversityCrystal(pos.clone().add(new THREE.Vector3(0, 1.0, 0)), gemId);
+
+        // 5. Suelo de la cueva como plataforma sólida
+        this.addPlatformMesh(pos.x, pos.y, 0, 4.8, 8.0, archMat);
+
+        this.mapRoot.add(caveGroup);
+        return caveGroup;
+    }
+
+    buildSecretCanopyPath(startX, baseY, themeMat) {
+        // Ruta elevada de plataformas en el dosel de los árboles (alcanzable con Wall Jump o Lianas)
+        const pathWidth = 5.0;
+        const elevatedY = baseY + 6.2;
+        for (let i = 0; i < 3; i++) {
+            const px = startX + i * 5.8;
+            const py = elevatedY + Math.sin(i * 0.9) * 1.2;
+            this.addPlatformMesh(px, py, 0, pathWidth, 6.0, themeMat);
+
+            // Recompensa en la ruta del dosel: monedas y cajas secretas
+            this.buildFloatingCoinsArc(px, py, 0, 4);
+            if (i === 1) {
+                this.buildCrate(new THREE.Vector3(px, py + 0.46, 0), 'gems');
+            }
+        }
+    }
+
+    buildWeatherEffects(worldNum, totalLength) {
+        // Clima dinámico por región de Colombia
+        const weatherGroup = new THREE.Group();
+        const startX = -20;
+        const endX = totalLength + 30;
+
+        if (worldNum === 3) {
+            // Nevado del Ruiz: Copos de nieve flotantes
+            const snowGeom = new THREE.DodecahedronGeometry(0.12, 0);
+            const snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+            const flakes = [];
+            for (let i = 0; i < 45; i++) {
+                const flake = new THREE.Mesh(snowGeom, snowMat);
+                flake.position.set(startX + Math.random() * (endX - startX), 1.0 + Math.random() * 12.0, (Math.random() - 0.5) * 8.0);
+                weatherGroup.add(flake);
+                flakes.push({ mesh: flake, speedY: 1.2 + Math.random() * 1.5, driftX: (Math.random() - 0.5) * 0.8 });
+            }
+            this.animatedUpdaters.push((delta) => {
+                flakes.forEach(f => {
+                    f.mesh.position.y -= f.speedY * delta;
+                    f.mesh.position.x += f.driftX * delta;
+                    if (f.mesh.position.y < -2.0) f.mesh.position.y = 12.0;
+                });
+            });
+
+        } else if (worldNum === 8) {
+            // Chocó y Pacífico: Lluvia tropical
+            const rainGeom = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 4);
+            const rainMat = new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.55 });
+            const drops = [];
+            for (let i = 0; i < 60; i++) {
+                const drop = new THREE.Mesh(rainGeom, rainMat);
+                drop.position.set(startX + Math.random() * (endX - startX), 2.0 + Math.random() * 14.0, (Math.random() - 0.5) * 6.0);
+                drop.rotation.z = 0.15; // Lluvia diagonal por viento
+                weatherGroup.add(drop);
+                drops.push(drop);
+            }
+            this.animatedUpdaters.push((delta) => {
+                drops.forEach(d => {
+                    d.position.y -= 22.0 * delta;
+                    d.position.x -= 3.5 * delta;
+                    if (d.position.y < -2.0) {
+                        d.position.y = 14.0;
+                        d.position.x = startX + Math.random() * (endX - startX);
+                    }
+                });
+            });
+
+        } else if (worldNum === 10) {
+            // Altar de El Dorado: Polvo de oro y partículas sagradas
+            const goldDustGeom = new THREE.OctahedronGeometry(0.1, 0);
+            const goldDustMat = new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.85 });
+            const motes = [];
+            for (let i = 0; i < 40; i++) {
+                const mote = new THREE.Mesh(goldDustGeom, goldDustMat);
+                mote.position.set(startX + Math.random() * (endX - startX), 1.0 + Math.random() * 10.0, (Math.random() - 0.5) * 8.0);
+                weatherGroup.add(mote);
+                motes.push({ mesh: mote, baseY: mote.position.y, phase: Math.random() * Math.PI * 2, speed: 1.5 + Math.random() });
+            }
+            this.animatedUpdaters.push((delta, time) => {
+                motes.forEach(m => {
+                    m.mesh.position.y = m.baseY + Math.sin(time * m.speed + m.phase) * 0.8;
+                    m.mesh.rotation.y += delta * 2.0;
+                });
+            });
+        }
+
+        this.mapRoot.add(weatherGroup);
+    }
+
     // =========================================================================
     // GENERADOR DE NIVELES 2.5D PROCEDURAL DE CAMPAÑA CINEMÁTICA
     // =========================================================================
@@ -2243,6 +2377,7 @@ export class World {
 
         // 1. Gran Fondo Parallax Cinemático Multicapa
         this.buildParallaxBackdrop(worldNum, totalLength);
+        this.buildWeatherEffects(worldNum, totalLength);
 
         // 2. Partículas ambientales de esporas y luciérnagas de la biodiversidad
         const fireflyGroup = new THREE.Group();
@@ -2313,6 +2448,16 @@ export class World {
             } else if (gap > 3.0 && sectionIndex % 2 === 0) {
                 // Liana colgante ancestral sobre el abismo para balanceo acrobático
                 this.buildLianaHook(new THREE.Vector3(currentX + gap / 2, Math.max(currentY, heightVariation) + 5.2, 0), 4.2);
+            }
+
+            // Ruta Secreta del Dosel (Canopy Path) en sección temprana
+            if (sectionIndex === 2) {
+                this.buildSecretCanopyPath(platX, currentY, themeMat);
+            }
+
+            // Cueva Ancestral Oculta en sección intermedia/avanzada
+            if (sectionIndex === 5 && currentX < totalLength - 15) {
+                this.buildSecretCave(new THREE.Vector3(platX + 2.0, Math.max(0, currentY - 2.8), 0), `gem_secret_w${worldNum}_l${levelNum}`);
             }
 
             // Cajas Sorpresa con '?'
