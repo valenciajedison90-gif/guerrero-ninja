@@ -3,8 +3,9 @@
 // Incluye: Cajas Sorpresa con '?', Airdrops con Paracaídas, Cristales de Biodiversidad y Portales Precolombinos
 
 import * as THREE from 'three';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=20.1';
 import { resourceManager } from './core/resourceManager.js';
+import { textureGen } from './core/textureGenerator.js?v=20.1';
 
 export const MAPS_CONFIG = {
     selva: {
@@ -1654,61 +1655,350 @@ export class World {
         return group;
     }
 
+    
+    getBiomePlatformTheme(worldNum = 1) {
+        if (!this._biomePlatformThemeCache) this._biomePlatformThemeCache = new Map();
+        if (this._biomePlatformThemeCache.has(worldNum)) return this._biomePlatformThemeCache.get(worldNum);
+
+        let theme = {};
+        switch (Number(worldNum)) {
+            case 2: // Eje Cafetero: Bambú guadua, suelo fértil de café y tejas rojas
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getBambooWoodTexture(),
+                        roughness: 0.75,
+                        color: 0xb45309
+                    }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.85 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.5, metalness: 0.2 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.4 }),
+                    decoType: 'coffee'
+                };
+                break;
+            case 3: // Caribe: Piedra coralina, arena dorada y cristales de mar
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.85 }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.9 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.2, metalness: 0.6 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 }),
+                    decoType: 'caribbean'
+                };
+                break;
+            case 4: // Páramo & Los Nevados: Hielo glaciar, manto de nieve pura y carámbanos
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getGlacierIceTexture(),
+                        roughness: 0.2,
+                        metalness: 0.5,
+                        transparent: true,
+                        opacity: 0.92
+                    }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.1 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.2, emissive: 0x0284c7, emissiveIntensity: 0.35 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.1 }),
+                    decoType: 'glacier'
+                };
+                break;
+            case 5: // Desierto & Tatacoa: Arenisca roja estratificada, arcilla ocre
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getRedCanyonTexture(),
+                        roughness: 0.9
+                    }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.95 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xfed7aa, roughness: 0.7 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.8 }),
+                    decoType: 'canyon'
+                };
+                break;
+            case 6: // Pacífico & Chocó: Basalto húmedo, musgo de lluvia y hongos bioluminiscentes
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.3 }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.8 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x06b6d4, emissiveIntensity: 0.7, roughness: 0.2 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.5 }),
+                    decoType: 'pacific'
+                };
+                break;
+            case 7: // Sabana & Llanos: Arcilla aluvial, pastizal dorado y juncos
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({ color: 0x713f12, roughness: 0.9 }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.85 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.6 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.7 }),
+                    decoType: 'savanna'
+                };
+                break;
+            case 8: // Caño Cristales: Cuarzo transparente y algas Macarenia clavigera 5 colores
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({ color: 0xfce7f3, roughness: 0.3, metalness: 0.4 }),
+                    topMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getRainbowAlgaeTexture(),
+                        roughness: 0.4,
+                        emissive: 0xec4899,
+                        emissiveIntensity: 0.25
+                    }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.2, metalness: 0.5 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.3 }),
+                    decoType: 'cristales'
+                };
+                break;
+            case 9: // Ciudad Perdida: Terrazas circulares de cantería ancestral y petroglifos
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getAncientStoneTexture(),
+                        roughness: 0.85
+                    }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.9 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5, metalness: 0.3 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.7 }),
+                    decoType: 'tayrona'
+                };
+                break;
+            case 10: // El Dorado: Oro precolombino tallado con glifos solares y losas de jade
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getElDoradoGoldTexture(),
+                        metalness: 0.9,
+                        roughness: 0.2,
+                        emissive: 0xb45309,
+                        emissiveIntensity: 0.2
+                    }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.25, metalness: 0.6 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.95, roughness: 0.15, emissive: 0xd97706, emissiveIntensity: 0.4 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2 }),
+                    decoType: 'eldorado'
+                };
+                break;
+            case 1: // Amazonas (Default): Piedra sagrada tallada, musgo esmeralda y orquídeas
+            default:
+                theme = {
+                    baseMat: new THREE.MeshStandardMaterial({
+                        map: textureGen.getAncientStoneTexture(),
+                        roughness: 0.8
+                    }),
+                    topMat: new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.75 }),
+                    trimMat: new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.25, emissive: 0xb45309, emissiveIntensity: 0.3 }),
+                    accentMat: new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.4 }),
+                    decoType: 'amazon'
+                };
+                break;
+        }
+
+        this._biomePlatformThemeCache.set(worldNum, theme);
+        return theme;
+    }
+
+    buildCoconutPalmBackdrop(pos, parent) {
+        const palm = new THREE.Group();
+        palm.position.copy(pos);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
+        const frondMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5 });
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 14.0, 10), trunkMat);
+        trunk.position.set(0.6, 7.0, 0);
+        trunk.rotation.z = 0.12;
+        palm.add(trunk);
+        for (let fr = 0; fr < 7; fr++) {
+            const angle = (fr / 7) * Math.PI * 2;
+            const frond = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.08, 4.5), frondMat);
+            frond.position.set(1.2 + Math.cos(angle) * 2.2, 13.8, Math.sin(angle) * 2.2);
+            frond.rotation.y = angle;
+            frond.rotation.x = 0.35;
+            palm.add(frond);
+        }
+        (parent || this.mapRoot).add(palm);
+    }
+
+    buildDesertMesa(pos, parent) {
+        const mesa = new THREE.Group();
+        mesa.position.copy(pos);
+        const mat = new THREE.MeshStandardMaterial({
+            map: textureGen.getRedCanyonTexture(),
+            roughness: 0.95
+        });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 7.0, 15.0, 7), mat);
+        body.position.y = 7.5;
+        mesa.add(body);
+        (parent || this.mapRoot).add(mesa);
+    }
+
+    buildSnowyPeak(pos, parent) {
+        const peak = new THREE.Group();
+        peak.position.copy(pos);
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.95 });
+        const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+        const baseCone = new THREE.Mesh(new THREE.ConeGeometry(9.0, 18.0, 6), rockMat);
+        baseCone.position.y = 9.0;
+        peak.add(baseCone);
+        const snowCap = new THREE.Mesh(new THREE.ConeGeometry(4.5, 9.0, 6), snowMat);
+        snowCap.position.y = 13.5;
+        peak.add(snowCap);
+        (parent || this.mapRoot).add(peak);
+    }
+
+    buildGiantMangrove(pos, parent) {
+        const m = new THREE.Group();
+        m.position.copy(pos);
+        const rootMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.6 });
+        for (let i = 0; i < 4; i++) {
+            const angle = (i / 4) * Math.PI * 2;
+            const root = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.45, 8, 16, Math.PI), rootMat);
+            root.position.set(Math.cos(angle) * 2.5, 1.2, Math.sin(angle) * 2.5);
+            root.rotation.y = angle;
+            m.add(root);
+        }
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.8, 12.0, 10), rootMat);
+        trunk.position.y = 6.0;
+        m.add(trunk);
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(7.0, 14, 12), leafMat);
+        crown.scale.set(1.5, 0.6, 1.5);
+        crown.position.y = 12.0;
+        m.add(crown);
+        (parent || this.mapRoot).add(m);
+    }
+
+    buildGiantMoriche(pos, parent) {
+        const p = new THREE.Group();
+        p.position.copy(pos);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.8 });
+        const frondMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.6 });
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 16.0, 10), trunkMat);
+        trunk.position.y = 8.0;
+        p.add(trunk);
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const frond = new THREE.Mesh(new THREE.ConeGeometry(1.4, 4.5, 6), frondMat);
+            frond.position.set(Math.cos(angle) * 2.5, 16.0, Math.sin(angle) * 2.5);
+            frond.rotation.x = Math.PI / 3;
+            frond.rotation.y = angle;
+            p.add(frond);
+        }
+        (parent || this.mapRoot).add(p);
+    }
+
+    buildMacarenaPlateau(pos, parent) {
+        const plat = new THREE.Group();
+        plat.position.copy(pos);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xdb2777, emissiveIntensity: 0.25, roughness: 0.4 });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(6.0, 8.0, 10.0, 8), mat);
+        body.position.y = 5.0;
+        plat.add(body);
+        (parent || this.mapRoot).add(plat);
+    }
+
+    buildTayronaTerrace(pos, parent) {
+        const terr = new THREE.Group();
+        terr.position.copy(pos);
+        const stoneMat = new THREE.MeshStandardMaterial({
+            map: textureGen.getAncientStoneTexture(),
+            roughness: 0.9
+        });
+        for (let t = 0; t < 3; t++) {
+            const ring = new THREE.Mesh(new THREE.CylinderGeometry(7.0 - t * 1.5, 7.5 - t * 1.5, 3.5, 16), stoneMat);
+            ring.position.y = 1.75 + t * 3.2;
+            terr.add(ring);
+        }
+        (parent || this.mapRoot).add(terr);
+    }
+
+    buildElDoradoSpire(pos, parent) {
+        const sp = new THREE.Group();
+        sp.position.copy(pos);
+        const goldMat = new THREE.MeshStandardMaterial({
+            map: textureGen.getElDoradoGoldTexture(),
+            metalness: 0.95,
+            roughness: 0.2,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.5
+        });
+        const spire = new THREE.Mesh(new THREE.ConeGeometry(2.5, 16.0, 6), goldMat);
+        spire.position.y = 8.0;
+        sp.add(spire);
+        (parent || this.mapRoot).add(sp);
+    }
+
     addPlatformMesh(x, y, z, width, length, material, isMoving = false) {
         const group = new THREE.Group();
         group.position.set(x, y, z);
 
         const thickness = 1.6;
-        // 1. Bloque base de roca / mampostería
+        const currentWorld = this.currentCampaignWorldNum || 1;
+        const theme = this.getBiomePlatformTheme(currentWorld);
+        const useBaseMat = material || theme.baseMat;
+
+        // 1. Bloque base con textura de alta fidelidad según bioma
         const geom = new THREE.BoxGeometry(width, thickness, length);
-        const mesh = new THREE.Mesh(geom, material);
+        const mesh = new THREE.Mesh(geom, useBaseMat);
         mesh.position.y = -thickness / 2;
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
 
-        // 2. Capa superior de hierba / musgo / baldosas vivas con ligero bisel
-        const grassMat = new THREE.MeshStandardMaterial({
-            color: 0x22c55e,
-            roughness: 0.75,
-            metalness: 0.1
-        });
-        const topGrass = new THREE.Mesh(new THREE.BoxGeometry(width + 0.35, 0.24, length + 0.35), grassMat);
+        // 2. Capa superior viva estilizada específica del bioma
+        const topGrass = new THREE.Mesh(new THREE.BoxGeometry(width + 0.35, 0.24, length + 0.35), theme.topMat);
         topGrass.position.y = 0.08;
         topGrass.receiveShadow = true;
         group.add(topGrass);
 
-        // 3. Cenefa dorada / precolombina frontal (Visible directamente hacia la cámara 2.5D)
-        const goldAccentMat = new THREE.MeshStandardMaterial({
-            color: 0xf59e0b,
-            metalness: 0.85,
-            roughness: 0.25,
-            emissive: 0xb45309,
-            emissiveIntensity: 0.3
-        });
-        const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.2, 0.26, 0.25), goldAccentMat);
+        // 3. Cenefa frontal visible hacia la cámara 2.5D
+        const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.2, 0.26, 0.25), theme.trimMat);
         frontTrim.position.set(0, -0.05, length / 2 + 0.1);
         group.add(frontTrim);
 
-        // 4. Relieve decorativo en la cara frontal (rombo sagrado precolombino)
-        if (width >= 6.0) {
+        // 4. Relieve decorativo en la cara frontal
+        if (width >= 5.5) {
             const diamondGeom = new THREE.OctahedronGeometry(0.38, 0);
             diamondGeom.scale(1.2, 1.2, 0.2);
-            const diamondMesh = new THREE.Mesh(diamondGeom, goldAccentMat);
+            const diamondMesh = new THREE.Mesh(diamondGeom, theme.accentMat);
             diamondMesh.position.set(0, -thickness / 2, length / 2 + 0.15);
             group.add(diamondMesh);
         }
 
-        // 5. Raíces colgantes / lianas bajo la plataforma
-        const vineMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.9 });
-        const numRoots = Math.min(5, Math.floor(width / 2.2));
-        for (let i = 0; i < numRoots; i++) {
-            const rootX = -width / 2 + 0.8 + (i / Math.max(1, numRoots - 1)) * (width - 1.6);
-            const rootHeight = 0.85 + (i % 3) * 0.45;
-            const root = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.02, rootHeight, 6), vineMat);
-            root.position.set(rootX, -thickness - rootHeight / 2, length / 2 - 0.2);
-            root.rotation.z = (i % 2 === 0 ? 0.12 : -0.12);
-            group.add(root);
+        // 5. Decoraciones temáticas bajo la plataforma según bioma
+        const numDecos = Math.min(6, Math.floor(width / 2.0));
+        for (let i = 0; i < numDecos; i++) {
+            const decoX = -width / 2 + 0.8 + (i / Math.max(1, numDecos - 1)) * (width - 1.6);
+            if (theme.decoType === 'glacier') {
+                // Carámbanos de hielo translúcidos colgantes
+                const icicleGeom = new THREE.ConeGeometry(0.10, 1.1 + (i % 3) * 0.45, 6);
+                icicleGeom.translate(0, -0.55, 0);
+                const icicle = new THREE.Mesh(icicleGeom, theme.accentMat);
+                icicle.position.set(decoX, -thickness, length / 2 - 0.2);
+                group.add(icicle);
+            } else if (theme.decoType === 'coffee') {
+                // Ramas de cafeto con cerezas rojas
+                const twig = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.9, 6), theme.trimMat);
+                twig.position.set(decoX, -thickness - 0.45, length / 2 - 0.2);
+                twig.rotation.z = (i % 2 === 0 ? 0.2 : -0.2);
+                group.add(twig);
+                const cherry = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), theme.accentMat);
+                cherry.position.set(decoX, -thickness - 0.9, length / 2 - 0.2);
+                group.add(cherry);
+            } else if (theme.decoType === 'canyon') {
+                // Estalactitas de arenisca roja
+                const stalactite = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.95 + (i % 2) * 0.4, 5), theme.baseMat);
+                stalactite.position.set(decoX, -thickness - 0.45, length / 2 - 0.2);
+                group.add(stalactite);
+            } else if (theme.decoType === 'eldorado') {
+                // Prismas geométricos de oro levitantes
+                const goldenPrism = new THREE.Mesh(new THREE.OctahedronGeometry(0.20, 0), theme.trimMat);
+                goldenPrism.position.set(decoX, -thickness - 0.55, length / 2 - 0.2);
+                goldenPrism.rotation.y = i * 0.8;
+                group.add(goldenPrism);
+            } else {
+                // Lianas tropicales / raíces con flores
+                const rootHeight = 0.85 + (i % 3) * 0.45;
+                const root = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.02, rootHeight, 6), theme.topMat);
+                root.position.set(decoX, -thickness - rootHeight / 2, length / 2 - 0.2);
+                root.rotation.z = (i % 2 === 0 ? 0.12 : -0.12);
+                group.add(root);
+                if (i % 2 === 0) {
+                    const flower = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 8), theme.accentMat);
+                    flower.position.set(decoX, -thickness - rootHeight, length / 2 - 0.2);
+                    group.add(flower);
+                }
+            }
         }
 
         // 6. Pilares de soporte de madera / piedra si la plataforma está cerca del suelo o en zonas bajas
@@ -2095,10 +2385,26 @@ export class World {
             const propZ = -18.0 - (Math.abs(fx) % 4) * 2.5;
             const propY = Math.sin(fx * 0.1) * 2.0;
 
-            if (worldNum === 2) {
+            if (worldNum === 1) {
+                this.buildGiantCeiba(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 2) {
                 this.buildWaxPalm(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 3) {
+                this.buildCoconutPalmBackdrop(new THREE.Vector3(fx, propY, propZ), backdropGroup);
             } else if (worldNum === 4) {
                 this.buildGiantFrailejon(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 5) {
+                this.buildDesertMesa(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 6) {
+                this.buildGiantMangrove(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 7) {
+                this.buildGiantMoriche(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 8) {
+                this.buildMacarenaPlateau(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 9) {
+                this.buildTayronaTerrace(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 10) {
+                this.buildElDoradoSpire(new THREE.Vector3(fx, propY, propZ), backdropGroup);
             } else {
                 this.buildGiantCeiba(new THREE.Vector3(fx, propY, propZ), backdropGroup);
             }
@@ -2261,8 +2567,9 @@ export class World {
         const startX = -20;
         const endX = totalLength + 30;
 
-        if (worldNum === 3) {
-            // Nevado del Ruiz: Copos de nieve flotantes
+        const num = Number(worldNum);
+        if (num === 4) {
+            // Mundo 4 - Páramo & Nevado del Ruiz: Copos de nieve flotantes
             const snowGeom = new THREE.DodecahedronGeometry(0.12, 0);
             const snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
             const flakes = [];
@@ -2280,15 +2587,15 @@ export class World {
                 });
             });
 
-        } else if (worldNum === 8) {
-            // Chocó y Pacífico: Lluvia tropical
+        } else if (num === 6) {
+            // Mundo 6 - Chocó y Pacífico: Lluvia tropical torrencial
             const rainGeom = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 4);
             const rainMat = new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.55 });
             const drops = [];
             for (let i = 0; i < 60; i++) {
                 const drop = new THREE.Mesh(rainGeom, rainMat);
                 drop.position.set(startX + Math.random() * (endX - startX), 2.0 + Math.random() * 14.0, (Math.random() - 0.5) * 6.0);
-                drop.rotation.z = 0.15; // Lluvia diagonal por viento
+                drop.rotation.z = 0.15;
                 weatherGroup.add(drop);
                 drops.push(drop);
             }
@@ -2303,7 +2610,48 @@ export class World {
                 });
             });
 
-        } else if (worldNum === 10) {
+        } else if (num === 5) {
+            // Mundo 5 - Tatacoa & Guajira: Remolinos de arena y polvo ocre
+            const sandGeom = new THREE.SphereGeometry(0.08, 4, 4);
+            const sandMat = new THREE.MeshBasicMaterial({ color: 0xfdba74, transparent: true, opacity: 0.65 });
+            const grains = [];
+            for (let i = 0; i < 35; i++) {
+                const grain = new THREE.Mesh(sandGeom, sandMat);
+                grain.position.set(startX + Math.random() * (endX - startX), 0.5 + Math.random() * 6.0, (Math.random() - 0.5) * 6.0);
+                weatherGroup.add(grain);
+                grains.push({ mesh: grain, speedX: 4.5 + Math.random() * 4.0, baseY: grain.position.y, phase: Math.random() * Math.PI * 2 });
+            }
+            this.animatedUpdaters.push((delta, time) => {
+                grains.forEach(g => {
+                    g.mesh.position.x += g.speedX * delta;
+                    g.mesh.position.y = g.baseY + Math.sin(time * 3.0 + g.phase) * 0.4;
+                    if (g.mesh.position.x > endX) g.mesh.position.x = startX;
+                });
+            });
+
+        } else if (num === 8) {
+            // Mundo 8 - Caño Cristales: Esporas de niebla mística arcoíris
+            const sporeGeom = new THREE.SphereGeometry(0.12, 6, 6);
+            const sporeColors = [0xec4899, 0xfacc15, 0x06b6d4, 0x10b981];
+            const spores = [];
+            for (let i = 0; i < 30; i++) {
+                const spMat = new THREE.MeshBasicMaterial({
+                    color: sporeColors[i % sporeColors.length],
+                    transparent: true,
+                    opacity: 0.75
+                });
+                const spore = new THREE.Mesh(sporeGeom, spMat);
+                spore.position.set(startX + Math.random() * (endX - startX), 0.8 + Math.random() * 5.0, (Math.random() - 0.5) * 6.0);
+                weatherGroup.add(spore);
+                spores.push({ mesh: spore, baseY: spore.position.y, phase: Math.random() * Math.PI * 2 });
+            }
+            this.animatedUpdaters.push((delta, time) => {
+                spores.forEach(s => {
+                    s.mesh.position.y = s.baseY + Math.sin(time * 2.0 + s.phase) * 0.5;
+                });
+            });
+
+        } else if (num === 10) {
             // Altar de El Dorado: Polvo de oro y partículas sagradas
             const goldDustGeom = new THREE.OctahedronGeometry(0.1, 0);
             const goldDustMat = new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.85 });

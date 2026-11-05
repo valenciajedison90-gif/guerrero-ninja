@@ -1,7 +1,7 @@
 // js/particles.js - Sistema de Partículas, Estelas y Monedas Recolectables
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=20.0';
-import { ObjectPool, vectorPool } from './core/objectPool.js?v=20.0';
+import { sounds } from './sound.js?v=20.1';
+import { ObjectPool, vectorPool } from './core/objectPool.js?v=20.1';
 
 export class ParticleSystem {
     constructor(scene) {

@@ -1,10 +1,10 @@
 // js/enemies.js - Gestor de Enemigos con IA Táctica de Combate, Rodeo y Cinemática Articular
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=20.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
+import { sounds } from './sound.js?v=20.1';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=20.1';
 import { resourceManager } from './core/resourceManager.js';
-import { BossAISystem } from './systems/bossAI.js?v=20.0';
-import { BOSS_CONFIGS } from './config/bossConfig.js?v=20.0';
+import { BossAISystem } from './systems/bossAI.js?v=20.1';
+import { BOSS_CONFIGS } from './config/bossConfig.js?v=20.1';
 
 export class EnemyManager {
     constructor(scene, particles) {

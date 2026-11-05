@@ -1,6 +1,6 @@
 // js/touch.js - Controles Táctiles para Celular Estilo Free Fire
-import { storage } from './storage.js?v=20.0';
-import { CHARACTERS_DATA } from './characters.js?v=20.0';
+import { storage } from './storage.js?v=20.1';
+import { CHARACTERS_DATA } from './characters.js?v=20.1';
 // Soporta Multi-Touch simultáneo, joystick responsivo con zona muerta y cámara panorámica suave
 
 export class TouchControlsManager {

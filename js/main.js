@@ -1,19 +1,19 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=20.0';
-import { storage, clearAllCookies } from './storage.js?v=20.0';
-import { WEAPONS } from './weapons.js?v=20.0';
-import { ParticleSystem } from './particles.js?v=20.0';
-import { World, MAPS_CONFIG } from './world.js?v=20.0';
-import { Player } from './player.js?v=20.0.3';
-import { EnemyManager } from './enemies.js?v=20.0';
-import { MultiplayerManager } from './multiplayer.js?v=20.0';
-import { TouchControlsManager } from './touch.js?v=20.0';
-import { CHARACTERS_DATA } from './characters.js?v=20.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
-import { LevelManager } from './core/levelManager.js?v=20.0';
-import { resourceManager } from './core/resourceManager.js?v=20.0';
-import { PerformanceMonitor, GRAPHIC_PROFILES } from './systems/performanceMonitor.js?v=20.0';
+import { sounds } from './sound.js?v=20.1';
+import { storage, clearAllCookies } from './storage.js?v=20.1';
+import { WEAPONS } from './weapons.js?v=20.1';
+import { ParticleSystem } from './particles.js?v=20.1';
+import { World, MAPS_CONFIG } from './world.js?v=20.1';
+import { Player } from './player.js?v=20.1';
+import { EnemyManager } from './enemies.js?v=20.1';
+import { MultiplayerManager } from './multiplayer.js?v=20.1';
+import { TouchControlsManager } from './touch.js?v=20.1';
+import { CHARACTERS_DATA } from './characters.js?v=20.1';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=20.1';
+import { LevelManager } from './core/levelManager.js?v=20.1';
+import { resourceManager } from './core/resourceManager.js?v=20.1';
+import { PerformanceMonitor, GRAPHIC_PROFILES } from './systems/performanceMonitor.js?v=20.1';
 
 // Limpieza automática de cookies al iniciar el juego
 clearAllCookies();
@@ -1136,7 +1136,7 @@ class Game {
                 window.forcePurgeCache();
             } else {
                 localStorage.setItem('ninja_build_ver', 'v20.0');
-                window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&t=' + Date.now());
+                window.location.replace(window.location.origin + window.location.pathname + '?v=20.1&t=' + Date.now());
             }
         };
         safeListener('btn-force-update', 'click', onForceUpdateClick);
@@ -1729,7 +1729,7 @@ class Game {
     setupPWAInstall() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=20.0.3')
+                navigator.serviceWorker.register('./sw.js?v=20.1')
                     .then(reg => {
                         console.log('PWA ServiceWorker activo:', reg.scope);
                         reg.update();
@@ -2609,7 +2609,7 @@ class Game {
             }
 
             card.innerHTML = `
-                <div class="camp-card-banner" style="background: linear-gradient(135deg, ${this.hexColorToRgba(worldMeta.themeColor, 0.65)}, rgba(15, 23, 42, 0.95));">
+                <div class="camp-card-banner" style="background: linear-gradient(135deg, ${this.hexColorToRgba(worldMeta.groundColor || worldMeta.skyColor || 0x15803d, 0.65)}, rgba(15, 23, 42, 0.95));">
                     <span class="camp-card-emoji">${worldMeta.emoji}</span>
                     <span class="camp-difficulty-pill ${diffClass}">${worldMeta.difficulty}</span>
                 </div>
@@ -2743,12 +2743,18 @@ class Game {
     }
 
     startCampaignLevel(worldNum = 1, levelNum = 1) {
+        if (typeof storage !== 'undefined' && storage.setCurrentCampaignWorld) {
+            storage.setCurrentCampaignWorld(worldNum, levelNum);
+        }
         if (this.levelManager) {
             return this.levelManager.startCampaignLevel(worldNum, levelNum);
         }
     }
 
     startCampaignBoss(worldNum = 1) {
+        if (typeof storage !== 'undefined' && storage.setCurrentCampaignWorld) {
+            storage.setCurrentCampaignWorld(worldNum, 5);
+        }
         if (this.levelManager) {
             return this.levelManager.startCampaignBoss(worldNum);
         }

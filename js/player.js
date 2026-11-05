@@ -1,9 +1,9 @@
 // js/player.js - Controlador del Jugador y Animales Ninja Colombianos
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=20.0';
-import { WEAPONS } from './weapons.js?v=20.0';
-import { AnimalCharacterBuilder, CHARACTERS_DATA } from './characters.js?v=20.0';
-import { storage } from './storage.js?v=20.0';
+import { sounds } from './sound.js?v=20.1';
+import { WEAPONS } from './weapons.js?v=20.1';
+import { AnimalCharacterBuilder, CHARACTERS_DATA } from './characters.js?v=20.1';
+import { storage } from './storage.js?v=20.1';
 
 export class Player {
     constructor(scene, camera, domElement) {

@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         // Purgar caché obsoleta y forzar actualización inmediata a v20.0 en celulares
-        const APP_BUILD_VER = 'v20.0';
+        const APP_BUILD_VER = 'v20.1';
         const prevVer = localStorage.getItem('ninja_build_ver');
         if (prevVer !== APP_BUILD_VER) {
             localStorage.setItem('ninja_build_ver', APP_BUILD_VER);
@@ -22,7 +22,7 @@
             }
             // Si venía de una versión antigua (v18, v19 o inexistente), forzar recarga limpia con query
             if (prevVer) {
-                window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&t=' + Date.now());
+                window.location.replace(window.location.origin + window.location.pathname + '?v=20.1&t=' + Date.now());
             }
         }
         window.forcePurgeCache = function() {
@@ -32,12 +32,12 @@
                         return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
                     }
                 }).then(() => {
-                    localStorage.setItem('ninja_build_ver', 'v20.0');
-                    window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&nocache=' + Date.now());
+                    localStorage.setItem('ninja_build_ver', 'v20.1');
+                    window.location.replace(window.location.origin + window.location.pathname + '?v=20.1&nocache=' + Date.now());
                 });
             } else {
-                localStorage.setItem('ninja_build_ver', 'v20.0');
-                window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&nocache=' + Date.now());
+                localStorage.setItem('ninja_build_ver', 'v20.1');
+                window.location.replace(window.location.origin + window.location.pathname + '?v=20.1&nocache=' + Date.now());
             }
         };
         window.addEventListener('error', function(e) {
@@ -60,7 +60,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20.0.2">
+    <link rel="stylesheet" href="css/style.css?v=20.1">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -1072,6 +1072,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=20.0.3"></script>
+    <script type="module" src="js/main.js?v=20.1"></script>
 </body>
 </html>

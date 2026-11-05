@@ -1,7 +1,7 @@
 // js/multiplayer.js - Gestor de Salas y Sincronización 3D en Tiempo Real (WebSockets)
 import * as THREE from 'three';
-import { createWeaponMesh, WEAPONS } from './weapons.js?v=20.0';
-import { sounds } from './sound.js?v=20.0';
+import { createWeaponMesh, WEAPONS } from './weapons.js?v=20.1';
+import { sounds } from './sound.js?v=20.1';
 
 /**
  * Representación en 3D de otro ninja conectado en la sala

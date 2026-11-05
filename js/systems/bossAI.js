@@ -1,7 +1,7 @@
 // js/systems/bossAI.js - Máquina de Estados Inteligente y Cinemática para los 10 Jefes de Colombia
 import * as THREE from 'three';
-import { sounds } from '../sound.js?v=20.0';
-import { BOSS_CONFIGS } from '../config/bossConfig.js?v=20.0';
+import { sounds } from '../sound.js?v=20.1';
+import { BOSS_CONFIGS } from '../config/bossConfig.js?v=20.1';
 
 export class BossAISystem {
     constructor(scene, particles, soundSystem) {

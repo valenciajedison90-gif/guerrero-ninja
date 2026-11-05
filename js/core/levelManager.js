@@ -1,7 +1,7 @@
 // js/core/levelManager.js - Gestor Centralizado del Ciclo de Vida de Niveles, Transiciones y Limpieza
 import * as THREE from 'three';
 import { resourceManager } from './resourceManager.js';
-import { CAMPAIGN_WORLDS } from '../campaign.js?v=20.0';
+import { CAMPAIGN_WORLDS } from '../campaign.js?v=20.1';
 
 export class LevelManager {
     constructor(game) {

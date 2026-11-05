@@ -469,6 +469,23 @@ class StorageEngine {
         return (w && w.levels) ? w.levels[levelNum] : null;
     }
 
+    getCurrentCampaignWorld() {
+        const camp = this.getCampaign();
+        return camp.selectedWorld || 1;
+    }
+
+    getCurrentCampaignLevel() {
+        const camp = this.getCampaign();
+        return camp.selectedLevel || 1;
+    }
+
+    setCurrentCampaignWorld(worldNum, levelNum = 1) {
+        const camp = this.getCampaign();
+        camp.selectedWorld = Math.max(1, Math.min(10, Number(worldNum) || 1));
+        camp.selectedLevel = Math.max(1, Math.min(5, Number(levelNum) || 1));
+        this.save();
+    }
+
     recordCampaignLevelResult(worldNum, levelNum, statsOrStars, legacyTime, legacyGems) {
         const camp = this.getCampaign();
         const w = camp.worlds[worldNum];
@@ -529,6 +546,13 @@ class StorageEngine {
             camp.worlds[worldNum + 1].unlocked = true;
         }
 
+        if (levelNum < 5) {
+            camp.selectedWorld = worldNum;
+            camp.selectedLevel = levelNum + 1;
+        } else if (worldNum < 10) {
+            camp.selectedWorld = worldNum + 1;
+            camp.selectedLevel = 1;
+        }
         // Recompensas inmediatas
         this.addCoins(stars * 25);
         this.addGems(stars >= 2 ? 5 : 2);
