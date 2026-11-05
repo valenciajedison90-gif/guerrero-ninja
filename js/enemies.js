@@ -1,7 +1,8 @@
 // js/enemies.js - Gestor de Enemigos con IA Táctica de Combate, Rodeo y Cinemática Articular
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=18.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=18.0';
+import { sounds } from './sound.js?v=20.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
+import { resourceManager } from './core/resourceManager.js';
 
 export class EnemyManager {
     constructor(scene, particles) {
@@ -16,7 +17,10 @@ export class EnemyManager {
     clearEnemies() {
         while (this.enemies.length > 0) {
             const e = this.enemies.pop();
-            this.scene.remove(e.mesh);
+            if (e.mesh) {
+                this.scene.remove(e.mesh);
+                resourceManager.disposeHierarchy(e.mesh);
+            }
         }
     }
 

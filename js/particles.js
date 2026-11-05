@@ -1,6 +1,6 @@
 // js/particles.js - Sistema de Partículas, Estelas y Monedas Recolectables
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=18.0';
+import { sounds } from './sound.js?v=20.0';
 
 export class ParticleSystem {
     constructor(scene) {
@@ -43,6 +43,31 @@ export class ParticleSystem {
             hitSpark: new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 1 }),
             smoke: new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.65 })
         };
+    }
+
+    clear() {
+        while (this.particles.length > 0) {
+            const p = this.particles.pop();
+            if (p.isSlash && p.group) {
+                this.scene.remove(p.group);
+                if (p.arcMat) p.arcMat.dispose();
+                if (p.coreMat) p.coreMat.dispose();
+            } else if (p.mesh) {
+                this.scene.remove(p.mesh);
+                if (p.isCustomMat && p.mesh.material) {
+                    if (Array.isArray(p.mesh.material)) p.mesh.material.forEach(m => m.dispose());
+                    else p.mesh.material.dispose();
+                }
+            }
+        }
+        while (this.coins.length > 0) {
+            const c = this.coins.pop();
+            if (c.mesh) this.scene.remove(c.mesh);
+        }
+        while (this.projectiles.length > 0) {
+            const pr = this.projectiles.pop();
+            if (pr.mesh) this.scene.remove(pr.mesh);
+        }
     }
 
     createSlashEffect(position, direction, element = 'wood', combo = 0) {

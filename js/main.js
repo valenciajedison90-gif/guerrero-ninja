@@ -1,16 +1,18 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=19.0';
-import { storage, clearAllCookies } from './storage.js?v=19.0';
-import { WEAPONS } from './weapons.js?v=19.0';
-import { ParticleSystem } from './particles.js?v=19.0';
-import { World, MAPS_CONFIG } from './world.js?v=19.0';
-import { Player } from './player.js?v=19.0';
-import { EnemyManager } from './enemies.js?v=19.0';
-import { MultiplayerManager } from './multiplayer.js?v=19.0';
-import { TouchControlsManager } from './touch.js?v=19.0';
-import { CHARACTERS_DATA } from './characters.js?v=19.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=19.0';
+import { sounds } from './sound.js?v=20.0';
+import { storage, clearAllCookies } from './storage.js?v=20.0';
+import { WEAPONS } from './weapons.js?v=20.0';
+import { ParticleSystem } from './particles.js?v=20.0';
+import { World, MAPS_CONFIG } from './world.js?v=20.0';
+import { Player } from './player.js?v=20.0';
+import { EnemyManager } from './enemies.js?v=20.0';
+import { MultiplayerManager } from './multiplayer.js?v=20.0';
+import { TouchControlsManager } from './touch.js?v=20.0';
+import { CHARACTERS_DATA } from './characters.js?v=20.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
+import { LevelManager } from './core/levelManager.js?v=20.0';
+import { resourceManager } from './core/resourceManager.js?v=20.0';
 
 // Limpieza automática de cookies al iniciar el juego
 clearAllCookies();
@@ -47,6 +49,7 @@ class Game {
         this.player = new Player(this.scene, this.camera, this.renderer.domElement);
         this.enemyManager = new EnemyManager(this.scene, this.particles);
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
+        this.levelManager = new LevelManager(this);
 
         // Conectar proveedor de altura de suelo para plataformas 3D
         if (this.player) this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
@@ -1635,6 +1638,7 @@ class Game {
     }
 
     returnToMenu() {
+        if (this.levelManager) this.levelManager.unloadLevel();
         this.portalVictoryTriggered = false;
         this.state = 'MENU';
         document.body.classList.remove('playing-state');
@@ -2454,145 +2458,15 @@ class Game {
     }
 
     startCampaignLevel(worldNum = 1, levelNum = 1) {
-        this.isCampaignMode = true;
-        this.campaignCurrentWorld = worldNum;
-        this.campaignCurrentLevel = levelNum;
-        this.campaignIsBossFight = false;
-        this.campaignCollectedGems = 0;
-        this.campaignStartTime = performance.now();
-        this.portalVictoryTriggered = false;
-
-        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
-        const lvlMeta = (worldMeta.levels && worldMeta.levels[levelNum - 1]) || { title: 'Nivel ' + levelNum, targetTime: 60 };
-
-        // Construir nivel 3D con plataformas y trampas
-        this.world.buildCampaignLevel(worldNum, levelNum);
-
-        // Posicionar jugador al inicio 2.5D
-        this.player.isCampaignMode = true;
-        this.player.lastCheckpointPos = new THREE.Vector3(0, 1.5, 0);
-        this.player.mesh.position.set(0, 1.5, 0);
-        this.player.facing = 1;
-        this.player.mesh.rotation.y = Math.PI / 2;
-        this.player.velocity.set(0, 0, 0);
-        this.player.health = this.player.maxHealth;
-
-        // Posicionar cámara inmediatamente en modo 2.5D
-        this.camera.position.set(2.4, 2.4, this.isMobile ? 12.0 : 10.5);
-        this.camera.lookAt(1.0, 1.4, 0);
-        this.player.camLookTarget = new THREE.Vector3(1.0, 1.4, 0);
-
-        // Generar enemigos caricaturescos a lo largo del recorrido
-        this.enemyManager.spawnCampaignLevelEnemies(this.world.campaignEnemySpawns, worldNum);
-
-        // Configurar HUD
-        document.body.classList.add('campaign-active');
-        this.campaignBossEnemy = null;
-        const campHud = document.getElementById('campaign-hud');
-        const missHud = document.getElementById('mission-hud');
-        if (campHud) campHud.style.display = 'flex';
-        if (missHud) missHud.style.display = 'none';
-
-        const progressBarWrap = document.getElementById('camp-progress-bar-wrap');
-        const bossBarWrap = document.getElementById('camp-boss-bar-wrap');
-        if (progressBarWrap) progressBarWrap.style.display = 'flex';
-        if (bossBarWrap) bossBarWrap.style.display = 'none';
-
-        const pFill = document.getElementById('camp-progress-fill');
-        const pRun = document.getElementById('camp-progress-runner');
-        if (pFill) pFill.style.width = '0%';
-        if (pRun) pRun.style.left = '0%';
-
-        for (let i = 1; i <= 3; i++) {
-            const gm = document.getElementById(`camp-gem-m${i}`);
-            if (gm) gm.classList.remove('collected');
+        if (this.levelManager) {
+            return this.levelManager.startCampaignLevel(worldNum, levelNum);
         }
-
-        const badgeEl = document.getElementById('camp-hud-world-badge');
-        const titleEl = document.getElementById('camp-hud-level-title');
-        const gemsEl = document.getElementById('camp-hud-gems-count');
-        const targetEl = document.getElementById('camp-hud-target-time');
-        const bossWrap = document.getElementById('camp-hud-boss-wrap');
-        const gemsWrap = document.getElementById('camp-obj-gems-wrap');
-
-        if (badgeEl) badgeEl.textContent = `MUNDO ${worldNum}`;
-        if (titleEl) titleEl.textContent = `${worldMeta.name.toUpperCase()} • NIVEL ${levelNum}`;
-        if (gemsEl) gemsEl.textContent = `0 / 3`;
-        if (targetEl) targetEl.textContent = `(Meta: ${lvlMeta.targetTime}s)`;
-        if (bossWrap) bossWrap.style.display = 'none';
-        if (gemsWrap) gemsWrap.style.display = 'flex';
-
-        this.startGame();
-        this.showBanner(`¡${worldMeta.name.toUpperCase()}!`, `Nivel ${levelNum}: ${lvlMeta.title}`);
     }
 
     startCampaignBoss(worldNum = 1) {
-        this.isCampaignMode = true;
-        this.campaignCurrentWorld = worldNum;
-        this.campaignCurrentLevel = 6; // Representa al jefe
-        this.campaignIsBossFight = true;
-        this.campaignStartTime = performance.now();
-        this.portalVictoryTriggered = false;
-
-        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
-        const bossSpec = worldMeta.boss;
-
-        // Construir arena de combate circular del jefe
-        this.world.buildCampaignBossArena(worldNum);
-
-        // Posicionar jugador en el lado izquierdo de la arena 2.5D
-        this.player.isCampaignMode = true;
-        this.player.mesh.position.set(-14, 1.5, 0);
-        this.player.facing = 1;
-        this.player.mesh.rotation.y = Math.PI / 2;
-        this.player.velocity.set(0, 0, 0);
-        this.player.health = this.player.maxHealth;
-
-        // Posicionar cámara inmediatamente en la arena 2.5D
-        this.camera.position.set(-6, 2.8, this.isMobile ? 12.5 : 11.0);
-        this.camera.lookAt(0, 1.5, 0);
-        this.player.camLookTarget = new THREE.Vector3(0, 1.5, 0);
-
-        // Generar jefe final en el lado derecho de la arena 2.5D
-        const bossEnemy = this.enemyManager.spawnCampaignBoss(worldNum, new THREE.Vector3(12, 0, 0));
-
-        // Configurar HUD
-        document.body.classList.add('campaign-active');
-        this.campaignBossEnemy = bossEnemy;
-        const campHud = document.getElementById('campaign-hud');
-        const missHud = document.getElementById('mission-hud');
-        if (campHud) campHud.style.display = 'flex';
-        if (missHud) missHud.style.display = 'none';
-
-        const progressBarWrap = document.getElementById('camp-progress-bar-wrap');
-        const bossBarWrap = document.getElementById('camp-boss-bar-wrap');
-        if (progressBarWrap) progressBarWrap.style.display = 'none';
-        if (bossBarWrap) bossBarWrap.style.display = 'flex';
-
-        const bName = document.getElementById('camp-boss-name');
-        if (bName) bName.textContent = bossSpec.name;
-        const bIcon = document.getElementById('camp-boss-icon');
-        if (bIcon) bIcon.textContent = bossSpec.icon || '👑';
-        const bFill = document.getElementById('camp-boss-hp-fill');
-        const bText = document.getElementById('camp-boss-hp-text');
-        const maxHp = bossEnemy.maxHealth || bossSpec.health || 200;
-        if (bFill) bFill.style.width = '100%';
-        if (bText) bText.textContent = `${maxHp} / ${maxHp}`;
-
-        const badgeEl = document.getElementById('camp-hud-world-badge');
-        const titleEl = document.getElementById('camp-hud-level-title');
-        const bossWrap = document.getElementById('camp-hud-boss-wrap');
-        const bossNameEl = document.getElementById('camp-hud-boss-name');
-        const gemsWrap = document.getElementById('camp-obj-gems-wrap');
-
-        if (badgeEl) badgeEl.textContent = `MUNDO ${worldNum} — JEFE`;
-        if (titleEl) titleEl.textContent = bossSpec.name.toUpperCase();
-        if (bossWrap) bossWrap.style.display = 'flex';
-        if (bossNameEl) bossNameEl.textContent = bossSpec.name;
-        if (gemsWrap) gemsWrap.style.display = 'none';
-
-        this.startGame();
-        this.showBanner(`👑 ¡BATALLA CONTRA JEFE!`, `¡Derrota a ${bossSpec.name} para liberar este territorio!`);
+        if (this.levelManager) {
+            return this.levelManager.startCampaignBoss(worldNum);
+        }
     }
 
     handleCampaignPortalVictory() {

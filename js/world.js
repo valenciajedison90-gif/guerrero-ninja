@@ -3,7 +3,8 @@
 // Incluye: Cajas Sorpresa con '?', Airdrops con Paracaídas, Cristales de Biodiversidad y Portales Precolombinos
 
 import * as THREE from 'three';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=18.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
+import { resourceManager } from './core/resourceManager.js';
 
 export const MAPS_CONFIG = {
     selva: {
@@ -239,25 +240,13 @@ export class World {
         ctx.textBaseline = 'middle';
         ctx.fillText('?', 64, 64);
         this._crateQTex = new THREE.CanvasTexture(canvas);
+        resourceManager.markPersistent(this._crateQTex);
         return this._crateQTex;
     }
 
     disposeObject(obj) {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-            if (Array.isArray(obj.material)) {
-                obj.material.forEach(m => {
-                    if (m.map && m.map !== this._crateQTex) m.map.dispose();
-                    m.dispose();
-                });
-            } else {
-                if (obj.material.map && obj.material.map !== this._crateQTex) obj.material.map.dispose();
-                obj.material.dispose();
-            }
-        }
-        if (obj.children) {
-            obj.children.forEach(c => this.disposeObject(c));
-        }
+        if (!obj) return;
+        resourceManager.disposeHierarchy(obj);
     }
 
     // =========================================================================
