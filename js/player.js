@@ -845,26 +845,28 @@ export class Player {
         this.bandanaTail1.rotation.x = 0.35 + flutter;
         this.bandanaTail2.rotation.x = 0.45 - flutter * 0.8;
 
-        // 4. Cámara Cinemática 2.5D lateral estilo Dead Cells / Shadow Fight
+        // 4. Cámara Cinemática 2.5D lateral estilo Dead Cells / Shadow Fight / Ori
         const isMobileScreen = window.innerWidth <= 768;
-        const leadX = this.facing * (isMobileScreen ? 1.8 : 2.4);
+        const leadX = this.facing * (isMobileScreen ? 2.2 : 3.0);
         const targetCamX = this.mesh.position.x + leadX;
-        const targetCamY = Math.max(2.1, this.mesh.position.y + 1.3);
-        const camDistZ = isMobileScreen ? 12.0 : 10.5;
 
-        this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1.0, delta * 7.5);
-        this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1.0, delta * 7.5);
-        this.camera.position.z += (camDistZ - this.camera.position.z) * Math.min(1.0, delta * 7.5);
+        // Amortiguación vertical suave (evita vibración en saltos rápidos)
+        const targetCamY = Math.max(2.2, this.mesh.position.y + 1.25);
+        const camDistZ = isMobileScreen ? 12.2 : 10.8;
+
+        this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1.0, delta * 6.5);
+        this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1.0, delta * 4.5);
+        this.camera.position.z += (camDistZ - this.camera.position.z) * Math.min(1.0, delta * 6.0);
 
         const lookTarget = new THREE.Vector3(
-            this.mesh.position.x + this.facing * 0.9,
-            Math.max(1.4, this.mesh.position.y + 1.1),
+            this.mesh.position.x + this.facing * 1.2,
+            Math.max(1.5, this.mesh.position.y + 1.1),
             0
         );
         if (!this.camLookTarget) {
             this.camLookTarget = lookTarget.clone();
         } else {
-            this.camLookTarget.lerp(lookTarget, Math.min(1.0, delta * 9.0));
+            this.camLookTarget.lerp(lookTarget, Math.min(1.0, delta * 8.0));
         }
         this.camera.lookAt(this.camLookTarget);
     }

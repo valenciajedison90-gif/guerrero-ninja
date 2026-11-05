@@ -46,7 +46,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=18.0">
+    <link rel="stylesheet" href="css/style.css?v=19.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -255,9 +255,35 @@
                         <span class="task-progress" id="camp-hud-target-time">(Meta: 60s)</span>
                     </div>
                 </div>
+
+                <!-- Barra de Progreso Lineal de Nivel 2.5D (0m a 110m con gemas y portal) -->
+                <div class="campaign-progress-bar-container" id="camp-progress-bar-wrap">
+                    <span class="progress-node node-start" title="Inicio">⛩️</span>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="camp-progress-fill" style="width: 0%;"></div>
+                        <div class="progress-runner-avatar" id="camp-progress-runner">🥷</div>
+                        <span class="gem-marker gem-m1" id="camp-gem-m1" title="Cristal 1">💎</span>
+                        <span class="gem-marker gem-m2" id="camp-gem-m2" title="Cristal 2">💎</span>
+                        <span class="gem-marker gem-m3" id="camp-gem-m3" title="Cristal 3">💎</span>
+                    </div>
+                    <span class="progress-node node-goal" title="Portal Sagrado">🌀</span>
+                </div>
+
+                <!-- Barra de Vida del Jefe Ancestral 2.5D (Modo Jefe) -->
+                <div class="campaign-boss-bar-container" id="camp-boss-bar-wrap" style="display: none;">
+                    <div class="boss-bar-header">
+                        <span class="boss-icon" id="camp-boss-icon">👑</span>
+                        <span class="boss-name" id="camp-boss-name">Jefe Ancestral</span>
+                        <span class="boss-hp-text" id="camp-boss-hp-text">100%</span>
+                    </div>
+                    <div class="boss-hp-track">
+                        <div class="boss-hp-fill" id="camp-boss-hp-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+
                 <div class="portal-status-pill">
                     <span class="portal-dot"></span>
-                    <span>🏃 LLEGA A LA PUERTA SAGRADA</span>
+                    <span id="camp-portal-status-text">🏃 LLEGA A LA PUERTA SAGRADA</span>
                 </div>
             </div>
 
@@ -1004,6 +1030,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=18.0"></script>
+    <script type="module" src="js/main.js?v=19.0"></script>
 </body>
 </html>

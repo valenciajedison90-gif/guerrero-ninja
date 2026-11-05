@@ -1148,32 +1148,51 @@ export class World {
         const gemGroup = new THREE.Group();
         gemGroup.position.copy(pos);
 
+        // Cristal poliédrico brillante (Esmeralda / Amatista colombiana)
         const crystalMat = new THREE.MeshStandardMaterial({
-            color: 0xc084fc,
+            color: 0xa855f7,
             emissive: 0x9333ea,
-            emissiveIntensity: 0.7,
-            roughness: 0.15,
-            metalness: 0.8
+            emissiveIntensity: 0.85,
+            roughness: 0.1,
+            metalness: 0.9
         });
-
-        const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), crystalMat);
+        const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.72, 0), crystalMat);
         crystal.position.y = 0.5;
         gemGroup.add(crystal);
 
-        const aura = new THREE.Mesh(
-            new THREE.TorusGeometry(0.85, 0.05, 8, 20),
-            new THREE.MeshBasicMaterial({ color: 0xd8b4fe, transparent: true, opacity: 0.75 })
-        );
-        aura.rotation.x = Math.PI / 2;
-        aura.position.y = 0.5;
-        gemGroup.add(aura);
+        // Anillos giroscópicos exteriores dorados
+        const goldRingMat = new THREE.MeshStandardMaterial({
+            color: 0xfacc15,
+            metalness: 0.9,
+            roughness: 0.2,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.4
+        });
+        const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.05, 8, 24), goldRingMat);
+        ring1.position.y = 0.5;
+        gemGroup.add(ring1);
+
+        const ring2 = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.04, 8, 24), goldRingMat);
+        ring2.position.y = 0.5;
+        ring2.rotation.x = Math.PI / 3;
+        gemGroup.add(ring2);
+
+        // Rotación mística continua
+        this.animatedUpdaters.push((delta, time) => {
+            crystal.rotation.y += delta * 1.8;
+            crystal.rotation.x = Math.sin(time * 2.0) * 0.2;
+            ring1.rotation.y += delta * 2.5;
+            ring1.rotation.x += delta * 1.5;
+            ring2.rotation.z += delta * 1.8;
+            gemGroup.position.y = pos.y + Math.sin(time * 2.5) * 0.18;
+        });
 
         this.mapRoot.add(gemGroup);
 
         this.missionGems.push({
             group: gemGroup,
             mesh: crystal,
-            aura: aura,
+            aura: ring1,
             position: pos.clone(),
             baseY: pos.y,
             gemId: gemId,
@@ -1184,61 +1203,89 @@ export class World {
     buildMysticPortal(pos, rotY, themeColor) {
         const portalGroup = new THREE.Group();
         portalGroup.position.copy(pos);
-        portalGroup.rotation.y = rotY;
+        portalGroup.rotation.y = 0; // Mirando de frente a la cámara 2.5D
 
-        const goldStoneMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, metalness: 0.7, roughness: 0.3 });
+        const goldStoneMat = new THREE.MeshStandardMaterial({
+            color: 0xd97706,
+            metalness: 0.75,
+            roughness: 0.25,
+            emissive: 0x92400e,
+            emissiveIntensity: 0.2
+        });
 
-        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 7.5, 16), goldStoneMat);
-        p1.position.set(-3.2, 3.75, 0);
-        portalGroup.add(p1);
+        // Columnas monolíticas de piedra con inscripciones
+        const colGeom = new THREE.BoxGeometry(1.1, 8.2, 1.4);
+        const colLeft = new THREE.Mesh(colGeom, goldStoneMat);
+        colLeft.position.set(-3.2, 4.1, 0);
+        portalGroup.add(colLeft);
 
-        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 7.5, 16), goldStoneMat);
-        p2.position.set(3.2, 3.75, 0);
-        portalGroup.add(p2);
+        const colRight = new THREE.Mesh(colGeom, goldStoneMat);
+        colRight.position.set(3.2, 4.1, 0);
+        portalGroup.add(colRight);
 
-        const lintel = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.8, 0.9), goldStoneMat);
-        lintel.position.set(0, 7.6, 0);
+        // Dintel superior ceremonial con mascarón solar precolombino
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(8.2, 1.3, 1.6), goldStoneMat);
+        lintel.position.set(0, 8.2, 0);
         portalGroup.add(lintel);
 
-        const ring = new THREE.Mesh(
-            new THREE.TorusGeometry(2.4, 0.16, 16, 32),
-            new THREE.MeshStandardMaterial({ color: themeColor, emissive: themeColor, emissiveIntensity: 0.6 })
-        );
-        ring.position.set(0, 3.8, 0);
-        portalGroup.add(ring);
+        const sunEmblem = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 0), goldStoneMat);
+        sunEmblem.position.set(0, 8.2, 0.9);
+        portalGroup.add(sunEmblem);
 
+        // Vórtice dimensional activo
+        const vortexColor = themeColor || 0x10b981;
         const vortexMat = new THREE.MeshBasicMaterial({
-            color: themeColor,
+            color: vortexColor,
             transparent: true,
-            opacity: 0.45,
+            opacity: 0.65,
             side: THREE.DoubleSide
         });
-        const vortex = new THREE.Mesh(new THREE.CircleGeometry(2.35, 32), vortexMat);
-        vortex.position.set(0, 3.8, 0);
+        const vortex = new THREE.Mesh(new THREE.CircleGeometry(2.7, 32), vortexMat);
+        vortex.position.set(0, 4.1, 0);
         portalGroup.add(vortex);
 
+        // Anillo de energía giratorio
+        const ringMat = new THREE.MeshStandardMaterial({
+            color: 0xfbbf24,
+            emissive: 0xf59e0b,
+            emissiveIntensity: 0.8,
+            roughness: 0.2
+        });
+        const energyRing = new THREE.Mesh(new THREE.TorusGeometry(2.85, 0.14, 12, 32), ringMat);
+        energyRing.position.set(0, 4.1, 0);
+        portalGroup.add(energyRing);
+
+        // Haz celestial hacia el cielo
         const beamMat = new THREE.MeshBasicMaterial({
-            color: themeColor,
+            color: vortexColor,
             transparent: true,
-            opacity: 0.0,
+            opacity: 0.35,
             side: THREE.DoubleSide
         });
-        const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 35, 18, 1, true), beamMat);
-        beam.position.set(0, 18, 0);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 45, 18, 1, true), beamMat);
+        beam.position.set(0, 22.5, 0);
         portalGroup.add(beam);
+
+        // Animación continua del vórtice
+        this.animatedUpdaters.push((delta, time) => {
+            vortex.rotation.z += delta * 1.8;
+            energyRing.rotation.z -= delta * 2.2;
+            vortexMat.opacity = 0.55 + Math.sin(time * 3.0) * 0.2;
+            beamMat.opacity = 0.25 + Math.cos(time * 2.5) * 0.15;
+        });
 
         this.mapRoot.add(portalGroup);
 
         this.portal = {
             group: portalGroup,
             position: pos.clone(),
-            ring: ring,
+            ring: energyRing,
             vortex: vortex,
             vortexMat: vortexMat,
             beam: beam,
             beamMat: beamMat,
-            isActive: false,
-            themeColor: themeColor
+            isActive: true,
+            themeColor: vortexColor
         };
     }
 
@@ -1258,30 +1305,47 @@ export class World {
     }
 
     buildTrampoline(pos) {
-        const pad = new THREE.Group();
-        pad.position.copy(pos);
+        const mushroom = new THREE.Group();
+        mushroom.position.copy(pos);
 
-        const frame = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.6, 1.8, 0.3, 16),
-            new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.6 })
-        );
-        frame.position.y = 0.15;
-        pad.add(frame);
+        // Tallo robusto de hongo
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.6 });
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.95, 0.65, 12), stemMat);
+        stem.position.y = 0.32;
+        mushroom.add(stem);
 
-        const canvas = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.35, 1.35, 0.32, 16),
-            new THREE.MeshStandardMaterial({
-                color: 0xef4444,
-                roughness: 0.3,
-                emissive: 0xdc2626,
-                emissiveIntensity: 0.5
-            })
-        );
-        canvas.position.y = 0.18;
-        pad.add(canvas);
+        // Sombrero saltarín de hongo bioluminiscente con motas brillantes
+        const capMat = new THREE.MeshStandardMaterial({
+            color: 0xec4899,
+            emissive: 0xdb2777,
+            emissiveIntensity: 0.65,
+            roughness: 0.25
+        });
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.35, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), capMat);
+        cap.position.y = 0.58;
+        cap.scale.set(1.2, 0.6, 1.2);
+        mushroom.add(cap);
 
-        this.mapRoot.add(pad);
-        this.trampolines.push({ position: pos, radius: 1.5, boostForce: 21.0 });
+        // Anillo de esporas luminosas
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xf472b6,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.06, 8, 24), ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.45;
+        mushroom.add(ring);
+
+        // Pulsación suave del hongo
+        this.animatedUpdaters.push((delta, time) => {
+            const pulse = 1.0 + Math.sin(time * 3.5) * 0.08;
+            cap.scale.set(1.2 * pulse, 0.6 / pulse, 1.2 * pulse);
+        });
+
+        this.mapRoot.add(mushroom);
+        this.trampolines.push({ position: pos, radius: 1.6, boostForce: 21.0 });
     }
 
     buildThermalSpring(pos) {
@@ -1501,7 +1565,8 @@ export class World {
         const group = new THREE.Group();
         group.position.set(x, y, z);
 
-        const thickness = 1.4;
+        const thickness = 1.6;
+        // 1. Bloque base de roca / mampostería
         const geom = new THREE.BoxGeometry(width, thickness, length);
         const mesh = new THREE.Mesh(geom, material);
         mesh.position.y = -thickness / 2;
@@ -1509,11 +1574,59 @@ export class World {
         mesh.castShadow = true;
         group.add(mesh);
 
-        // Borde dorado superior decorativo
-        const trimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.6 });
-        const trim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, 0.08, length + 0.1), trimMat);
-        trim.position.y = 0.02;
-        group.add(trim);
+        // 2. Capa superior de hierba / musgo / baldosas vivas con ligero bisel
+        const grassMat = new THREE.MeshStandardMaterial({
+            color: 0x22c55e,
+            roughness: 0.75,
+            metalness: 0.1
+        });
+        const topGrass = new THREE.Mesh(new THREE.BoxGeometry(width + 0.35, 0.24, length + 0.35), grassMat);
+        topGrass.position.y = 0.08;
+        topGrass.receiveShadow = true;
+        group.add(topGrass);
+
+        // 3. Cenefa dorada / precolombina frontal (Visible directamente hacia la cámara 2.5D)
+        const goldAccentMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b,
+            metalness: 0.85,
+            roughness: 0.25,
+            emissive: 0xb45309,
+            emissiveIntensity: 0.3
+        });
+        const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(width + 0.2, 0.26, 0.25), goldAccentMat);
+        frontTrim.position.set(0, -0.05, length / 2 + 0.1);
+        group.add(frontTrim);
+
+        // 4. Relieve decorativo en la cara frontal (rombo sagrado precolombino)
+        if (width >= 6.0) {
+            const diamondGeom = new THREE.OctahedronGeometry(0.38, 0);
+            diamondGeom.scale(1.2, 1.2, 0.2);
+            const diamondMesh = new THREE.Mesh(diamondGeom, goldAccentMat);
+            diamondMesh.position.set(0, -thickness / 2, length / 2 + 0.15);
+            group.add(diamondMesh);
+        }
+
+        // 5. Raíces colgantes / lianas bajo la plataforma
+        const vineMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.9 });
+        const numRoots = Math.min(5, Math.floor(width / 2.2));
+        for (let i = 0; i < numRoots; i++) {
+            const rootX = -width / 2 + 0.8 + (i / Math.max(1, numRoots - 1)) * (width - 1.6);
+            const rootHeight = 0.85 + (i % 3) * 0.45;
+            const root = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.02, rootHeight, 6), vineMat);
+            root.position.set(rootX, -thickness - rootHeight / 2, length / 2 - 0.2);
+            root.rotation.z = (i % 2 === 0 ? 0.12 : -0.12);
+            group.add(root);
+        }
+
+        // 6. Pilares de soporte de madera / piedra si la plataforma está cerca del suelo o en zonas bajas
+        if (y <= 1.0) {
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.85 });
+            [-width / 2 + 1.2, width / 2 - 1.2].forEach(px => {
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.45, 12.0, 8), pillarMat);
+                pillar.position.set(px, -thickness - 6.0, 0);
+                group.add(pillar);
+            });
+        }
 
         this.mapRoot.add(group);
 
@@ -1554,23 +1667,32 @@ export class World {
         const gate = new THREE.Group();
         gate.position.copy(pos);
 
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.7 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
         const bannerMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
 
-        [-3.2, 3.2].forEach(pz => {
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 4.5, 12), poleMat);
-            pole.position.set(0, 2.25, pz);
+        // Postes de bambú/madera a los lados de la plataforma en Z
+        [-2.8, 2.8].forEach(pz => {
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 5.2, 12), poleMat);
+            pole.position.set(0, 2.6, pz);
             pole.castShadow = true;
             gate.add(pole);
+
+            // Remates dorados en la punta
+            const finial = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.6, 8), goldMat);
+            finial.position.set(0, 5.5, pz);
+            gate.add(finial);
         });
 
-        const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 6.8, 12), poleMat);
+        // Travesaño superior
+        const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 6.2, 12), poleMat);
         crossbar.rotation.x = Math.PI / 2;
-        crossbar.position.y = 4.2;
+        crossbar.position.y = 4.8;
         gate.add(crossbar);
 
-        const banner = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.2), bannerMat);
-        banner.position.y = 3.4;
+        // Estandarte ceremonial de bienvenida con flecos
+        const banner = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.2), bannerMat);
+        banner.position.set(0.1, 4.0, 0);
         banner.rotation.y = Math.PI / 2;
         gate.add(banner);
 
@@ -1714,6 +1836,240 @@ export class World {
         this.mapRoot.add(c);
     }
 
+    // =========================================================================
+    // ELEMENTOS COLOMBIANOS DE FONDO PARALLAX CINEMÁTICO 2.5D
+    // =========================================================================
+    buildWaxPalm(pos, parent) {
+        const palm = new THREE.Group();
+        palm.position.copy(pos);
+
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0xd4d4d8, roughness: 0.5 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
+
+        const trunkHeight = 18.0;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.65, trunkHeight, 10), trunkMat);
+        trunk.position.y = trunkHeight / 2;
+        palm.add(trunk);
+
+        // Corona estrellada en la cima (Palma de cera del Quindío)
+        const crown = new THREE.Group();
+        crown.position.y = trunkHeight;
+        for (let i = 0; i < 9; i++) {
+            const angle = (i / 9) * Math.PI * 2;
+            const frond = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 3.8), leafMat);
+            frond.position.set(Math.cos(angle) * 1.8, -0.4, Math.sin(angle) * 1.8);
+            frond.rotation.y = angle;
+            frond.rotation.x = 0.35;
+            crown.add(frond);
+        }
+        palm.add(crown);
+
+        (parent || this.mapRoot).add(palm);
+    }
+
+    buildGiantCeiba(pos, parent) {
+        const tree = new THREE.Group();
+        tree.position.copy(pos);
+
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x52525b, roughness: 0.85 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.7 });
+
+        const trunkHeight = 14.0;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.4, trunkHeight, 12), trunkMat);
+        trunk.position.y = trunkHeight / 2;
+        tree.add(trunk);
+
+        // Raíces tablares gigantes
+        for (let r = 0; r < 4; r++) {
+            const angle = (r / 4) * Math.PI * 2;
+            const root = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.0, 2.5), trunkMat);
+            root.position.set(Math.cos(angle) * 1.8, 2.0, Math.sin(angle) * 1.8);
+            root.rotation.y = angle;
+            tree.add(root);
+        }
+
+        // Copa de nube tropical ancha
+        const foliage = new THREE.Mesh(new THREE.SphereGeometry(7.5, 16, 12), leafMat);
+        foliage.scale.set(1.6, 0.6, 1.6);
+        foliage.position.y = trunkHeight + 2.0;
+        tree.add(foliage);
+
+        (parent || this.mapRoot).add(tree);
+    }
+
+    buildGiantFrailejon(pos, parent) {
+        const f = new THREE.Group();
+        f.position.copy(pos);
+        f.scale.set(3.5, 3.5, 3.5);
+
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.95 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.9 });
+        const flowerMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3, emissive: 0xb45309, emissiveIntensity: 0.3 });
+
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 2.5, 12), stemMat);
+        stem.position.y = 1.25;
+        f.add(stem);
+
+        for (let l = 0; l < 10; l++) {
+            const angle = (l / 10) * Math.PI * 2;
+            const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.24, 1.3, 8), leafMat);
+            leaf.position.set(Math.cos(angle) * 0.5, 2.5, Math.sin(angle) * 0.5);
+            leaf.rotation.x = Math.PI / 3.2;
+            leaf.rotation.y = angle;
+            f.add(leaf);
+        }
+
+        const flower = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 10), flowerMat);
+        flower.position.y = 2.8;
+        f.add(flower);
+
+        (parent || this.mapRoot).add(f);
+    }
+
+    buildParallaxBackdrop(worldNum = 1, totalLength = 110) {
+        const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+        const backdropGroup = new THREE.Group();
+        backdropGroup.name = 'parallaxBackdrop';
+
+        // 1. SOL / LUNA CELESTIAL MAJESTUOSO (Z = -55)
+        const sunRadius = 9.0;
+        const sunGeom = new THREE.CircleGeometry(sunRadius, 32);
+        const sunColor = (worldNum === 4 || worldNum === 8) ? 0x93c5fd : 0xfef08a;
+        const sunMat = new THREE.MeshBasicMaterial({
+            color: sunColor,
+            transparent: true,
+            opacity: 0.95
+        });
+        const sunMesh = new THREE.Mesh(sunGeom, sunMat);
+        sunMesh.position.set(totalLength * 0.45, 22.0, -55.0);
+        backdropGroup.add(sunMesh);
+
+        // Corona / Halo luminoso del sol
+        const haloGeom = new THREE.RingGeometry(sunRadius * 0.95, sunRadius * 2.2, 32);
+        const haloMat = new THREE.MeshBasicMaterial({
+            color: sunColor,
+            transparent: true,
+            opacity: 0.35,
+            side: THREE.DoubleSide
+        });
+        const haloMesh = new THREE.Mesh(haloGeom, haloMat);
+        haloMesh.position.copy(sunMesh.position);
+        backdropGroup.add(haloMesh);
+
+        // 2. CAPA 1: GRAN CORDILLERA / MONTAÑAS ANDINAS (Z = -44)
+        const mountainDarkColor = new THREE.Color(worldMeta.groundColor).multiplyScalar(0.4).getHex();
+        const mountainMat = new THREE.MeshStandardMaterial({
+            color: mountainDarkColor,
+            roughness: 0.95,
+            metalness: 0.1
+        });
+
+        const startX = -35;
+        const endX = totalLength + 45;
+        const stepX = 14.0;
+        for (let mx = startX; mx <= endX; mx += stepX) {
+            const peakHeight = 16.0 + Math.sin(mx * 0.15) * 7.0 + (mx % 3) * 4.0;
+            const mountainGeom = new THREE.ConeGeometry(13.0, peakHeight, 4);
+            const mMesh = new THREE.Mesh(mountainGeom, mountainMat);
+            mMesh.position.set(mx, peakHeight / 2 - 4.0, -44.0);
+            mMesh.rotation.y = (mx * 0.7);
+            backdropGroup.add(mMesh);
+        }
+
+        // 3. CAPA 2: BANCO DE NUBES Y NIEBLA FLOTANTE (Z = -32)
+        const cloudMat = new THREE.MeshBasicMaterial({
+            color: worldMeta.fogColor,
+            transparent: true,
+            opacity: 0.42
+        });
+        const cloudGeom = new THREE.SphereGeometry(6.5, 12, 10);
+        cloudGeom.scale(1.8, 0.5, 0.7);
+
+        for (let cx = startX; cx <= endX; cx += 22.0) {
+            const cloud = new THREE.Mesh(cloudGeom, cloudMat);
+            const cloudBaseY = 12.0 + Math.sin(cx * 0.2) * 4.0;
+            cloud.position.set(cx, cloudBaseY, -32.0);
+            backdropGroup.add(cloud);
+
+            const driftSpeed = 0.4 + (cx % 5) * 0.08;
+            this.animatedUpdaters.push((delta, time) => {
+                cloud.position.x = cx + Math.sin(time * driftSpeed) * 3.5;
+            });
+        }
+
+        // 4. CAPA 3: BOSQUE ANCESTRAL Y MONOLITOS (Z = -18 a -26)
+        for (let fx = startX; fx <= endX; fx += 9.5) {
+            const propZ = -18.0 - (Math.abs(fx) % 4) * 2.5;
+            const propY = Math.sin(fx * 0.1) * 2.0;
+
+            if (worldNum === 2) {
+                this.buildWaxPalm(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else if (worldNum === 4) {
+                this.buildGiantFrailejon(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            } else {
+                this.buildGiantCeiba(new THREE.Vector3(fx, propY, propZ), backdropGroup);
+            }
+        }
+
+        // 5. CAPA 4: CAÑÓN PROFUNDO Y RÍO SAGRADO (Y = -14.5, Z = -6.0)
+        const riverLength = endX - startX + 30;
+        const riverGeom = new THREE.PlaneGeometry(riverLength, 24);
+        const riverMat = new THREE.MeshStandardMaterial({
+            color: (worldNum === 4 ? 0x67e8f9 : (worldNum === 5 ? 0x9a3412 : 0x06b6d4)),
+            roughness: 0.1,
+            metalness: 0.8,
+            emissive: (worldNum === 4 ? 0x0284c7 : (worldNum === 5 ? 0x7c2d12 : 0x0891b2)),
+            emissiveIntensity: 0.55
+        });
+        const riverMesh = new THREE.Mesh(riverGeom, riverMat);
+        riverMesh.rotation.x = -Math.PI / 2;
+        riverMesh.position.set(startX + riverLength / 2, -14.5, -6.0);
+        backdropGroup.add(riverMesh);
+
+        const riverMistMat = new THREE.MeshBasicMaterial({
+            color: worldMeta.fogColor,
+            transparent: true,
+            opacity: 0.35,
+            side: THREE.DoubleSide
+        });
+        const riverMist = new THREE.Mesh(new THREE.PlaneGeometry(riverLength, 8), riverMistMat);
+        riverMist.rotation.x = -Math.PI / 2;
+        riverMist.position.set(startX + riverLength / 2, -13.2, -6.0);
+        backdropGroup.add(riverMist);
+
+        this.animatedUpdaters.push((delta, time) => {
+            riverMesh.position.y = -14.5 + Math.sin(time * 1.5) * 0.25;
+            riverMist.position.y = -13.2 + Math.cos(time * 1.2) * 0.3;
+        });
+
+        // 6. CAPA 5: ENCUADRE DE PRIMER PLANO (Z = +3.8 a +4.5)
+        const vineMat = new THREE.MeshStandardMaterial({
+            color: 0x064e3b,
+            roughness: 0.8
+        });
+        for (let vx = startX; vx <= endX; vx += 15.0) {
+            const vineGroup = new THREE.Group();
+            vineGroup.position.set(vx + (vx % 3) * 1.5, 7.5, 3.8);
+
+            const vineStem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 5.5, 8), vineMat);
+            vineStem.position.y = -2.75;
+            vineStem.rotation.z = Math.sin(vx) * 0.15;
+            vineGroup.add(vineStem);
+
+            for (let l = 0; l < 4; l++) {
+                const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), vineMat);
+                leaf.scale.set(1.5, 0.4, 0.8);
+                leaf.position.set((l % 2 === 0 ? 0.2 : -0.2), -1.2 - l * 1.0, 0);
+                leaf.rotation.z = (l % 2 === 0 ? 0.4 : -0.4);
+                vineGroup.add(leaf);
+            }
+
+            backdropGroup.add(vineGroup);
+        }
+
+        this.mapRoot.add(backdropGroup);
+    }
+
     spawnBiomeProps(worldNum, platX, platY, platZ) {
         const side = (Math.random() < 0.5 ? -1 : 1);
         const propPos = new THREE.Vector3(platX + side * (6.5 + Math.random() * 3.0), platY, platZ);
@@ -1788,12 +2144,44 @@ export class World {
         });
         const goldAccentMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.2 });
 
-        // 1. Plataforma de Inicio 2.5D
+        const totalLength = lvlMeta.length || 110;
+        this.campaignTotalLength = totalLength;
+
+        // 1. Gran Fondo Parallax Cinemático Multicapa
+        this.buildParallaxBackdrop(worldNum, totalLength);
+
+        // 2. Partículas ambientales de esporas y luciérnagas de la biodiversidad
+        const fireflyGroup = new THREE.Group();
+        const fireflyMat = new THREE.MeshBasicMaterial({
+            color: (worldNum === 4 ? 0x67e8f9 : (worldNum === 2 ? 0xfef08a : 0x4ade80)),
+            transparent: true,
+            opacity: 0.85
+        });
+        const fireflyGeom = new THREE.SphereGeometry(0.14, 6, 6);
+        const fireflies = [];
+        for (let f = 0; f < 35; f++) {
+            const ff = new THREE.Mesh(fireflyGeom, fireflyMat);
+            const fx = Math.random() * totalLength;
+            const fy = 1.0 + Math.random() * 5.5;
+            const fz = (Math.random() - 0.5) * 6.0;
+            ff.position.set(fx, fy, fz);
+            fireflyGroup.add(ff);
+            fireflies.push({ mesh: ff, baseY: fy, speed: 1.5 + Math.random() * 2.0, phase: Math.random() * Math.PI * 2 });
+        }
+        this.mapRoot.add(fireflyGroup);
+        this.animatedUpdaters.push((delta, time) => {
+            for (let f = 0; f < fireflies.length; f++) {
+                const fly = fireflies[f];
+                fly.mesh.position.y = fly.baseY + Math.sin(time * fly.speed + fly.phase) * 0.7;
+                fly.mesh.position.x += Math.cos(time * 0.8 + fly.phase) * delta * 0.4;
+            }
+        });
+
+        // 3. Plataforma de Inicio 2.5D
         this.addPlatformMesh(0, 0, 0, 16, 10, themeMat);
         this.buildStartGate(new THREE.Vector3(-4, 0, 0));
 
-        // 2. Circuito de Plataformas a lo largo del eje X (Side-scroller)
-        const totalLength = lvlMeta.length || 110;
+        // 4. Circuito de Plataformas a lo largo del eje X (Side-scroller)
         let currentX = 8.0;
         let currentY = 0;
         let sectionIndex = 0;
@@ -1825,7 +2213,7 @@ export class World {
                 });
             }
 
-            // Trampolín en saltos con abismos
+            // Trampolín de hongo saltarín en saltos con abismos
             if (gap > 3.4 && sectionIndex % 2 === 1) {
                 this.buildTrampoline(new THREE.Vector3(platX - platWidth / 2 + 1.2, currentY, 0));
             }
@@ -1841,7 +2229,7 @@ export class World {
                 this.buildBiodiversityCrystal(new THREE.Vector3(platX, currentY + 1.4, 0), `gem_w${worldNum}_l${levelNum}_${gemsPlaced}`);
             }
 
-            // Monedas flotantes
+            // Monedas flotantes en arco
             this.buildFloatingCoinsArc(platX - 1.5, currentY, 0, 3);
 
             // Spawns de enemigos de nivel (alineados en el plano 2.5D)
@@ -1849,23 +2237,20 @@ export class World {
                 this.campaignEnemySpawns.push(new THREE.Vector3(platX, currentY, 0));
             }
 
-            // Capas de Profundidad Parallax (Fondo Z=-14 y Z=-24, Primer plano Z=+4.5)
+            // Props biológicos de media distancia
             this.spawnBiomeProps(worldNum, platX, currentY, -14);
             this.spawnBiomeProps(worldNum, platX + 3.5, currentY, -24);
-            if (sectionIndex % 3 === 0) {
-                this.spawnBiomeProps(worldNum, platX, currentY - 0.5, 4.5);
-            }
 
             currentX = platX + platWidth / 2;
         }
 
-        // 3. Plataforma Final de Meta con el Portal Dimensional
+        // 5. Plataforma Final de Meta con el Portal Dimensional
         const endX = currentX + 8;
         const endY = currentY;
         this.addPlatformMesh(endX, endY, 0, 16, 12, goldAccentMat);
 
         // Portal Místico de Victoria (Perpendicular al camino lateral)
-        this.buildMysticPortal(new THREE.Vector3(endX, endY, 0), Math.PI / 2, worldMeta.groundColor);
+        this.buildMysticPortal(new THREE.Vector3(endX, endY, 0), 0, worldMeta.groundColor);
         if (this.portal) {
             this.portal.isActive = true;
         }
@@ -1904,21 +2289,23 @@ export class World {
             this.scene.fog.density = 0.015;
         }
 
-        // Suelo de la arena 2.5D (de X = -28 a +28, profundidad Z = 12m)
+        // 1. Fondo Parallax de la Arena de Jefe
+        this.buildParallaxBackdrop(worldNum, 40);
+
+        // 2. Suelo principal de combate 2.5D (de X = -24 a +24, profundidad Z = 12m)
         const arenaMat = new THREE.MeshStandardMaterial({ color: worldMeta.groundColor, roughness: 0.85 });
-        this.addPlatformMesh(0, 0, 0, 56, 12, arenaMat);
+        this.addPlatformMesh(0, 0, 0, 48, 12, arenaMat);
 
-        // Pilares y estatuas de fondo a lo largo del eje X
-        for (let px = -24; px <= 24; px += 6) {
-            this.spawnBiomeProps(worldNum, px, 0, -14);
-            this.spawnBiomeProps(worldNum, px + 2.5, 0, -24);
-        }
+        // 3. Plataformas tácticas elevadas para maniobras aéreas ninja (Estilo Super Smash Bros / Dead Cells)
+        const platElevMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.7, roughness: 0.3 });
+        this.addPlatformMesh(-9.0, 3.8, 0, 7.5, 8, platElevMat);
+        this.addPlatformMesh(9.0, 3.8, 0, 7.5, 8, platElevMat);
 
-        // Cajas de fruta curativa en los extremos de la arena
+        // 4. Cajas de fruta curativa en los extremos de la arena
         this.buildCrate(new THREE.Vector3(-18, 0.45, 0), 'fruit');
         this.buildCrate(new THREE.Vector3(18, 0.45, 0), 'fruit');
 
-        // Cristal de Biodiversidad como recompensa central
+        // 5. Cristal de Biodiversidad como recompensa central
         this.buildBiodiversityCrystal(new THREE.Vector3(0, 2.0, 0), `boss_reward_w${worldNum}`);
     }
 

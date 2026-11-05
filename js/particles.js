@@ -46,36 +46,40 @@ export class ParticleSystem {
     }
 
     createSlashEffect(position, direction, element = 'wood', combo = 0) {
-        // 1. Arco de Corte Creciente Luminoso (Crescent Slash Ribbon estilo Anime)
+        // 1. Arco de Corte Creciente Luminoso (Crescent Slash Ribbon estilo Anime 2.5D)
         const slashGroup = new THREE.Group();
-        slashGroup.position.copy(position);
-
-        const angleY = Math.atan2(direction.x, direction.z);
-        slashGroup.rotation.y = angleY;
+        const facing = (direction && direction.x < 0) ? -1 : 1;
+        slashGroup.position.set(position.x + facing * 0.9, position.y + 0.35, 0.1);
 
         const elemColors = {
-            wood: { main: 0xfef08a, emissive: 0xd97706 },
-            steel: { main: 0xe0f2fe, emissive: 0x38bdf8 },
-            gold: { main: 0xfacc15, emissive: 0xf59e0b },
-            fire: { main: 0xffedd5, emissive: 0xff4500 },
-            thunder: { main: 0xecfeff, emissive: 0x00f5ff },
-            light: { main: 0xffffff, emissive: 0xa855f7 }
+            wood: { main: 0xa7f3d0, emissive: 0x10b981 }, // Bambú esmeralda
+            steel: { main: 0xbae6fd, emissive: 0x0284c7 }, // Acero reluciente
+            gold: { main: 0xfef08a, emissive: 0xf59e0b }, // Oro precolombino
+            fire: { main: 0xfed7aa, emissive: 0xf97316 }, // Fuego volcánico
+            thunder: { main: 0xe0e7ff, emissive: 0x6366f1 }, // Trueno andino
+            light: { main: 0xf5d0fe, emissive: 0xd946ef } // Luz mística
         };
-        const ec = elemColors[element] || elemColors.steel;
+        const ec = elemColors[element] || elemColors.gold;
 
         const arcMat = new THREE.MeshBasicMaterial({
-            color: ec.main,
+            color: ec.emissive,
             transparent: true,
             opacity: 0.95,
             side: THREE.DoubleSide,
             depthWrite: false
         });
         const arcMesh = new THREE.Mesh(this.slashArcGeom, arcMat);
-        const tilt = combo === 1 ? -0.35 : (combo === 2 ? 0.35 : 0);
-        arcMesh.rotation.x = Math.PI / 2 + tilt;
+        const comboAngles = [
+            -Math.PI * 0.15, // Combo 1: Corte diagonal descendente
+            Math.PI * 0.35,  // Combo 2: Tajo ascendente con estela
+            -Math.PI * 0.55  // Combo 3: Remate circular completo
+        ];
+        const rotZ = comboAngles[combo % 3];
+        arcMesh.rotation.z = (facing > 0 ? rotZ : -rotZ + Math.PI);
+        if (facing < 0) arcMesh.scale.x = -1;
         slashGroup.add(arcMesh);
 
-        // Núcleo brillante blanco central
+        // Núcleo brillante blanco central (Core flare)
         const coreMat = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
@@ -84,7 +88,8 @@ export class ParticleSystem {
             depthWrite: false
         });
         const coreMesh = new THREE.Mesh(this.slashCoreGeom, coreMat);
-        coreMesh.rotation.x = arcMesh.rotation.x;
+        coreMesh.rotation.z = arcMesh.rotation.z;
+        if (facing < 0) coreMesh.scale.x = -1;
         slashGroup.add(coreMesh);
 
         this.scene.add(slashGroup);
@@ -92,13 +97,13 @@ export class ParticleSystem {
         this.particles.push({
             group: slashGroup,
             isSlashArc: true,
-            life: 0.16,
-            maxLife: 0.16,
+            life: 0.20,
+            maxLife: 0.20,
             arcMat: arcMat,
             coreMat: coreMat,
             update: (d, pct) => {
-                const scale = 0.8 + (1 - pct) * 0.55;
-                slashGroup.scale.set(scale, scale, scale);
+                const scale = 0.9 + (1 - pct) * 0.7;
+                slashGroup.scale.set(scale, scale, 1);
                 arcMat.opacity = pct * 0.95;
                 coreMat.opacity = pct;
             }
@@ -283,9 +288,8 @@ export class ParticleSystem {
             depthWrite: false
         });
         const ringMesh = new THREE.Mesh(this.shockwaveGeom, ringMat);
-        ringMesh.position.copy(position);
-        ringMesh.position.y = 0.15;
-        ringMesh.rotation.x = Math.PI / 2;
+        ringMesh.position.set(position.x, position.y + 0.6, 0.1);
+        ringMesh.rotation.x = 0; // Frente a la cámara 2.5D
         this.scene.add(ringMesh);
 
         this.particles.push({

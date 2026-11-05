@@ -1,16 +1,16 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=18.0';
-import { storage, clearAllCookies } from './storage.js?v=18.0';
-import { WEAPONS } from './weapons.js?v=18.0';
-import { ParticleSystem } from './particles.js?v=18.0';
-import { World, MAPS_CONFIG } from './world.js?v=18.0';
-import { Player } from './player.js?v=18.0';
-import { EnemyManager } from './enemies.js?v=18.0';
-import { MultiplayerManager } from './multiplayer.js?v=18.0';
-import { TouchControlsManager } from './touch.js?v=18.0';
-import { CHARACTERS_DATA } from './characters.js?v=18.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=18.0';
+import { sounds } from './sound.js?v=19.0';
+import { storage, clearAllCookies } from './storage.js?v=19.0';
+import { WEAPONS } from './weapons.js?v=19.0';
+import { ParticleSystem } from './particles.js?v=19.0';
+import { World, MAPS_CONFIG } from './world.js?v=19.0';
+import { Player } from './player.js?v=19.0';
+import { EnemyManager } from './enemies.js?v=19.0';
+import { MultiplayerManager } from './multiplayer.js?v=19.0';
+import { TouchControlsManager } from './touch.js?v=19.0';
+import { CHARACTERS_DATA } from './characters.js?v=19.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=19.0';
 
 // Limpieza automática de cookies al iniciar el juego
 clearAllCookies();
@@ -208,6 +208,7 @@ class Game {
         sunLight.shadow.bias = -0.0003;
         sunLight.shadow.normalBias = 0.02;
         sunLight.shadow.radius = 1.8;
+        this.sunLight = sunLight;
         this.scene.add(sunLight);
 
         // Luz hemisférica: cielo azul celeste y rebote de hierba verde esmeralda
@@ -524,6 +525,8 @@ class Game {
             this.campaignCollectedGems = (this.campaignCollectedGems || 0) + 1;
             const cGemsEl = document.getElementById('camp-hud-gems-count');
             if (cGemsEl) cGemsEl.textContent = `${this.campaignCollectedGems} / 3`;
+            const gemMarker = document.getElementById(`camp-gem-m${this.campaignCollectedGems}`);
+            if (gemMarker) gemMarker.classList.add('collected');
             this.showBanner('💎 CRISTAL DE BIODIVERSIDAD 💎', `¡Recolectado! (${this.campaignCollectedGems}/3)`);
             sounds.playGemCollect();
             this.particles.createHitSparks(pos.clone().add(new THREE.Vector3(0, 0.5, 0)), true);
@@ -1635,6 +1638,8 @@ class Game {
         this.portalVictoryTriggered = false;
         this.state = 'MENU';
         document.body.classList.remove('playing-state');
+        document.body.classList.remove('campaign-active');
+        this.campaignBossEnemy = null;
         this.isCampaignMode = false;
         if (this.player) this.player.isCampaignMode = false;
         sounds.switchTrack('menu');
@@ -2099,13 +2104,37 @@ class Game {
         }
 
         
-        // Actualizar temporizador de campaña
+        // 6.5. Tracking del sol para sombras dinámicas fluidas en 2.5D
+        if (this.sunLight && this.player && this.player.mesh) {
+            this.sunLight.position.x = this.player.mesh.position.x + 20;
+            this.sunLight.target.position.x = this.player.mesh.position.x;
+            this.sunLight.target.updateMatrixWorld();
+        }
+
+        // Actualizar temporizador, progreso de nivel lineal y barra de jefe de campaña
         if (this.isCampaignMode && this.state === 'PLAYING') {
             const elapsedSec = Math.floor((performance.now() - this.campaignStartTime) / 1000);
             const m = Math.floor(elapsedSec / 60);
             const s = (elapsedSec % 60).toString().padStart(2, '0');
             const timerEl = document.getElementById('camp-hud-timer');
             if (timerEl) timerEl.textContent = `${m}:${s}`;
+
+            if (!this.campaignIsBossFight && this.player && this.player.mesh) {
+                const tot = (this.world && this.world.campaignTotalLength) || 110;
+                const pct = Math.min(100, Math.max(0, (this.player.mesh.position.x / tot) * 100));
+                const pFill = document.getElementById('camp-progress-fill');
+                const pRun = document.getElementById('camp-progress-runner');
+                if (pFill) pFill.style.width = `${pct}%`;
+                if (pRun) pRun.style.left = `${pct}%`;
+            } else if (this.campaignIsBossFight && this.campaignBossEnemy) {
+                const bHp = Math.max(0, this.campaignBossEnemy.health);
+                const bMax = this.campaignBossEnemy.maxHealth || 200;
+                const bPct = Math.min(100, Math.max(0, (bHp / bMax) * 100));
+                const bFill = document.getElementById('camp-boss-hp-fill');
+                const bText = document.getElementById('camp-boss-hp-text');
+                if (bFill) bFill.style.width = `${bPct}%`;
+                if (bText) bText.textContent = `${Math.ceil(bHp)} / ${bMax}`;
+            }
         }
 
         // 7. Actualizar enemigos con IA táctica
@@ -2457,10 +2486,27 @@ class Game {
         this.enemyManager.spawnCampaignLevelEnemies(this.world.campaignEnemySpawns, worldNum);
 
         // Configurar HUD
+        document.body.classList.add('campaign-active');
+        this.campaignBossEnemy = null;
         const campHud = document.getElementById('campaign-hud');
         const missHud = document.getElementById('mission-hud');
         if (campHud) campHud.style.display = 'flex';
         if (missHud) missHud.style.display = 'none';
+
+        const progressBarWrap = document.getElementById('camp-progress-bar-wrap');
+        const bossBarWrap = document.getElementById('camp-boss-bar-wrap');
+        if (progressBarWrap) progressBarWrap.style.display = 'flex';
+        if (bossBarWrap) bossBarWrap.style.display = 'none';
+
+        const pFill = document.getElementById('camp-progress-fill');
+        const pRun = document.getElementById('camp-progress-runner');
+        if (pFill) pFill.style.width = '0%';
+        if (pRun) pRun.style.left = '0%';
+
+        for (let i = 1; i <= 3; i++) {
+            const gm = document.getElementById(`camp-gem-m${i}`);
+            if (gm) gm.classList.remove('collected');
+        }
 
         const badgeEl = document.getElementById('camp-hud-world-badge');
         const titleEl = document.getElementById('camp-hud-level-title');
@@ -2511,10 +2557,27 @@ class Game {
         const bossEnemy = this.enemyManager.spawnCampaignBoss(worldNum, new THREE.Vector3(12, 0, 0));
 
         // Configurar HUD
+        document.body.classList.add('campaign-active');
+        this.campaignBossEnemy = bossEnemy;
         const campHud = document.getElementById('campaign-hud');
         const missHud = document.getElementById('mission-hud');
         if (campHud) campHud.style.display = 'flex';
         if (missHud) missHud.style.display = 'none';
+
+        const progressBarWrap = document.getElementById('camp-progress-bar-wrap');
+        const bossBarWrap = document.getElementById('camp-boss-bar-wrap');
+        if (progressBarWrap) progressBarWrap.style.display = 'none';
+        if (bossBarWrap) bossBarWrap.style.display = 'flex';
+
+        const bName = document.getElementById('camp-boss-name');
+        if (bName) bName.textContent = bossSpec.name;
+        const bIcon = document.getElementById('camp-boss-icon');
+        if (bIcon) bIcon.textContent = bossSpec.icon || '👑';
+        const bFill = document.getElementById('camp-boss-hp-fill');
+        const bText = document.getElementById('camp-boss-hp-text');
+        const maxHp = bossEnemy.maxHealth || bossSpec.health || 200;
+        if (bFill) bFill.style.width = '100%';
+        if (bText) bText.textContent = `${maxHp} / ${maxHp}`;
 
         const badgeEl = document.getElementById('camp-hud-world-badge');
         const titleEl = document.getElementById('camp-hud-level-title');

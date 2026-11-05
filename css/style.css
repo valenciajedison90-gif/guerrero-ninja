@@ -1259,13 +1259,13 @@ body.playing-state #mobile-touch-controls {
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
-/* 2. Pulgar Derecho: Cluster de Botones de Acción Estilo Free Fire */
+/* 2. Pulgar Derecho: Clúster Ergonómico de Combate Ninja 2.5D */
 #mobile-actions {
     position: absolute;
-    bottom: 25px;
-    right: 25px;
-    width: 215px;
-    height: 215px;
+    bottom: 20px;
+    right: 20px;
+    width: 210px;
+    height: 210px;
     pointer-events: none;
 }
 
@@ -1284,25 +1284,27 @@ body.playing-state #mobile-touch-controls {
     -webkit-user-select: none;
     touch-action: none !important;
     -webkit-tap-highlight-color: transparent;
-    transition: transform 0.08s ease, filter 0.08s ease;
+    transition: transform 0.08s ease, filter 0.08s ease, box-shadow 0.08s ease;
+    backdrop-filter: blur(8px);
 }
 
 .btn-touch-action:active,
 .btn-touch-action.pressed {
-    transform: scale(0.91);
-    filter: brightness(1.3);
+    transform: scale(0.90);
+    filter: brightness(1.35);
 }
 
-/* A) Botón de Disparo / Ataque Principal (Grande y Destacado) */
+/* A) Ataque Principal (Grande, Esquina Inferior Derecha) */
 .btn-touch-attack {
-    bottom: 5px;
-    right: 5px;
-    width: 86px;
-    height: 86px;
+    bottom: 8px;
+    right: 8px;
+    width: 82px;
+    height: 82px;
     background: radial-gradient(circle at 35% 35%, #f97316, #dc2626 70%, #991b1b 100%);
     border: 3.5px solid #fef08a;
-    box-shadow: 0 0 25px rgba(239, 68, 68, 0.65), 0 6px 18px rgba(0, 0, 0, 0.5), inset 0 2px 8px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.7), 0 6px 18px rgba(0, 0, 0, 0.6);
     animation: attackPulse 2.8s infinite ease-in-out;
+    z-index: 5;
 }
 
 @keyframes attackPulse {
@@ -1318,12 +1320,12 @@ body.playing-state #mobile-touch-controls {
 }
 
 .attack-icon {
-    font-size: 32px;
+    font-size: 30px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
 }
 
 .attack-label {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 900;
     color: #fef08a;
     letter-spacing: 0.8px;
@@ -1331,24 +1333,25 @@ body.playing-state #mobile-touch-controls {
     margin-top: -2px;
 }
 
-/* B) Botón de Salto */
+/* B) Salto Ninja (Arriba del ataque) */
 .btn-touch-jump {
-    bottom: 22px;
-    right: 104px;
-    width: 60px;
-    height: 60px;
+    bottom: 104px;
+    right: 10px;
+    width: 58px;
+    height: 58px;
     background: radial-gradient(circle at 35% 35%, #38bdf8, #0284c7 70%, #0369a1 100%);
-    border: 3px solid #bae6fd;
-    box-shadow: 0 0 18px rgba(2, 132, 199, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+    border: 3px solid #e0f2fe;
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.65), 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 4;
 }
 
 .touch-icon {
-    font-size: 22px;
+    font-size: 21px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
 .touch-label {
-    font-size: 9px;
+    font-size: 8.5px;
     font-weight: 900;
     color: #ffffff;
     letter-spacing: 0.5px;
@@ -1356,33 +1359,67 @@ body.playing-state #mobile-touch-controls {
     margin-top: -1px;
 }
 
-/* C) Botón de Sprint / Impulso Ninja (Dash) */
+/* C) Rodar / Dash con i-frames (A la izquierda del ataque) */
 .btn-touch-dash {
-    bottom: 104px;
-    right: 18px;
+    bottom: 10px;
+    right: 104px;
     width: 58px;
     height: 58px;
     background: radial-gradient(circle at 35% 35%, #facc15, #eab308 70%, #ca8a04 100%);
     border: 3px solid #fef9c3;
-    box-shadow: 0 0 18px rgba(234, 179, 8, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+    box-shadow: 0 0 18px rgba(234, 179, 8, 0.65), 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 4;
 }
 
 .btn-touch-dash .touch-label {
     color: #fef08a;
 }
 
-/* D) Botón de Cambio Rápido de Arma */
-.btn-touch-switch {
-    bottom: 104px;
-    right: 98px;
-    width: 56px;
-    height: 56px;
-    background: radial-gradient(circle at 35% 35%, #a855f7, #7e22ce 70%, #581c87 100%);
-    border: 3px solid #f3e8ff;
-    box-shadow: 0 0 18px rgba(168, 85, 247, 0.55), 0 4px 12px rgba(0,0,0,0.4);
+/* D) Bloqueo y Perfect Parry (Diagonal) */
+.btn-touch-parry {
+    bottom: 88px;
+    right: 88px;
+    width: 52px;
+    height: 52px;
+    background: radial-gradient(circle at 35% 35%, #3b82f6, #1d4ed8 70%, #1e3a8a 100%);
+    border: 2.5px solid #bfdbfe;
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.6), 0 4px 12px rgba(0,0,0,0.45);
+    z-index: 3;
 }
 
-.btn-touch-switch .touch-label {
+.btn-touch-parry .touch-label {
+    color: #dbeafe;
+}
+
+/* E) Shuriken a Distancia (Fila superior derecha) */
+.btn-touch-shuriken {
+    bottom: 164px;
+    right: 28px;
+    width: 48px;
+    height: 48px;
+    background: radial-gradient(circle at 35% 35%, #10b981, #059669 70%, #047857 100%);
+    border: 2.5px solid #a7f3d0;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.55), 0 4px 10px rgba(0, 0, 0, 0.4);
+    z-index: 3;
+}
+
+.btn-touch-shuriken .touch-label {
+    color: #d1fae5;
+}
+
+/* F) Poder / Habilidad Especial (Fila superior izquierda) */
+.btn-touch-action.btn-touch-skill {
+    bottom: 152px;
+    right: 92px;
+    width: 48px;
+    height: 48px;
+    background: radial-gradient(circle at 35% 35%, #a855f7, #7c3aed 70%, #581c87 100%);
+    border: 2.5px solid #f3e8ff;
+    box-shadow: 0 0 18px rgba(168, 85, 247, 0.65), 0 4px 10px rgba(0,0,0,0.4);
+    z-index: 3;
+}
+
+.btn-touch-action.btn-touch-skill .touch-label {
     color: #f3e8ff;
 }
 
@@ -1992,6 +2029,188 @@ body.playing-state #mobile-touch-controls {
     background: #ffffff;
     box-shadow: 0 0 8px #ffffff;
 }
+
+/* =========================================================================
+   HUD DE CAMPAÑA 2.5D: 10 MUNDOS DE COLOMBIA (DISEÑO AAA PLATAFORMAS)
+   ========================================================================= */
+.campaign-hud-card {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.95)) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 2px solid rgba(245, 158, 11, 0.7) !important;
+    border-radius: 20px !important;
+    padding: 10px 16px !important;
+    max-width: 320px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.25) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    color: #f8fafc !important;
+    pointer-events: auto !important;
+}
+
+.campaign-hud-card .mission-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    border-bottom: 1px solid rgba(245, 158, 11, 0.3) !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 2px !important;
+}
+
+.campaign-hud-card .mission-badge-icon {
+    font-size: 11px !important;
+    font-weight: 900 !important;
+    padding: 3px 8px !important;
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: #1e293b !important;
+    letter-spacing: 0.5px !important;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4) !important;
+}
+
+.campaign-hud-card .mission-world-title {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    color: #fef08a !important;
+    letter-spacing: 0.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Barra de Progreso Lineal de Nivel 2.5D (0m a 110m con Gemas y Portal) */
+.campaign-progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progress-node {
+    font-size: 15px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+    user-select: none;
+}
+
+.progress-track {
+    position: relative;
+    flex: 1;
+    height: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    overflow: visible;
+}
+
+.progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #38bdf8 65%, #facc15 100%);
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+    transition: width 0.12s ease-out;
+}
+
+.progress-runner-avatar {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 15px;
+    z-index: 5;
+    transition: left 0.12s ease-out;
+    filter: drop-shadow(0 0 6px #38bdf8);
+    pointer-events: none;
+}
+
+.gem-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    filter: grayscale(1) opacity(0.35);
+    transition: filter 0.3s ease, transform 0.3s ease;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.gem-marker.gem-m1 { left: 28%; }
+.gem-marker.gem-m2 { left: 58%; }
+.gem-marker.gem-m3 { left: 84%; }
+
+.gem-marker.collected {
+    filter: grayscale(0) opacity(1) drop-shadow(0 0 8px #f59e0b);
+    transform: translate(-50%, -50%) scale(1.35);
+    animation: gemPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes gemPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1.3); }
+    50% { transform: translate(-50%, -50%) scale(1.55); filter: grayscale(0) drop-shadow(0 0 14px #fbbf24); }
+}
+
+/* Barra de Vida del Jefe Ancestral 2.5D */
+.campaign-boss-bar-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 12px;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.boss-bar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: #fca5a5;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.boss-hp-track {
+    width: 100%;
+    height: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.boss-hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #b91c1c, #ef4444 60%, #f87171 100%);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+    transition: width 0.15s ease-out;
+}
+
+/* Ocultar elementos incompatibles con 2.5D cuando la Campaña está activa */
+body.campaign-active #hud-minimap,
+body.campaign-active .br-stats-cluster,
+body.campaign-active .btn-boss-spawn,
+body.campaign-active #mission-hud {
+    display: none !important;
+}
+
+body.campaign-active .player-mini-status {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    margin: 0;
+    pointer-events: auto;
+}
+
 
 /* =========================================================================
    BOTÓN TÁCTIL DE GIRO NINJA 360° (MÓVILES)
@@ -4024,8 +4243,75 @@ body.playing-state #mobile-touch-controls {
         font-size: 10px !important;
     }
 
-    /* PANTALLAS INFORMATIVAS DE MISIÓN / CAMPAÑA: TIRA ULTRA-COMPACTA SUPERIOR (CERO ESTORBO) */
-    .mission-hud-card, .campaign-hud-card {
+    /* PANTALLAS INFORMATIVAS DE MISIÓN / CAMPAÑA */
+    .mission-hud-card {
+    .campaign-hud-card {
+        position: absolute !important;
+        top: 2px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 90% !important;
+        max-width: 290px !important;
+        height: auto !important;
+        padding: 4px 10px !important;
+        margin: 0 !important;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.96)) !important;
+        border: 1.5px solid rgba(245, 158, 11, 0.7) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+    }
+
+    .campaign-hud-card .mission-header {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        border-bottom: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 6px !important;
+    }
+
+    .campaign-hud-card .mission-tasks {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-around !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+
+    .campaign-hud-card .mission-task-row {
+        margin: 0 !important;
+        font-size: 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+    }
+
+    .campaign-hud-card .task-desc {
+        display: none !important;
+    }
+
+    .campaign-hud-card .task-progress {
+        font-size: 10px !important;
+        font-weight: 800 !important;
+        color: #fef08a !important;
+    }
+
+    .campaign-hud-card .campaign-progress-bar-container {
+        display: flex !important;
+    }
+
+    .campaign-hud-card .portal-status-pill {
+        display: none !important;
+    }
+
         position: absolute !important;
         top: 2px !important;
         left: 50% !important;
@@ -4193,21 +4479,19 @@ body.playing-state #mobile-touch-controls {
         background: rgba(56, 189, 248, 0.7) !important;
     }
 
-    /* Clúster Derecho Compacto pegado a la esquina derecha */
+    /* Clúster Derecho Ergonómico en Abanico 2.5D (Cero solapamiento) */
     #mobile-actions {
-        bottom: 12px !important;
-        right: 12px !important;
-        width: 140px !important;
-        height: 140px !important;
+        bottom: 8px !important;
+        right: 8px !important;
+        width: 175px !important;
+        height: 175px !important;
     }
 
     .btn-touch-attack {
-        width: 66px !important;
-        height: 66px !important;
-        bottom: 0 !important;
-        right: 0 !important;
-        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-        border: 2.5px solid #ffffff !important;
+        width: 68px !important;
+        height: 68px !important;
+        bottom: 4px !important;
+        right: 4px !important;
     }
 
     .btn-touch-attack .touch-icon {
@@ -4215,52 +4499,62 @@ body.playing-state #mobile-touch-controls {
     }
 
     .btn-touch-jump {
-        width: 46px !important;
-        height: 46px !important;
-        bottom: 74px !important;
+        width: 50px !important;
+        height: 50px !important;
+        bottom: 80px !important;
         right: 4px !important;
     }
 
     .btn-touch-jump .touch-icon {
-        font-size: 18px !important;
+        font-size: 20px !important;
     }
 
     .btn-touch-dash {
-        width: 46px !important;
-        height: 46px !important;
+        width: 50px !important;
+        height: 50px !important;
         bottom: 4px !important;
-        right: 74px !important;
+        right: 80px !important;
     }
 
     .btn-touch-dash .touch-icon {
-        font-size: 18px !important;
+        font-size: 19px !important;
     }
 
-    .btn-touch-action.btn-touch-skill {
-        position: absolute !important;
-        width: 42px !important;
-        height: 42px !important;
-        bottom: 60px !important;
-        right: 60px !important;
+    .btn-touch-parry {
+        width: 44px !important;
+        height: 44px !important;
+        bottom: 68px !important;
+        right: 68px !important;
     }
 
-    .btn-touch-skill .touch-icon {
+    .btn-touch-parry .touch-icon {
         font-size: 16px !important;
     }
 
-    .btn-touch-switch {
-        width: 36px !important;
-        height: 36px !important;
-        bottom: 106px !important;
-        right: 36px !important;
+    .btn-touch-shuriken {
+        width: 40px !important;
+        height: 40px !important;
+        bottom: 134px !important;
+        right: 18px !important;
     }
 
-    .btn-touch-switch .touch-icon {
-        font-size: 14px !important;
+    .btn-touch-shuriken .touch-icon {
+        font-size: 15px !important;
     }
 
-    .btn-touch-spin {
-        display: none !important; /* Despejar el centro de botones */
+    .btn-touch-action.btn-touch-skill {
+        width: 40px !important;
+        height: 40px !important;
+        bottom: 122px !important;
+        right: 72px !important;
+    }
+
+    .btn-touch-skill .touch-icon {
+        font-size: 15px !important;
+    }
+
+    .btn-touch-switch, .btn-touch-spin {
+        display: none !important;
     }
 
     .touch-label {
@@ -4302,47 +4596,3 @@ body.playing-state #mobile-touch-controls {
 }
 
 
-/* E) Botón de Bloqueo y Perfect Parry */
-.btn-touch-parry {
-    bottom: 96px;
-    right: 86px;
-    width: 58px;
-    height: 58px;
-    background: radial-gradient(circle at 35% 35%, #3b82f6, #1d4ed8 70%, #1e3a8a 100%);
-    border: 3px solid #bfdbfe;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.65), 0 4px 14px rgba(0,0,0,0.45);
-}
-
-.btn-touch-parry .touch-label {
-    color: #dbeafe;
-}
-
-/* F) Botón de Shuriken a Distancia */
-.btn-touch-shuriken {
-    bottom: 160px;
-    right: 28px;
-    width: 52px;
-    height: 52px;
-    background: radial-gradient(circle at 35% 35%, #10b981, #059669 70%, #047857 100%);
-    border: 2.5px solid #a7f3d0;
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.55), 0 4px 12px rgba(0,0,0,0.4);
-}
-
-.btn-touch-shuriken .touch-label {
-    color: #d1fae5;
-}
-
-@media (max-width: 900px), (max-height: 520px) {
-    .btn-touch-parry {
-        width: 48px !important;
-        height: 48px !important;
-        bottom: 58px !important;
-        right: 68px !important;
-    }
-    .btn-touch-shuriken {
-        width: 42px !important;
-        height: 42px !important;
-        bottom: 114px !important;
-        right: 18px !important;
-    }
-}
