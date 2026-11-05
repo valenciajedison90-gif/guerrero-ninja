@@ -8,8 +8,9 @@
     <meta http-equiv="Expires" content="0">
     <script>
         // Purgar caché obsoleta y forzar actualización inmediata en celulares
-        const APP_BUILD_VER = 'v17.5';
-        if (localStorage.getItem('ninja_build_ver') !== APP_BUILD_VER) {
+        const APP_BUILD_VER = 'v18.0';
+        const prevVer = localStorage.getItem('ninja_build_ver');
+        if (prevVer !== APP_BUILD_VER) {
             localStorage.setItem('ninja_build_ver', APP_BUILD_VER);
             if ('caches' in window) {
                 caches.keys().then(names => {
@@ -21,7 +22,18 @@
                     for (let r of regs) r.unregister();
                 });
             }
+            if (prevVer) {
+                window.location.reload(true);
+            }
         }
+        window.addEventListener('error', function(e) {
+            console.error('NINJA_ERROR:', e);
+            const errDiv = document.getElementById('fatal-error-badge');
+            if (errDiv) {
+                errDiv.style.display = 'block';
+                errDiv.textContent = '⚠️ Error en juego: ' + (e.message || e);
+            }
+        });
     </script>
     <title>Ninja Colombia Arena - Aventura 2.5D Cinemática</title>
     <link rel="manifest" href="manifest.json">
@@ -34,7 +46,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=17.5">
+    <link rel="stylesheet" href="css/style.css?v=18.0">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -49,6 +61,8 @@
     </script>
 </head>
 <body>
+    <div id="fatal-error-badge" style="display:none; position:fixed; top:12px; left:12px; right:12px; z-index:999999; background:#dc2626; color:#ffffff; padding:12px 16px; border-radius:12px; font-family:sans-serif; font-size:13px; font-weight:700; box-shadow:0 8px 24px rgba(0,0,0,0.6); pointer-events:auto;" onclick="this.style.display='none'"></div>
+
     <!-- Canvas 3D de WebGL -->
     <canvas id="game-canvas"></canvas>
 
@@ -72,7 +86,7 @@
 
             <!-- Título Central / Logo de Alto Impacto Estilo Referencia -->
             <div class="menu-logo-banner">
-                <div class="logo-top-tag"><span class="flag-icon">🇨🇴</span> BIODIVERSIDAD COLOMBIANA • v1.7.5 (2.5D Cinemático)</div>
+                <div class="logo-top-tag"><span class="flag-icon">🇨🇴</span> BIODIVERSIDAD COLOMBIANA • v1.8.0 (2.5D Cinemático Oficial)</div>
                 <h1 class="game-logo-title">
                     <span class="logo-title-row">
                         <span class="logo-text-ninja">NINJA</span>
@@ -163,11 +177,11 @@
             <!-- Selector Inferior Derecho de Modo de Juego -->
             <div class="menu-mode-selector-badge" id="btn-menu-mode" title="Cambiar Modo de Juego">
                 <div class="mode-badge-left">
-                    <span class="mode-tag">MODO SELECCIONADO</span>
-                    <div class="mode-title" id="menu-mode-title">BATTLE ROYALE (50 JUGADORES)</div>
-                    <div class="mode-sub" id="menu-mode-map-name">🗺️ Selva Amazónica</div>
+                    <span class="mode-tag">MODO ACTIVO</span>
+                    <div class="mode-title" id="menu-mode-title">AVENTURA 2.5D (10 MUNDOS)</div>
+                    <div class="mode-sub" id="menu-mode-map-name">🌴 Mundo 1: Selva Amazónica</div>
                 </div>
-                <button class="btn-change-mode">CAMBIAR ➔</button>
+                <button class="btn-change-mode">ELEGIR ➔</button>
             </div>
         </div>
     </div>
@@ -990,6 +1004,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=17.5"></script>
+    <script type="module" src="js/main.js?v=18.0"></script>
 </body>
 </html>

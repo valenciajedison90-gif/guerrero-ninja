@@ -72,12 +72,23 @@ export class TouchControlsManager {
 
         // Iniciar joystick al tocar la mitad izquierda de la pantalla
         window.addEventListener('touchstart', (e) => {
+            // SOLO activo durante partida en juego ('PLAYING')
+            if (!this.game || this.game.state !== 'PLAYING') return;
+
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                // Lado izquierdo de la pantalla (excluyendo zona de menús)
+                // Lado izquierdo de la pantalla (excluyendo zona de menús o modales)
                 if (this.joystickTouchId === null && touch.clientX < window.innerWidth * 0.48 && touch.clientY > window.innerHeight * 0.15) {
                     const target = touch.target || e.target;
-                    if (target && target.closest && (target.closest('.modal-overlay') || target.closest('.btn-hud') || target.closest('.player-card') || target.closest('#mission-hud'))) {
+                    if (target && target.closest && (
+                        target.closest('#main-menu-overlay') ||
+                        target.closest('.modal-overlay') ||
+                        target.closest('.menu-side-nav') ||
+                        target.closest('.btn-hud') ||
+                        target.closest('.player-card') ||
+                        target.closest('#mission-hud') ||
+                        target.closest('.btn-touch-action')
+                    )) {
                         continue;
                     }
 
@@ -138,6 +149,7 @@ export class TouchControlsManager {
     }
 
     handleJoystickMove(clientX, clientY) {
+        if (!this.game || this.game.state !== 'PLAYING') return;
         const dx = clientX - this.baseCenter.x;
         const dy = clientY - this.baseCenter.y;
         const distance = Math.hypot(dx, dy);
@@ -174,13 +186,25 @@ export class TouchControlsManager {
     // 2. Control Panorámico de Cámara Estilo Free Fire
     setupCameraTouchEvents() {
         window.addEventListener('touchstart', (e) => {
+            // SOLO activo durante partida en juego ('PLAYING') y si NO es campaña 2.5D
+            if (!this.game || this.game.state !== 'PLAYING') return;
+            if (this.player && this.player.isCampaignMode) return;
+
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === this.joystickTouchId) continue;
 
-                // Si tocó un botón de acción táctil o elemento interactivo del HUD
+                // Si tocó un botón de acción táctil o elemento interactivo del HUD o menú
                 const target = touch.target || e.target;
-                if (target && target.closest && (target.closest('.btn-touch-action') || target.closest('.btn-hud') || target.closest('.modal-overlay') || target.closest('.hotbar-slot') || target.closest('.player-card') || target.closest('#mission-hud'))) {
+                if (target && target.closest && (
+                    target.closest('#main-menu-overlay') ||
+                    target.closest('.btn-touch-action') ||
+                    target.closest('.btn-hud') ||
+                    target.closest('.modal-overlay') ||
+                    target.closest('.hotbar-slot') ||
+                    target.closest('.player-card') ||
+                    target.closest('#mission-hud')
+                )) {
                     continue;
                 }
 
@@ -198,6 +222,8 @@ export class TouchControlsManager {
 
         window.addEventListener('touchmove', (e) => {
             if (this.cameraTouchId === null) return;
+            if (!this.game || this.game.state !== 'PLAYING') return;
+            if (this.player && this.player.isCampaignMode) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === this.cameraTouchId) {

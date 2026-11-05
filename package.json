@@ -1,6 +1,6 @@
 {
   "name": "guerrero-ninja-3d",
-  "version": "1.7.5",
+  "version": "1.8.0",
   "description": "Videojuego 2.5D Cinemático de combate ninja técnico en WebGL/Three.js estilo Shadow Fight / Dead Cells",
   "main": "js/main.js",
   "author": "jjedi90",

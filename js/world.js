@@ -3,7 +3,7 @@
 // Incluye: Cajas Sorpresa con '?', Airdrops con Paracaídas, Cristales de Biodiversidad y Portales Precolombinos
 
 import * as THREE from 'three';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=9.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=18.0';
 
 export const MAPS_CONFIG = {
     selva: {

@@ -1,16 +1,16 @@
 // js/main.js - Bucle Principal del Juego, Combate, Progresión de Mundos con Misiones y Renderizado HD
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=9.0';
-import { storage, clearAllCookies } from './storage.js?v=13.0';
-import { WEAPONS } from './weapons.js?v=9.0';
-import { ParticleSystem } from './particles.js?v=9.0';
-import { World, MAPS_CONFIG } from './world.js?v=13.0';
-import { Player } from './player.js?v=9.0';
-import { EnemyManager } from './enemies.js?v=9.0';
-import { MultiplayerManager } from './multiplayer.js?v=9.0';
-import { TouchControlsManager } from './touch.js?v=9.0';
-import { CHARACTERS_DATA } from './characters.js?v=9.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=13.0';
+import { sounds } from './sound.js?v=18.0';
+import { storage, clearAllCookies } from './storage.js?v=18.0';
+import { WEAPONS } from './weapons.js?v=18.0';
+import { ParticleSystem } from './particles.js?v=18.0';
+import { World, MAPS_CONFIG } from './world.js?v=18.0';
+import { Player } from './player.js?v=18.0';
+import { EnemyManager } from './enemies.js?v=18.0';
+import { MultiplayerManager } from './multiplayer.js?v=18.0';
+import { TouchControlsManager } from './touch.js?v=18.0';
+import { CHARACTERS_DATA } from './characters.js?v=18.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=18.0';
 
 // Limpieza automática de cookies al iniciar el juego
 clearAllCookies();
@@ -133,6 +133,7 @@ class Game {
         this.renderCharactersGrid();
         this.renderNinjaPass();
         this.renderSkinsGrid();
+        this.updateMenuModeDisplay();
 
         // 4. Iniciar bucle de animación
         this.animate = this.animate.bind(this);
@@ -817,19 +818,24 @@ class Game {
             });
         }
 
-        const startCombatNow = () => {
+        const startCombatNow = (e) => {
+            if (e && e.cancelable) e.preventDefault();
             safeClass('multiplayer-modal', 'remove', 'open');
-            this.showBanner('¡DOJO NINJA LISTO! 🥷', '¡Usa el joystick y los botones para combatir!');
-            document.body.classList.add('touch-enabled', 'touch-active');
-            const tc = document.getElementById('mobile-touch-controls');
-            if (tc) tc.style.display = 'block';
+            sounds.init();
+            this.startGame();
         };
 
         const btnSolo = document.getElementById('btn-start-solo');
-        if (btnSolo) btnSolo.addEventListener('click', startCombatNow);
+        if (btnSolo) {
+            btnSolo.addEventListener('click', startCombatNow);
+            btnSolo.addEventListener('touchend', startCombatNow, { passive: false });
+        }
 
         const btnQuick = document.getElementById('btn-quick-start');
-        if (btnQuick) btnQuick.addEventListener('click', startCombatNow);
+        if (btnQuick) {
+            btnQuick.addEventListener('click', startCombatNow);
+            btnQuick.addEventListener('touchend', startCombatNow, { passive: false });
+        }
 
         const btnCreate = document.getElementById('btn-create-room');
         if (btnCreate) {
@@ -958,11 +964,27 @@ class Game {
         }
 
         const btnPlay = document.getElementById('btn-menu-play');
-        if (btnPlay) btnPlay.addEventListener('click', () => this.startGame());
+        if (btnPlay) {
+            const onPlay = (e) => {
+                if (e && e.cancelable) e.preventDefault();
+                sounds.init();
+                this.startGame();
+            };
+            btnPlay.addEventListener('click', onPlay);
+            btnPlay.addEventListener('touchend', onPlay, { passive: false });
+        }
 
         // Botón 10 MUNDOS (Campaña Aventura Ninja)
         const btnCamp = document.getElementById('btn-menu-campaign');
-        if (btnCamp) btnCamp.addEventListener('click', () => this.openCampaignWorldsModal());
+        if (btnCamp) {
+            const onCamp = (e) => {
+                if (e && e.cancelable) e.preventDefault();
+                sounds.init();
+                this.openCampaignWorldsModal();
+            };
+            btnCamp.addEventListener('click', onCamp);
+            btnCamp.addEventListener('touchend', onCamp, { passive: false });
+        }
 
         // Modales de Campaña (10 Mundos, Niveles y Pantalla de Victoria)
         safeListener('btn-close-campaign-worlds', 'click', () => {
@@ -1189,17 +1211,10 @@ class Game {
                 storage.setSelectedMode(modeId);
                 if (modeId === 'adventure') { this.openCampaignWorldsModal(); }
 
-                const titles = {
-                    battle_royale: 'BATTLE ROYALE (50 JUGADORES)',
-                    adventure: 'AVENTURA NINJA (CAMPAÑA)',
-                    squads: 'EQUIPOS (4 VS 4)',
-                    events: 'EVENTO: FESTIVAL BIODIVERSIDAD'
-                };
-                const tEl = document.getElementById('menu-mode-title');
-                if (tEl) tEl.textContent = titles[modeId] || modeId;
-
+                this.updateMenuModeDisplay();
                 sounds.playSlash('light');
-                this.showBanner('MODO CAMBIADO 🎮', titles[modeId] || modeId);
+                const tEl = document.getElementById('menu-mode-title');
+                this.showBanner('MODO CAMBIADO 🎮', tEl ? tEl.textContent : modeId);
                 if (modesModal) modesModal.classList.remove('open');
             });
         });
@@ -1450,8 +1465,11 @@ class Game {
     setupPWAInstall() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('PWA ServiceWorker activo:', reg.scope))
+                navigator.serviceWorker.register('./sw.js?v=18.0')
+                    .then(reg => {
+                        console.log('PWA ServiceWorker activo:', reg.scope);
+                        reg.update();
+                    })
                     .catch(err => console.log('Error PWA ServiceWorker:', err));
             });
         }
@@ -1558,8 +1576,9 @@ class Game {
 
     startGame() {
         if (!this.isCampaignMode) {
-            const currentWorld = (storage.data.campaign && storage.data.campaign.currentWorld) || 1;
-            const currentLevel = (storage.data.campaign && storage.data.campaign.currentLevel) || 1;
+            const campData = storage.data.campaign || {};
+            const currentWorld = campData.selectedWorld || campData.currentWorld || 1;
+            const currentLevel = campData.selectedLevel || campData.currentLevel || 1;
             this.startCampaignLevel(currentWorld, currentLevel);
             return;
         }
@@ -1601,7 +1620,13 @@ class Game {
             document.body.classList.add('touch-enabled', 'touch-active');
         }
 
-        this.player.mesh.position.set(0, 1.2, 0);
+        if (this.campaignIsBossFight) {
+            this.player.mesh.position.set(-14, 1.5, 0);
+        } else {
+            this.player.mesh.position.set(0, 1.5, 0);
+        }
+        this.player.facing = 1;
+        this.player.mesh.rotation.y = Math.PI / 2;
         this.player.velocity.set(0, 0, 0);
         this.showBanner('¡NINJA COLOMBIA ARENA!', '¡A luchar con honor y proteger la biodiversidad!');
     }
@@ -1694,6 +1719,26 @@ class Game {
         const mGems = document.getElementById('menu-gem-count');
         if (mCoins) mCoins.textContent = (storage.data.coins || 0).toLocaleString();
         if (mGems) mGems.textContent = (storage.data.gems || 150).toLocaleString();
+    }
+
+    updateMenuModeDisplay() {
+        const modeId = storage.getSelectedMode() || 'adventure';
+        const titles = {
+            battle_royale: 'BATTLE ROYALE (50 JUGADORES)',
+            adventure: 'AVENTURA 2.5D (10 MUNDOS)',
+            squads: 'EQUIPOS (4 VS 4)',
+            events: 'EVENTO: FESTIVAL BIODIVERSIDAD'
+        };
+        const tEl = document.getElementById('menu-mode-title');
+        if (tEl) tEl.textContent = titles[modeId] || titles.adventure;
+
+        const subEl = document.getElementById('menu-mode-map-name');
+        if (subEl) {
+            const campData = storage.data.campaign || {};
+            const worldNum = campData.selectedWorld || campData.currentWorld || 1;
+            const worldMeta = CAMPAIGN_WORLDS[worldNum] || CAMPAIGN_WORLDS[1];
+            subEl.textContent = `🌴 Mundo ${worldNum}: ${worldMeta.name}`;
+        }
     }
 
     renderCharactersGrid() {

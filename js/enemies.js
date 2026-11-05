@@ -1,7 +1,7 @@
 // js/enemies.js - Gestor de Enemigos con IA Táctica de Combate, Rodeo y Cinemática Articular
 import * as THREE from 'three';
-import { sounds } from './sound.js?v=6.0';
-import { CAMPAIGN_WORLDS } from './campaign.js?v=10.0';
+import { sounds } from './sound.js?v=18.0';
+import { CAMPAIGN_WORLDS } from './campaign.js?v=18.0';
 
 export class EnemyManager {
     constructor(scene, particles) {
@@ -865,22 +865,36 @@ export class EnemyManager {
             } else {
                 // Patrulla ambiental tranquila cuando el jugador está lejos
                 enemy.patrolTimer -= delta;
+                if (!enemy.patrolTarget) {
+                    enemy.patrolTarget = (enemy.originalPos ? enemy.originalPos.clone() : enemy.mesh.position.clone());
+                }
                 if (enemy.patrolTimer <= 0) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const r = 5 + Math.random() * 8;
-                    enemy.patrolTarget.set(
-                        enemy.originalPos.x + Math.cos(angle) * r,
-                        0,
-                        enemy.originalPos.z + Math.sin(angle) * r
-                    );
+                    if (enemy.isCampaign) {
+                        // En campaña 2.5D, solo patrullar en X manteniendo Z = 0
+                        const wanderX = (Math.random() - 0.5) * 5.0;
+                        enemy.patrolTarget.set(enemy.originalPos.x + wanderX, enemy.groundY || 0, 0);
+                    } else {
+                        const angle = Math.random() * Math.PI * 2;
+                        const r = 5 + Math.random() * 8;
+                        enemy.patrolTarget.set(
+                            enemy.originalPos.x + Math.cos(angle) * r,
+                            0,
+                            enemy.originalPos.z + Math.sin(angle) * r
+                        );
+                    }
                     enemy.patrolTimer = 3.5 + Math.random() * 3.0;
                 }
 
                 const distToPatrol = enemy.mesh.position.distanceTo(enemy.patrolTarget);
-                if (distToPatrol > 1.2) {
+                if (distToPatrol > 0.8) {
                     const pDir = new THREE.Vector3().subVectors(enemy.patrolTarget, enemy.mesh.position).normalize();
                     enemy.mesh.position.addScaledVector(pDir, enemy.speed * 0.45 * delta);
-                    enemy.mesh.lookAt(enemy.patrolTarget.x, enemy.mesh.position.y, enemy.patrolTarget.z);
+                    if (enemy.isCampaign) {
+                        enemy.facing = pDir.x >= 0 ? 1 : -1;
+                        enemy.mesh.rotation.y = enemy.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
+                    } else {
+                        enemy.mesh.lookAt(enemy.patrolTarget.x, enemy.mesh.position.y, enemy.patrolTarget.z);
+                    }
 
                     if (enemy.leftLegPivot && enemy.rightLegPivot) {
                         const legSwing = Math.sin(time * 0.7) * 0.4;
@@ -890,13 +904,15 @@ export class EnemyManager {
                 }
             }
 
-            // Límites del mapa
-            const arenaRadius = 52.0;
-            const distCenter = Math.hypot(enemy.mesh.position.x, enemy.mesh.position.z);
-            if (distCenter > arenaRadius) {
-                const angle = Math.atan2(enemy.mesh.position.z, enemy.mesh.position.x);
-                enemy.mesh.position.x = Math.cos(angle) * arenaRadius;
-                enemy.mesh.position.z = Math.sin(angle) * arenaRadius;
+            // Límites del mapa (solo en arenas circulares 3D, NO en campaña 2.5D lineal)
+            if (!enemy.isCampaign) {
+                const arenaRadius = 52.0;
+                const distCenter = Math.hypot(enemy.mesh.position.x, enemy.mesh.position.z);
+                if (distCenter > arenaRadius) {
+                    const angle = Math.atan2(enemy.mesh.position.z, enemy.mesh.position.x);
+                    enemy.mesh.position.x = Math.cos(angle) * arenaRadius;
+                    enemy.mesh.position.z = Math.sin(angle) * arenaRadius;
+                }
             }
         });
     }
@@ -1015,6 +1031,7 @@ export class EnemyManager {
                 patrolMinZ: pos.z - range,
                 patrolMaxZ: pos.z + range,
                 patrolDirection: (idx % 2 === 0) ? 1 : -1,
+                patrolTarget: pos.clone(),
                 patrolTimer: 0,
                 originalPos: pos.clone(),
                 slotIndex: idx % 6,
