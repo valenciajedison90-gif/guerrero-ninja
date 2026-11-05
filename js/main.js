@@ -5,7 +5,7 @@ import { storage, clearAllCookies } from './storage.js?v=20.0';
 import { WEAPONS } from './weapons.js?v=20.0';
 import { ParticleSystem } from './particles.js?v=20.0';
 import { World, MAPS_CONFIG } from './world.js?v=20.0';
-import { Player } from './player.js?v=20.0';
+import { Player } from './player.js?v=20.0.3';
 import { EnemyManager } from './enemies.js?v=20.0';
 import { MultiplayerManager } from './multiplayer.js?v=20.0';
 import { TouchControlsManager } from './touch.js?v=20.0';
@@ -1729,7 +1729,7 @@ class Game {
     setupPWAInstall() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=20.0.2')
+                navigator.serviceWorker.register('./sw.js?v=20.0.3')
                     .then(reg => {
                         console.log('PWA ServiceWorker activo:', reg.scope);
                         reg.update();
@@ -1900,6 +1900,16 @@ class Game {
         this.player.facing = 1;
         this.player.mesh.rotation.y = Math.PI / 2;
         this.player.velocity.set(0, 0, 0);
+
+        // Fijar cámara cinemática 2.5D lateral inmediatamente al iniciar partida
+        const isMobileScreen = window.innerWidth <= 768;
+        const initialCamX = this.player.mesh.position.x + this.player.facing * (isMobileScreen ? 2.2 : 3.0);
+        const initialCamY = Math.max(2.2, this.player.mesh.position.y + 1.25);
+        const initialCamZ = isMobileScreen ? 12.2 : 10.8;
+        this.camera.position.set(initialCamX, initialCamY, initialCamZ);
+        const initialLook = new THREE.Vector3(this.player.mesh.position.x + this.player.facing * 1.2, Math.max(1.5, this.player.mesh.position.y + 1.1), 0);
+        this.player.camLookTarget = initialLook.clone();
+        this.camera.lookAt(initialLook);
         this.showBanner('¡NINJA COLOMBIA ARENA!', '¡A luchar con honor y proteger la biodiversidad!');
     }
 

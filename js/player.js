@@ -47,6 +47,7 @@ export class Player {
         this.isRolling = false;
         this.rollTimer = 0; // Duración activa con i-frames (0.35s)
         this.rollCooldown = 0;
+        this.isMoving = false;
         this.shurikenCooldown = 0;
         this.onParrySuccessCallback = null;
         this.onDodgeCallback = null;
@@ -823,6 +824,8 @@ export class Player {
             }
         }
 
+        let isMoving = false;
+
         // 1. Balanceo Físico en Lianas Andinas
         if (this.isLianaSwinging && this.lianaAnchor) {
             this.lianaAngle += this.lianaAngularSpeed * delta;
@@ -854,7 +857,8 @@ export class Player {
                 this.wasJoystickUp = false;
             }
 
-            const isMoving = Math.abs(moveX) > 0.08 && !this.isRolling && !this.isBlocking && this.airDashTimer <= 0;
+            isMoving = Math.abs(moveX) > 0.08 && !this.isRolling && !this.isBlocking && this.airDashTimer <= 0;
+            this.isMoving = isMoving;
 
             if (isMoving && this.wallJumpLockout <= 0) {
                 this.facing = moveX > 0 ? 1 : -1;
