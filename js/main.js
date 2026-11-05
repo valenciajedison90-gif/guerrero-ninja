@@ -444,7 +444,7 @@ class Game {
         // 3. Screen shake masivo
         this.triggerScreenShake(0.42, 0.22);
         this.hitStopDuration = 0.08;
-        sounds.playSlash('heavy');
+        if (sounds && sounds.playGroundSlam) sounds.playGroundSlam(); else sounds.playSlash('heavy');
 
         // 4. Daño de área sísmico a enemigos cercanos
         const slamRadius = 6.2;

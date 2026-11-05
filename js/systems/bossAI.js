@@ -116,7 +116,11 @@ export class BossAISystem {
         if (this.telegraphMesh.visible) this.telegraphMesh.visible = false;
 
         // Rugido sísmico y explosión de energía
-        if (this.sound && this.sound.playSlash) this.sound.playSlash('heavy');
+        if (this.sound && this.sound.playBossRoar) {
+            this.sound.playBossRoar();
+        } else if (this.sound && this.sound.playSlash) {
+            this.sound.playSlash('heavy');
+        }
         this.particles.createShockwave(boss.mesh.position, config.colorHex, 12.0);
         this.particles.createHitSparks(boss.mesh.position, true);
 

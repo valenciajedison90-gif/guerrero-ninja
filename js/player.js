@@ -475,6 +475,7 @@ export class Player {
         this.locomotionState = 'WALL_JUMP';
         this.canAirDash = true; // El wall jump recarga el Air Dash
         this.jumpCount = 1;
+        if (sounds && sounds.playWallJump) sounds.playWallJump(); else sounds.playJump();
         sounds.playJump();
         if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
         if (this.onSpawnShadowCallback) {
@@ -501,6 +502,7 @@ export class Player {
         this.isLianaSwinging = false;
         this.locomotionState = 'AIR_DASH';
         this.velocity.set(this.facing * 18.5, 0, 0); // Vuelo horizontal rasante
+        if (sounds && sounds.playAirDash) sounds.playAirDash(); else sounds.playDash();
 
         sounds.playDodgeRoll();
         if (this.onAirDashCallback) {
@@ -547,7 +549,7 @@ export class Player {
             this.locomotionState = 'LIANA_SWING';
             this.canAirDash = true;
             this.jumpCount = 0;
-            sounds.playSlash('light');
+            if (sounds && sounds.playLianaSwing) sounds.playLianaSwing(); else sounds.playSlash('light');
             if (this.onLianaHookCallback) {
                 this.onLianaHookCallback(this.lianaAnchor);
             }
@@ -921,6 +923,9 @@ export class Player {
                     }
                     if (this.onWallSlideCallback) {
                         this.onWallSlideCallback(this.mesh.position.clone(), this.facing);
+                    }
+                    if (sounds && sounds.playWallSlide) {
+                        sounds.playWallSlide();
                     }
                 } else {
                     this.isWallSliding = false;

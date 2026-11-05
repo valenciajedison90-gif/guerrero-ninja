@@ -98,14 +98,24 @@ class SoundEngine {
     constructor() {
         this.ctx = null;
         this.enabled = true;
+        this.sfxEnabled = true;
         this.volume = 0.5;
         this.coinPitchIndex = 0;
         this.lastCoinTime = 0;
 
+        // Buses de audio multicanal v20.0
+        this.masterGain = null;
+        this.sfxGain = null;
+        this.musicGain = null;
+        this.ambientGain = null;
+        this.masterVolume = 0.8;
+        this.sfxVolume = 0.7;
+        this.musicVolume = 0.22;
+        this.ambientVolume = 0.35;
+        this.lastWallSlideTime = 0;
+
         // Propiedades de Música de Fondo Procedural (BGM)
         this.musicEnabled = true;
-        this.musicVolume = 0.22;
-        this.musicGain = null;
         this.currentTrack = null;
         this.musicTimer = null;
         this.currentStep = 0;
@@ -137,11 +147,184 @@ class SoundEngine {
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
-        if (this.ctx && !this.musicGain) {
+        if (this.ctx && !this.masterGain) {
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.setValueAtTime(this.masterVolume, this.ctx.currentTime);
+            this.masterGain.connect(this.ctx.destination);
+
+            this.sfxGain = this.ctx.createGain();
+            this.sfxGain.gain.setValueAtTime(this.sfxVolume * (this.enabled && this.sfxEnabled ? 1 : 0), this.ctx.currentTime);
+            this.sfxGain.connect(this.masterGain);
+
             this.musicGain = this.ctx.createGain();
-            this.musicGain.gain.setValueAtTime(this.musicVolume * (this.enabled ? 1 : 0), this.ctx.currentTime);
-            this.musicGain.connect(this.ctx.destination);
+            this.musicGain.gain.setValueAtTime(this.musicVolume * (this.enabled && this.musicEnabled ? 1 : 0), this.ctx.currentTime);
+            this.musicGain.connect(this.masterGain);
+
+            this.ambientGain = this.ctx.createGain();
+            this.ambientGain.gain.setValueAtTime(this.ambientVolume, this.ctx.currentTime);
+            this.ambientGain.connect(this.masterGain);
         }
+    }
+
+    getSFXDestination() {
+        return this.sfxGain || (this.ctx ? this.ctx.destination : null);
+    }
+
+    setSFXEnabled(val) {
+        this.sfxEnabled = !!val;
+        if (this.sfxGain && this.ctx) {
+            this.sfxGain.gain.setValueAtTime(this.sfxVolume * (this.enabled && this.sfxEnabled ? 1 : 0), this.ctx.currentTime);
+        }
+    }
+
+    setMusicEnabled(val) {
+        this.musicEnabled = !!val;
+        if (this.musicGain && this.ctx) {
+            this.musicGain.gain.setValueAtTime(this.musicVolume * (this.enabled && this.musicEnabled ? 1 : 0), this.ctx.currentTime);
+        }
+        if (!this.musicEnabled) {
+            this.stopMusic();
+        } else if (this.enabled && !this.isMusicPlaying) {
+            this.resumeMusic();
+        }
+    }
+
+    playWallJump() {
+        if (!this.enabled || !this.sfxEnabled || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(540, now + 0.12);
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(850, now);
+        filter.Q.setValueAtTime(2.2, now);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.getSFXDestination());
+
+        osc.start(now);
+        osc.stop(now + 0.14);
+        this.playNoise(0.06, 0.12);
+    }
+
+    playWallSlide() {
+        if (!this.enabled || !this.sfxEnabled || !this.ctx) return;
+        this.init();
+        if (this.lastWallSlideTime && this.ctx.currentTime - this.lastWallSlideTime < 0.14) return;
+        this.lastWallSlideTime = this.ctx.currentTime;
+        this.playNoise(0.08, 0.10);
+    }
+
+    playAirDash() {
+        if (!this.enabled || !this.sfxEnabled || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(720, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2400, now);
+        filter.frequency.exponentialRampToValueAtTime(400, now + 0.16);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.getSFXDestination());
+
+        osc.start(now);
+        osc.stop(now + 0.18);
+        this.playNoise(0.12, 0.22);
+    }
+
+    playGroundSlam() {
+        if (!this.enabled || !this.sfxEnabled || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        // Sub-bass sísmico profundo
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(36, now + 0.32);
+
+        gain.gain.setValueAtTime(0.48, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+        osc.connect(gain);
+        gain.connect(this.getSFXDestination());
+
+        osc.start(now);
+        osc.stop(now + 0.38);
+        this.playNoise(0.25, 0.40);
+    }
+
+    playLianaSwing() {
+        if (!this.enabled || !this.sfxEnabled || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.linearRampToValueAtTime(520, now + 0.14);
+        osc.frequency.exponentialRampToValueAtTime(260, now + 0.28);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        osc.connect(gain);
+        gain.connect(this.getSFXDestination());
+
+        osc.start(now);
+        osc.stop(now + 0.28);
+    }
+
+    playBossRoar() {
+        if (!this.enabled || !this.sfxEnabled || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(95, now);
+        osc1.frequency.linearRampToValueAtTime(140, now + 0.25);
+        osc1.frequency.exponentialRampToValueAtTime(42, now + 0.75);
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(750, now);
+        filter.frequency.exponentialRampToValueAtTime(180, now + 0.75);
+
+        gain1.gain.setValueAtTime(0.40, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.80);
+
+        osc1.connect(filter);
+        filter.connect(gain1);
+        gain1.connect(this.getSFXDestination());
+
+        osc1.start(now);
+        osc1.stop(now + 0.80);
+        this.playNoise(0.45, 0.36);
     }
 
     playSlash(element = 'wood') {

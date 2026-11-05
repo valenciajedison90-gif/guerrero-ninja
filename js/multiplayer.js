@@ -201,13 +201,21 @@ export class RemoteNinjaPlayer {
     }
 
     update(delta) {
-        // Interpolación suave hacia la posición y rotación objetivo (lerp)
-        this.mesh.position.lerp(this.targetPosition, 0.22);
+        // Interpolación exponencial independiente del framerate (anti-jitter)
+        const lerpFactor = 1.0 - Math.exp(-14.0 * Math.max(0.001, delta));
+        const distToTarget = this.mesh.position.distanceTo(this.targetPosition);
+
+        if (distToTarget > 15.0) {
+            // Salto por desincronización severa
+            this.mesh.position.copy(this.targetPosition);
+        } else {
+            this.mesh.position.lerp(this.targetPosition, Math.min(1.0, lerpFactor));
+        }
 
         let diff = this.targetRotation - this.mesh.rotation.y;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        this.mesh.rotation.y += diff * 0.22;
+        this.mesh.rotation.y += diff * Math.min(1.0, lerpFactor);
 
         const time = performance.now() * 0.009;
 
