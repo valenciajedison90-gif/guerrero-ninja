@@ -54,21 +54,19 @@ class Game {
         this.multiplayer = new MultiplayerManager(this.scene, this.particles);
         this.levelManager = new LevelManager(this);
 
-        // Conectar proveedor de altura de suelo para plataformas 3D
-        if (this.player) this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
+        // Conectar proveedores de física y mecánicas ninja 2.5D
+        if (this.player) {
+            this.player.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
+            this.player.wallCheckProvider = (x, y, z, facing) => this.world.checkWallAt(x, y, z, facing);
+            this.player.lianaCheckProvider = (x, y, z) => this.world.checkLianaAt(x, y, z);
+            this.player.onGroundSlamImpact = (pos, weaponId) => this.handleGroundSlamImpact(pos, weaponId);
+            this.player.onAirDashCallback = (pos, facing, weaponId) => this.handleAirDashTrail(pos, facing, weaponId);
+            this.player.onWallSlideCallback = (pos, facing) => this.handleWallSlideSparks(pos, facing);
+            this.player.onAttackCallback = (weaponId, combo, target, isAir) => this.handlePlayerAttack(weaponId, combo, target, isAir);
+            this.player.onSpinAttackCallback = () => this.handlePlayerSpinAttack();
+            this.player.onSpecialSkillCallback = (charId, skill) => this.handleSpecialSkillVisuals(charId, skill);
+        }
         if (this.enemyManager) this.enemyManager.groundCheckProvider = (x, y, z) => this.world.getGroundHeightAt(x, y, z);
-
-        // Controles táctiles móviles estilo Free Fire con botón de giro y habilidad
-        this.touchControls = new TouchControlsManager(this.player, this);
-
-        // Minimapa Radar Canvas
-        this.minimapCanvas = document.getElementById('minimap-canvas');
-        this.minimapCtx = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
-
-        // Conectar eventos de combate del jugador
-        this.player.onAttackCallback = (weaponId, combo, target) => this.handlePlayerAttack(weaponId, combo, target);
-        this.player.onSpinAttackCallback = () => this.handlePlayerSpinAttack();
-        this.player.onSpecialSkillCallback = (charId, skill) => this.handleSpecialSkillVisuals(charId, skill);
 
         // Conectar proveedor de objetivos para Auto-Apuntado Asistido (Soft Aim Assist)
         this.player.setTargetsProvider(() => {
@@ -314,9 +312,10 @@ class Game {
     }
 
     // =========================================================================
-    // COMBATE DEL JUGADOR CON AUTO-APUNTADO Y COMBOS FLUIDOS
     // =========================================================================
-    handlePlayerAttack(weaponId, combo, target) {
+    // COMBATE DEL JUGADOR CON AUTO-APUNTADO Y COMBOS FLUIDOS (TERRESTRE Y AÉREO)
+    // =========================================================================
+    handlePlayerAttack(weaponId, combo, target, isAir = false) {
         const weapon = WEAPONS[weaponId] || WEAPONS.bokken;
         const playerPos = this.player.mesh.position;
 
@@ -342,8 +341,8 @@ class Game {
         let hitCount = 0;
         const range = weapon.range;
 
-        // Bonificación de daño progresivo en combos 1-2-3
-        const comboMultipliers = [1.0, 1.25, 1.75];
+        // Bonificación de daño progresivo en combos 1-2-3 (Combos aéreos tienen multiplicador extra)
+        const comboMultipliers = isAir ? [1.15, 1.45, 2.1] : [1.0, 1.25, 1.75];
         const comboMult = comboMultipliers[combo] || 1.0;
 
         // Golpear enemigos frente al jugador
@@ -364,12 +363,18 @@ class Game {
                     if (isCrit) damage = Math.round(damage * 1.5);
                     damage += (storage.data.level - 1) * 3;
 
+                    // Si es el 3er golpe del combo aéreo, remata hacia abajo (Spike Finisher)
+                    if (isAir && combo === 2) {
+                        toEnemy.y = -0.75;
+                        toEnemy.normalize();
+                    }
+
                     this.enemyManager.damageEnemy(enemy, damage, isCrit, toEnemy, (defeatedEnemy) => {
                         this.handleEnemyDefeated(defeatedEnemy);
                     });
 
                     // Game Juice
-                    this.triggerScreenShake(isCrit ? 0.28 : 0.15, 0.12);
+                    this.triggerScreenShake(isCrit ? 0.32 : 0.16, isAir ? 0.15 : 0.12);
                     this.spawnDamagePopup(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), damage, isCrit);
                 }
             }
@@ -393,7 +398,74 @@ class Game {
         if (hitCount > 0) {
             this.showCombo(combo);
             // Hit-Stop táctil de impacto
-            this.hitStopDuration = 0.042;
+            this.hitStopDuration = isAir ? 0.055 : 0.042;
+        }
+    }
+
+    handleGroundSlamImpact(pos, weaponId) {
+        const weapon = WEAPONS[weaponId] || WEAPONS.bokken;
+        const elemColors = {
+            wood: 0x10b981,
+            steel: 0x0284c7,
+            gold: 0xf59e0b,
+            fire: 0xf97316,
+            thunder: 0x6366f1,
+            light: 0xd946ef
+        };
+        const color = elemColors[weapon.element] || 0xf59e0b;
+
+        // 1. Onda de choque expansiva sónica
+        this.particles.createShockwave(pos, color, 10.5);
+
+        // 2. Chispas de impacto y humo sísmico
+        this.particles.createHitSparks(pos, true);
+        this.particles.createSmokePoof(pos, 1.8);
+
+        // 3. Screen shake masivo
+        this.triggerScreenShake(0.42, 0.22);
+        this.hitStopDuration = 0.08;
+        sounds.playSlash('heavy');
+
+        // 4. Daño de área sísmico a enemigos cercanos
+        const slamRadius = 6.2;
+        const slamDamage = Math.round(weapon.damage * 2.2 + (storage.data.level - 1) * 4);
+
+        this.enemyManager.enemies.forEach(enemy => {
+            const dist = pos.distanceTo(enemy.mesh.position);
+            if (dist <= slamRadius) {
+                const knockDir = new THREE.Vector3().subVectors(enemy.mesh.position, pos).normalize();
+                knockDir.y = 0.65;
+                knockDir.normalize();
+
+                this.enemyManager.damageEnemy(enemy, slamDamage, true, knockDir, (defeated) => {
+                    this.handleEnemyDefeated(defeated);
+                });
+                this.spawnDamagePopup(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0)), slamDamage, true);
+            }
+        });
+
+        // 5. Destrucción de cajas y obstáculos en el radio del impacto
+        this.world.checkCrateHits(pos, slamRadius, (crate) => {
+            this.handleCrateBroken(crate);
+            this.spawnDamagePopup(crate.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 60, true);
+        });
+
+        this.world.checkTotemHits(pos, slamRadius, (totem) => {
+            this.handleTotemDestroyed(totem);
+            this.spawnDamagePopup(totem.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 80, true);
+        });
+    }
+
+    handleAirDashTrail(pos, facing, weaponId) {
+        this.particles.createDodgeDust(pos);
+        this.particles.createHitSparks(pos, false);
+        this.triggerScreenShake(0.12, 0.08);
+    }
+
+    handleWallSlideSparks(pos, facing) {
+        // Chispas de fricción leves en la pared
+        if (Math.random() < 0.35) {
+            this.particles.createHitSparks(pos, false);
         }
     }
 

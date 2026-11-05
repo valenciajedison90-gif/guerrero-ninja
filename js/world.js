@@ -157,6 +157,7 @@ export class World {
         this.currentCampaignWorldNum = 1;
         this.currentCampaignLevelNum = 1;
         this.trampolines = [];
+        this.lianaHooks = [];
         this.floatingCoins = [];
         this.crates = [];
         this.missionGems = [];
@@ -189,6 +190,7 @@ export class World {
         }
 
         this.trampolines = [];
+        this.lianaHooks = [];
         this.floatingCoins = [];
         this.crates = [];
         this.missionGems = [];
@@ -1550,6 +1552,108 @@ export class World {
         return bestY;
     }
 
+    checkWallAt(x, y, z, facing, distance = 0.65) {
+        // En arenas de combate (límites del domo lateral)
+        if (!this.isCampaignMode) {
+            if (facing > 0 && x >= 27.2) {
+                return { isWall: true, wallX: 27.8, wallSide: -1, topY: 10, bottomY: -2 };
+            }
+            if (facing < 0 && x <= -27.2) {
+                return { isWall: true, wallX: -27.8, wallSide: 1, topY: 10, bottomY: -2 };
+            }
+            return null;
+        }
+
+        // En modo campaña con plataformas 2.5D
+        const targetX = x + facing * distance;
+        for (let i = 0; i < this.platforms.length; i++) {
+            const p = this.platforms[i];
+            const thickness = 2.4;
+            const topY = p.y;
+            const bottomY = p.y - thickness;
+
+            // Altura vertical del jugador frente al borde de la plataforma
+            if (y >= bottomY - 0.5 && y <= topY - 0.25) {
+                if (facing > 0 && Math.abs(targetX - p.minX) <= distance && z >= p.minZ - 1.5 && z <= p.maxZ + 1.5) {
+                    return { isWall: true, wallX: p.minX, wallSide: -1, topY, bottomY };
+                }
+                if (facing < 0 && Math.abs(targetX - p.maxX) <= distance && z >= p.minZ - 1.5 && z <= p.maxZ + 1.5) {
+                    return { isWall: true, wallX: p.maxX, wallSide: 1, topY, bottomY };
+                }
+            }
+        }
+        return null;
+    }
+
+    checkLianaAt(x, y, z, maxDist = 4.8) {
+        if (!this.lianaHooks || this.lianaHooks.length === 0) return null;
+        let closest = null;
+        let minDistSq = maxDist * maxDist;
+
+        for (let i = 0; i < this.lianaHooks.length; i++) {
+            const hook = this.lianaHooks[i];
+            const dx = hook.position.x - x;
+            const dy = hook.position.y - y;
+            const dz = hook.position.z - z;
+            const distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq < minDistSq) {
+                minDistSq = distSq;
+                closest = {
+                    anchor: hook.position.clone(),
+                    length: hook.length || 4.2,
+                    index: i
+                };
+            }
+        }
+        return closest;
+    }
+
+    buildLianaHook(position, length = 4.5) {
+        if (!this.lianaHooks) this.lianaHooks = [];
+
+        const group = new THREE.Group();
+        group.position.copy(position);
+
+        // 1. Nodo sagrado de sujeción (Anillo de oro y jade precolombino)
+        const ringGeom = new THREE.TorusGeometry(0.38, 0.08, 8, 20);
+        const ringMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b,
+            metalness: 0.9,
+            roughness: 0.2,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.4
+        });
+        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+        group.add(ringMesh);
+
+        // 2. Liana colgante trenzada (cuerda de bejuco andino)
+        const vineGeom = new THREE.CylinderGeometry(0.06, 0.07, length, 8);
+        const vineMat = new THREE.MeshStandardMaterial({
+            color: 0x166534,
+            roughness: 0.85
+        });
+        const vineMesh = new THREE.Mesh(vineGeom, vineMat);
+        vineMesh.position.y = -length / 2;
+        group.add(vineMesh);
+
+        // 3. Empuñadura inferior de agarre
+        const gripGeom = new THREE.CylinderGeometry(0.12, 0.12, 0.35, 10);
+        const gripMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 });
+        const gripMesh = new THREE.Mesh(gripGeom, gripMat);
+        gripMesh.position.y = -length;
+        gripMesh.rotation.z = Math.PI / 2;
+        group.add(gripMesh);
+
+        this.mapRoot.add(group);
+        this.lianaHooks.push({
+            group,
+            position: position.clone(),
+            length
+        });
+        return group;
+    }
+
     addPlatformMesh(x, y, z, width, length, material, isMoving = false) {
         const group = new THREE.Group();
         group.position.set(x, y, z);
@@ -2106,6 +2210,7 @@ export class World {
         }
 
         this.trampolines = [];
+        this.lianaHooks = [];
         this.floatingCoins = [];
         this.crates = [];
         this.missionGems = [];
@@ -2205,6 +2310,9 @@ export class World {
             // Trampolín de hongo saltarín en saltos con abismos
             if (gap > 3.4 && sectionIndex % 2 === 1) {
                 this.buildTrampoline(new THREE.Vector3(platX - platWidth / 2 + 1.2, currentY, 0));
+            } else if (gap > 3.0 && sectionIndex % 2 === 0) {
+                // Liana colgante ancestral sobre el abismo para balanceo acrobático
+                this.buildLianaHook(new THREE.Vector3(currentX + gap / 2, Math.max(currentY, heightVariation) + 5.2, 0), 4.2);
             }
 
             // Cajas Sorpresa con '?'
@@ -2261,6 +2369,7 @@ export class World {
         }
 
         this.trampolines = [];
+        this.lianaHooks = [];
         this.floatingCoins = [];
         this.crates = [];
         this.missionGems = [];

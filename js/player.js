@@ -21,6 +21,11 @@ export class Player {
         this.baseSpeed = charData.stats.speed;
         this.jumpForce = charData.stats.jumpForce;
 
+        // Máquinas de Estado Desacopladas (Locomoción, Combate y Defensa)
+        this.locomotionState = 'IDLE'; // IDLE, RUN, JUMP, FALL, WALL_SLIDE, WALL_JUMP, AIR_DASH, LIANA_SWING
+        this.combatState = 'NEUTRAL'; // NEUTRAL, GROUND_COMBO_1..3, AIR_COMBO_1..3, SPIN_ATTACK, GROUND_SLAM, SHURIKEN
+        this.defenseState = 'NONE'; // NONE, BLOCK, PARRY, ROLL
+
         this.attackCooldown = 0;
         this.attackCombo = 0;
         this.comboResetTimer = 0;
@@ -46,6 +51,38 @@ export class Player {
         this.onParrySuccessCallback = null;
         this.onDodgeCallback = null;
         this.onShurikenCallback = null;
+
+        // Nuevas Mecánicas Avanzadas del Ninja v20.0
+        // 1. Air Dash (Impulso aéreo horizontal)
+        this.canAirDash = true;
+        this.airDashTimer = 0;
+        this.onAirDashCallback = null;
+
+        // 2. Wall Slide & Wall Jump
+        this.isWallSliding = false;
+        this.wallSlideDirection = 0;
+        this.wallJumpLockout = 0;
+        this.wallCheckProvider = null;
+        this.onWallSlideCallback = null;
+
+        // 3. Ground Slam (Ataque descendente sísmico)
+        this.isGroundSlamming = false;
+        this.groundSlamTimer = 0;
+        this.onGroundSlamImpact = null;
+
+        // 4. Air Combo (Combos aéreos encadenados)
+        this.isAirAttacking = false;
+        this.airCombo = 0;
+        this.airComboTimer = 0;
+
+        // 5. Liana Hook (Balanceo en lianas andinas)
+        this.isLianaSwinging = false;
+        this.lianaAnchor = null;
+        this.lianaLength = 4.2;
+        this.lianaAngle = 0;
+        this.lianaAngularSpeed = 0;
+        this.lianaCheckProvider = null;
+        this.onLianaHookCallback = null;
 
         // Habilidad Especial Única
         this.specialCooldownTimer = 0;
@@ -122,8 +159,12 @@ export class Player {
     getNetworkState() {
         let anim = 'idle';
         if (this.isSpinning) anim = 'spin';
-        else if (this.isAttacking) anim = 'attack';
-        else if (this.dashTimer > 0) anim = 'run';
+        else if (this.isGroundSlamming) anim = 'slam';
+        else if (this.isWallSliding) anim = 'wall_slide';
+        else if (this.isLianaSwinging) anim = 'liana';
+        else if (this.airDashTimer > 0) anim = 'air_dash';
+        else if (this.isAttacking) anim = this.isAirAttacking ? 'air_attack' : 'attack';
+        else if (this.isRolling || this.dashTimer > 0) anim = 'roll';
         else if (!this.isGrounded) anim = 'jump';
         else if (this.keys.w || this.keys.s || this.keys.a || this.keys.d || this.touchMoveVector.lengthSq() > 0.01) anim = 'run';
         return {
@@ -133,7 +174,8 @@ export class Player {
             rot: Number(this.mesh.rotation.y.toFixed(2)),
             anim: anim,
             weapon: this.currentWeaponId,
-            combo: this.attackCombo
+            combo: this.attackCombo,
+            state: this.locomotionState
         };
     }
 
@@ -384,30 +426,98 @@ export class Player {
     }
 
     jump() {
+        // 1. Si está colgado de una liana, impulsarse en la dirección del balanceo
+        if (this.isLianaSwinging) {
+            this.releaseLiana(true);
+            return;
+        }
+
+        // 2. Si está en Wall Slide, realizar Wall Jump despegando de la pared
+        if (this.isWallSliding) {
+            this.wallJump();
+            return;
+        }
+
+        // 3. Si está en el aire cerca de una liana, intentar engancharse
+        if (!this.isGrounded && this.tryHookLiana()) {
+            return;
+        }
+
+        // 4. Salto normal desde el suelo
         if (this.isGrounded) {
             this.mesh.position.y += 0.08;
             this.velocity.y = this.jumpForce;
             this.isGrounded = false;
             this.jumpCount = 1;
+            this.canAirDash = true;
+            this.locomotionState = 'JUMP';
             sounds.playJump();
             if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
         } else if (this.jumpCount < this.maxJumps) {
-            // Doble salto estilo plataformas
+            // 5. Doble salto acrobático en el aire
             this.mesh.position.y += 0.08;
             this.velocity.y = this.jumpForce * 0.95;
             this.jumpCount = 2;
+            this.canAirDash = true; // El doble salto recarga el Air Dash
+            this.locomotionState = 'JUMP';
             sounds.playJump();
             if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
         }
     }
 
+    wallJump() {
+        this.isWallSliding = false;
+        // Invertir dirección: saltar hacia el lado opuesto de la pared
+        this.facing = -this.wallSlideDirection;
+        this.velocity.x = this.facing * 12.0;
+        this.velocity.y = this.jumpForce * 1.05;
+        this.wallJumpLockout = 0.16; // Ventana de despegue limpio
+        this.locomotionState = 'WALL_JUMP';
+        this.canAirDash = true; // El wall jump recarga el Air Dash
+        this.jumpCount = 1;
+        sounds.playJump();
+        if (this.onJumpCallback) this.onJumpCallback(this.mesh.position.clone());
+        if (this.onSpawnShadowCallback) {
+            this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
+        }
+    }
+
     dash() {
-        this.triggerDodge();
+        if (!this.isGrounded) {
+            if (this.canAirDash && this.dashCooldown <= 0) {
+                this.triggerAirDash();
+            }
+        } else {
+            this.triggerDodge();
+        }
+    }
+
+    triggerAirDash() {
+        if (!this.canAirDash || this.dashCooldown > 0) return;
+        this.canAirDash = false;
+        this.dashCooldown = 0.45;
+        this.airDashTimer = 0.22;
+        this.isWallSliding = false;
+        this.isLianaSwinging = false;
+        this.locomotionState = 'AIR_DASH';
+        this.velocity.set(this.facing * 18.5, 0, 0); // Vuelo horizontal rasante
+
+        sounds.playDodgeRoll();
+        if (this.onAirDashCallback) {
+            this.onAirDashCallback(this.mesh.position.clone(), this.facing, this.currentWeaponId);
+        }
+        if (this.onSpawnShadowCallback) {
+            this.onSpawnShadowCallback(this.mesh.position.clone(), this.mesh.rotation.y);
+        }
     }
 
     triggerDodge() {
+        if (!this.isGrounded) {
+            return this.triggerAirDash();
+        }
         if (this.rollCooldown > 0 || this.isRolling) return;
         this.isRolling = true;
+        this.defenseState = 'ROLL';
         this.rollTimer = 0.35;
         this.rollCooldown = 0.52;
         this.isBlocking = false;
@@ -425,14 +535,49 @@ export class Player {
         }
     }
 
+    tryHookLiana() {
+        if (!this.lianaCheckProvider) return false;
+        const hook = this.lianaCheckProvider(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
+        if (hook && hook.anchor) {
+            this.isLianaSwinging = true;
+            this.lianaAnchor = hook.anchor;
+            this.lianaLength = hook.length || 4.2;
+            this.lianaAngle = (this.facing > 0 ? -0.55 : 0.55);
+            this.lianaAngularSpeed = this.facing * 3.2;
+            this.locomotionState = 'LIANA_SWING';
+            this.canAirDash = true;
+            this.jumpCount = 0;
+            sounds.playSlash('light');
+            if (this.onLianaHookCallback) {
+                this.onLianaHookCallback(this.lianaAnchor);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    releaseLiana(withJump = false) {
+        if (!this.isLianaSwinging) return;
+        this.isLianaSwinging = false;
+        this.locomotionState = withJump ? 'JUMP' : 'FALL';
+        const launchSpeedX = Math.sign(this.lianaAngularSpeed || this.facing) * 15.0;
+        const launchSpeedY = withJump ? 13.5 : 4.0;
+        this.velocity.set(launchSpeedX, launchSpeedY, 0);
+        this.canAirDash = true;
+        this.jumpCount = withJump ? 1 : 0;
+        sounds.playJump();
+    }
+
     setBlocking(active) {
         if (this.isRolling) return;
         if (active && !this.isBlocking) {
             this.isBlocking = true;
+            this.defenseState = 'BLOCK';
             this.parryTimer = 0.28; // Ventana activa de parry perfecto (280ms)
             sounds.playSlash('light');
         } else if (!active) {
             this.isBlocking = false;
+            this.defenseState = 'NONE';
             this.parryTimer = 0;
         }
     }
@@ -444,6 +589,7 @@ export class Player {
     triggerShuriken() {
         if (this.shurikenCooldown > 0) return;
         this.shurikenCooldown = 0.42;
+        this.combatState = 'SHURIKEN';
         sounds.playSlash('light');
 
         if (this.onShurikenCallback) {
@@ -454,9 +600,37 @@ export class Player {
     }
 
     triggerAttack() {
-        if (this.attackCooldown > 0 || this.isRolling) return;
+        if (this.attackCooldown > 0 || this.isRolling || this.airDashTimer > 0) return;
 
-        // Auto-Apuntado Asistido lateral (2.5D)
+        // Si está en el aire y mantiene presionado hacia abajo (tecla S o joystick abajo): Ground Slam!
+        const isHoldingDown = this.keys.s || (this.touchMoveVector && this.touchMoveVector.y < -0.45);
+        if (!this.isGrounded && isHoldingDown && !this.isGroundSlamming) {
+            this.triggerGroundSlam();
+            return;
+        }
+
+        // Si está en el aire: Air Combo!
+        if (!this.isGrounded) {
+            this.triggerAirAttack();
+            return;
+        }
+
+        // Combate Terrestre Normal (Ground Combo)
+        this.triggerGroundAttack();
+    }
+
+    triggerGroundSlam() {
+        if (this.isGroundSlamming || this.isGrounded) return;
+        this.isGroundSlamming = true;
+        this.combatState = 'GROUND_SLAM';
+        this.locomotionState = 'FALL';
+        this.isWallSliding = false;
+        this.isLianaSwinging = false;
+        this.velocity.set(0, -30.0, 0); // Caída sísmica vertical acelerada
+        sounds.playSlash('heavy');
+    }
+
+    triggerAirAttack() {
         const best = this.findBestTarget(8.5);
         if (best && best.mesh) {
             const dx = best.mesh.position.x - this.mesh.position.x;
@@ -464,7 +638,39 @@ export class Player {
                 this.facing = dx > 0 ? 1 : -1;
             }
         }
+        this.mesh.rotation.y = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
 
+        // Suspensión aérea (Air Hang) y avance horizontal en el aire
+        this.velocity.y = Math.max(-1.8, this.velocity.y * 0.2);
+        this.velocity.x = this.facing * 3.8;
+
+        const weaponData = WEAPONS[this.currentWeaponId] || WEAPONS.bokken;
+        this.isAttacking = true;
+        this.isAirAttacking = true;
+        this.attackTimer = 0;
+
+        const airComboCooldowns = [0.16, 0.16, 0.26];
+        this.attackCooldown = airComboCooldowns[this.airCombo] || 0.2;
+        this.combatState = `AIR_COMBO_${this.airCombo + 1}`;
+
+        sounds.playSlash(weaponData.element);
+
+        if (this.onAttackCallback) {
+            this.onAttackCallback(this.currentWeaponId, this.airCombo, best ? best.target : null, true /* isAir */);
+        }
+
+        this.airCombo = (this.airCombo + 1) % 3;
+        this.airComboTimer = 0.8;
+    }
+
+    triggerGroundAttack() {
+        const best = this.findBestTarget(8.5);
+        if (best && best.mesh) {
+            const dx = best.mesh.position.x - this.mesh.position.x;
+            if (Math.abs(dx) > 0.3) {
+                this.facing = dx > 0 ? 1 : -1;
+            }
+        }
         this.mesh.rotation.y = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
 
         // Acometida de avance con katana según combo
@@ -473,16 +679,17 @@ export class Player {
 
         const weaponData = WEAPONS[this.currentWeaponId] || WEAPONS.bokken;
         this.isAttacking = true;
+        this.isAirAttacking = false;
         this.attackTimer = 0;
+        this.combatState = `GROUND_COMBO_${this.attackCombo + 1}`;
 
-        // Cadena de combo rápida (Hit 1: 0.18s, Hit 2: 0.18s, Hit 3 Finisher: 0.28s)
         const comboCooldowns = [0.18, 0.18, 0.28];
         this.attackCooldown = comboCooldowns[this.attackCombo] || weaponData.attackSpeed;
 
         sounds.playSlash(weaponData.element);
 
         if (this.onAttackCallback) {
-            this.onAttackCallback(this.currentWeaponId, this.attackCombo, best ? best.target : null);
+            this.onAttackCallback(this.currentWeaponId, this.attackCombo, best ? best.target : null, false /* isAir */);
         }
 
         this.attackCombo = (this.attackCombo + 1) % 3;
@@ -496,6 +703,7 @@ export class Player {
         this.isSpinning = true;
         this.spinTimer = 0.35;
         this.isAttacking = true;
+        this.combatState = 'SPIN_ATTACK';
         this.attackCombo = 2;
 
         sounds.playSlash('heavy');
@@ -503,20 +711,22 @@ export class Player {
         if (this.onSpinAttackCallback) {
             this.onSpinAttackCallback();
         } else if (this.onAttackCallback) {
-            this.onAttackCallback(this.currentWeaponId, 2, null);
+            this.onAttackCallback(this.currentWeaponId, 2, null, false);
         }
     }
 
     bounceTrampoline(boostForce = 22.0) {
         this.velocity.y = boostForce;
         this.isGrounded = false;
+        this.canAirDash = true; // Recarga air dash en trampolín
         this.jumpCount = 1;
+        this.locomotionState = 'JUMP';
         sounds.playTrampoline();
     }
 
     takeDamage(amount, attacker = null) {
-        // 1. Invulnerabilidad total durante rodada (i-frames) o dash ninja
-        if (this.rollTimer > 0 || this.dashTimer > 0) {
+        // 1. Invulnerabilidad total durante rodada (i-frames) o dash / air dash ninja
+        if (this.rollTimer > 0 || this.dashTimer > 0 || this.airDashTimer > 0) {
             return { parried: false, blocked: false, damage: 0 };
         }
 
@@ -587,6 +797,12 @@ export class Player {
         if (this.rollTimer > 0) this.rollTimer -= delta;
         if (this.rollCooldown > 0) this.rollCooldown -= delta;
         if (this.shurikenCooldown > 0) this.shurikenCooldown -= delta;
+        if (this.airDashTimer > 0) this.airDashTimer -= delta;
+        if (this.wallJumpLockout > 0) this.wallJumpLockout -= delta;
+        if (this.airComboTimer > 0) {
+            this.airComboTimer -= delta;
+            if (this.airComboTimer <= 0) this.airCombo = 0;
+        }
 
         // Planeo de Guaca
         if (this.isGliding) {
@@ -602,107 +818,173 @@ export class Player {
             }
         }
 
-        // 1. Movimiento lateral 2.5D Cinemático (Eje X)
-        let moveX = 0;
-        if (this.keys.d) moveX += 1.0;
-        if (this.keys.a) moveX -= 1.0;
-        if (Math.abs(this.touchMoveVector.x) > 0.05) {
-            moveX += this.touchMoveVector.x;
-        }
-        moveX = Math.max(-1.0, Math.min(1.0, moveX));
+        // 1. Balanceo Físico en Lianas Andinas
+        if (this.isLianaSwinging && this.lianaAnchor) {
+            this.lianaAngle += this.lianaAngularSpeed * delta;
+            this.lianaAngularSpeed += (-16.0 / this.lianaLength) * Math.sin(this.lianaAngle) * delta;
+            this.lianaAngularSpeed *= 0.993; // Amortiguación pendular
 
-        // Salto asistido al empujar el joystick hacia arriba en celular
-        if (this.touchMoveVector.y > 0.65 && !this.wasJoystickUp) {
-            this.jump();
-            this.wasJoystickUp = true;
-        } else if (this.touchMoveVector.y < 0.3) {
-            this.wasJoystickUp = false;
-        }
+            this.mesh.position.x = this.lianaAnchor.x + Math.sin(this.lianaAngle) * this.lianaLength;
+            this.mesh.position.y = this.lianaAnchor.y - Math.cos(this.lianaAngle) * this.lianaLength;
+            this.mesh.position.z = 0;
+            this.velocity.set(0, 0, 0);
 
-        const isMoving = Math.abs(moveX) > 0.08 && !this.isRolling && !this.isBlocking;
-
-        if (isMoving) {
-            this.facing = moveX > 0 ? 1 : -1;
-        }
-
-        // Suave giro hacia la dirección que mira en el plano 2.5D
-        const targetRotY = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
-        let diffRot = targetRotY - this.mesh.rotation.y;
-        while (diffRot < -Math.PI) diffRot += Math.PI * 2;
-        while (diffRot > Math.PI) diffRot -= Math.PI * 2;
-        this.mesh.rotation.y += diffRot * Math.min(1.0, delta * 20.0);
-
-        const baseSpeed = this.baseSpeed || 10.5;
-        let targetVx = 0;
-
-        if (this.isRolling) {
-            const progress = Math.max(0, this.rollTimer / 0.35);
-            targetVx = this.facing * (11.0 + progress * 6.5);
-        } else if (this.isBlocking) {
-            targetVx = moveX * (baseSpeed * 0.32);
-        } else if (isMoving) {
-            targetVx = moveX * baseSpeed;
+            this.facing = this.lianaAngularSpeed >= 0 ? 1 : -1;
+            this.mesh.rotation.y = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
         } else {
-            targetVx = 0;
-        }
-
-        this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 20.0);
-
-        // Fijar plano lateral 2D (Z = 0)
-        this.velocity.z = 0;
-        this.mesh.position.z += (0 - this.mesh.position.z) * Math.min(1.0, delta * 24.0);
-
-        // 2. Gravedad y suelo
-        const fallMult = this.velocity.y < 0 ? 1.15 : 1.0;
-        this.velocity.y += this.gravity * fallMult * delta;
-        this.mesh.position.x += this.velocity.x * delta;
-        this.mesh.position.y += this.velocity.y * delta;
-        this.mesh.position.z += this.velocity.z * delta;
-
-        let groundY = 0;
-        if (this.groundCheckProvider) {
-            groundY = this.groundCheckProvider(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
-        }
-
-        const wasAirborne = !this.isGrounded && this.velocity.y < -2.0;
-
-        if (this.velocity.y <= 0 && this.mesh.position.y <= groundY) {
-            this.mesh.position.y = groundY;
-            this.velocity.y = 0;
-            if (wasAirborne && this.onLandCallback) {
-                this.onLandCallback(this.mesh.position.clone());
+            // 2. Movimiento lateral 2.5D Cinemático (Eje X)
+            let moveX = 0;
+            if (this.keys.d) moveX += 1.0;
+            if (this.keys.a) moveX -= 1.0;
+            if (Math.abs(this.touchMoveVector.x) > 0.05) {
+                moveX += this.touchMoveVector.x;
             }
-            this.isGrounded = true;
-            this.jumpCount = 0;
+            moveX = Math.max(-1.0, Math.min(1.0, moveX));
 
-            // Actualizar punto de control dinámico en niveles de plataformas a lo largo del avance X
-            if (this.isCampaignMode && groundY > -2.0) {
-                if (!this.lastCheckpointPos) {
-                    this.lastCheckpointPos = this.mesh.position.clone();
-                } else if (this.mesh.position.x > this.lastCheckpointPos.x + 12.0) {
-                    this.lastCheckpointPos.copy(this.mesh.position);
+            // Salto asistido al empujar el joystick hacia arriba en celular
+            if (this.touchMoveVector.y > 0.65 && !this.wasJoystickUp) {
+                this.jump();
+                this.wasJoystickUp = true;
+            } else if (this.touchMoveVector.y < 0.3) {
+                this.wasJoystickUp = false;
+            }
+
+            const isMoving = Math.abs(moveX) > 0.08 && !this.isRolling && !this.isBlocking && this.airDashTimer <= 0;
+
+            if (isMoving && this.wallJumpLockout <= 0) {
+                this.facing = moveX > 0 ? 1 : -1;
+            }
+
+            // Suave giro hacia la dirección que mira en el plano 2.5D
+            const targetRotY = this.facing > 0 ? (Math.PI * 0.5) : (-Math.PI * 0.5);
+            let diffRot = targetRotY - this.mesh.rotation.y;
+            while (diffRot < -Math.PI) diffRot += Math.PI * 2;
+            while (diffRot > Math.PI) diffRot -= Math.PI * 2;
+            this.mesh.rotation.y += diffRot * Math.min(1.0, delta * 20.0);
+
+            const baseSpeed = this.baseSpeed || 10.5;
+            let targetVx = 0;
+
+            if (this.airDashTimer > 0) {
+                targetVx = this.facing * 18.5; // Velocidad fija de dash aéreo
+            } else if (this.wallJumpLockout > 0) {
+                // Conservar impulso horizontal del wall jump durante el despegue
+                targetVx = this.velocity.x;
+            } else if (this.isRolling) {
+                const progress = Math.max(0, this.rollTimer / 0.35);
+                targetVx = this.facing * (11.0 + progress * 6.5);
+            } else if (this.isBlocking) {
+                targetVx = moveX * (baseSpeed * 0.32);
+            } else if (isMoving) {
+                targetVx = moveX * baseSpeed;
+            } else {
+                targetVx = 0;
+            }
+
+            if (this.wallJumpLockout <= 0) {
+                this.velocity.x += (targetVx - this.velocity.x) * Math.min(1.0, delta * 20.0);
+            }
+
+            // Fijar plano lateral 2D (Z = 0)
+            this.velocity.z = 0;
+            this.mesh.position.z += (0 - this.mesh.position.z) * Math.min(1.0, delta * 24.0);
+
+            // 3. Gravedad y detección de suelo / paredes
+            if (this.airDashTimer <= 0) {
+                const fallMult = this.velocity.y < 0 ? 1.15 : 1.0;
+                this.velocity.y += this.gravity * fallMult * delta;
+            } else {
+                this.velocity.y = 0; // Gravedad cero durante el air dash
+            }
+
+            this.mesh.position.x += this.velocity.x * delta;
+            this.mesh.position.y += this.velocity.y * delta;
+            this.mesh.position.z += this.velocity.z * delta;
+
+            // Detección de Wall Slide en paredes verticales
+            if (!this.isGrounded && this.velocity.y < 0 && !this.isGroundSlamming && this.airDashTimer <= 0 && this.wallCheckProvider) {
+                const checkDir = (Math.abs(moveX) > 0.08) ? (moveX > 0 ? 1 : -1) : this.facing;
+                const wall = this.wallCheckProvider(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z, checkDir);
+                if (wall && wall.isWall) {
+                    this.isWallSliding = true;
+                    this.wallSlideDirection = checkDir;
+                    this.locomotionState = 'WALL_SLIDE';
+                    this.canAirDash = true; // Recarga air dash al deslizarse
+                    if (this.velocity.y < -2.6) {
+                        this.velocity.y = -2.6; // Fricción de deslizamiento
+                    }
+                    if (wall.wallX !== undefined) {
+                        this.mesh.position.x = wall.wallX - checkDir * 0.45;
+                    }
+                    if (this.onWallSlideCallback) {
+                        this.onWallSlideCallback(this.mesh.position.clone(), this.facing);
+                    }
+                } else {
+                    this.isWallSliding = false;
+                }
+            } else {
+                this.isWallSliding = false;
+            }
+
+            let groundY = 0;
+            if (this.groundCheckProvider) {
+                groundY = this.groundCheckProvider(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
+            }
+
+            const wasAirborne = !this.isGrounded && this.velocity.y < -2.0;
+
+            if (this.velocity.y <= 0 && this.mesh.position.y <= groundY) {
+                this.mesh.position.y = groundY;
+                this.velocity.y = 0;
+                this.isGrounded = true;
+                this.jumpCount = 0;
+                this.canAirDash = true; // Recarga de air dash al tocar tierra
+                this.isWallSliding = false;
+                this.locomotionState = isMoving ? 'RUN' : 'IDLE';
+
+                if (this.isGroundSlamming) {
+                    this.isGroundSlamming = false;
+                    this.combatState = 'NEUTRAL';
+                    if (this.onGroundSlamImpact) {
+                        this.onGroundSlamImpact(this.mesh.position.clone(), this.currentWeaponId);
+                    }
+                } else if (wasAirborne && this.onLandCallback) {
+                    this.onLandCallback(this.mesh.position.clone());
+                }
+
+                // Actualizar punto de control dinámico en niveles de plataformas a lo largo del avance X
+                if (this.isCampaignMode && groundY > -2.0) {
+                    if (!this.lastCheckpointPos) {
+                        this.lastCheckpointPos = this.mesh.position.clone();
+                    } else if (this.mesh.position.x > this.lastCheckpointPos.x + 12.0) {
+                        this.lastCheckpointPos.copy(this.mesh.position);
+                    }
+                }
+            } else if (this.mesh.position.y > groundY + 0.05) {
+                this.isGrounded = false;
+                if (!this.isWallSliding && this.airDashTimer <= 0 && this.locomotionState !== 'WALL_JUMP') {
+                    this.locomotionState = this.velocity.y > 0 ? 'JUMP' : 'FALL';
                 }
             }
-        } else if (this.mesh.position.y > groundY + 0.05) {
-            this.isGrounded = false;
-        }
 
-        // Caída al abismo en plataformas
-        if (this.mesh.position.y < -12.0) {
-            this.takeDamage(20);
-            const respawnPoint = (this.lastCheckpointPos && this.lastCheckpointPos.clone()) || new THREE.Vector3(0, 1.5, 0);
-            respawnPoint.y = Math.max(1.5, respawnPoint.y + 0.5);
-            this.mesh.position.copy(respawnPoint);
-            this.velocity.set(0, 0, 0);
-        }
+            // Caída al abismo en plataformas
+            if (this.mesh.position.y < -12.0) {
+                this.takeDamage(20);
+                const respawnPoint = (this.lastCheckpointPos && this.lastCheckpointPos.clone()) || new THREE.Vector3(0, 1.5, 0);
+                respawnPoint.y = Math.max(1.5, respawnPoint.y + 0.5);
+                this.mesh.position.copy(respawnPoint);
+                this.velocity.set(0, 0, 0);
+                this.isGroundSlamming = false;
+            }
 
-        // Límites del mapa en arenas
-        if (!this.isCampaignMode) {
-            this.mesh.position.x = Math.max(-28, Math.min(28, this.mesh.position.x));
+            // Límites del mapa en arenas
+            if (!this.isCampaignMode) {
+                this.mesh.position.x = Math.max(-28, Math.min(28, this.mesh.position.x));
+            }
         }
 
         // =====================================================================
-        // 3. CINEMÁTICA ARTICULAR NATURAL Y ANIMACIONES
+        // 4. CINEMÁTICA ARTICULAR NATURAL Y ANIMACIONES AVANZADAS
         // =====================================================================
         const time = performance.now() * 0.013;
 
@@ -717,6 +999,70 @@ export class Player {
                 this.modelGroup.rotation.z = 0;
                 this.torso.position.y = 1.35;
             }
+        } else if (this.airDashTimer > 0) {
+            // Postura aerodinámica de Air Dash con katana trazando estela
+            this.modelGroup.rotation.z = 0;
+            this.torso.position.y = 1.25;
+            this.torso.rotation.set(0.42, 0, 0);
+
+            this.rightArmPivot.rotation.set(-0.35, 0, 0.45);
+            this.rightElbowPivot.rotation.set(-0.2, 0, 0);
+            this.leftArmPivot.rotation.set(-0.35, 0, -0.45);
+            this.leftElbowPivot.rotation.set(-0.2, 0, 0);
+
+            this.leftLegPivot.rotation.set(0.48, 0, 0);
+            this.rightLegPivot.rotation.set(-0.48, 0, 0);
+            this.leftKneePivot.rotation.set(0.3, 0, 0);
+            this.rightKneePivot.rotation.set(0.3, 0, 0);
+
+        } else if (this.isWallSliding) {
+            // Deslizamiento en pared con apoyo de manos y flexión de piernas
+            this.modelGroup.rotation.z = 0;
+            this.torso.position.y = 1.28;
+            this.torso.rotation.set(0.08, this.facing * 0.3, 0);
+
+            this.rightArmPivot.rotation.set(-0.75, 0, 0.35);
+            this.rightElbowPivot.rotation.set(-0.4, 0, 0);
+            this.leftArmPivot.rotation.set(-0.75, 0, -0.35);
+            this.leftElbowPivot.rotation.set(-0.4, 0, 0);
+
+            this.leftLegPivot.rotation.set(0.5, 0, 0);
+            this.rightLegPivot.rotation.set(0.25, 0, 0);
+            this.leftKneePivot.rotation.set(0.65, 0, 0);
+            this.rightKneePivot.rotation.set(0.45, 0, 0);
+
+        } else if (this.isGroundSlamming) {
+            // Caída sísmica vertical con katana hacia abajo
+            this.modelGroup.rotation.z = 0;
+            this.torso.position.y = 1.35;
+            this.torso.rotation.set(0.25, 0, 0);
+
+            this.rightArmPivot.rotation.set(Math.PI * 0.85, 0, 0.15);
+            this.rightElbowPivot.rotation.set(-0.15, 0, 0);
+            this.leftArmPivot.rotation.set(Math.PI * 0.85, 0, -0.15);
+            this.leftElbowPivot.rotation.set(-0.15, 0, 0);
+
+            this.leftLegPivot.rotation.set(-0.4, 0, 0);
+            this.rightLegPivot.rotation.set(-0.4, 0, 0);
+            this.leftKneePivot.rotation.set(0.2, 0, 0);
+            this.rightKneePivot.rotation.set(0.2, 0, 0);
+
+        } else if (this.isLianaSwinging) {
+            // Sujeción de liana con brazos en alto oscilando con el péndulo
+            this.modelGroup.rotation.z = -this.lianaAngle * 0.65;
+            this.torso.position.y = 1.35;
+            this.torso.rotation.set(0, 0, 0);
+
+            this.rightArmPivot.rotation.set(-Math.PI * 0.82, 0, 0.2);
+            this.rightElbowPivot.rotation.set(-0.15, 0, 0);
+            this.leftArmPivot.rotation.set(-Math.PI * 0.82, 0, -0.2);
+            this.leftElbowPivot.rotation.set(-0.15, 0, 0);
+
+            this.leftLegPivot.rotation.set(0.35, 0, 0);
+            this.rightLegPivot.rotation.set(0.15, 0, 0);
+            this.leftKneePivot.rotation.set(0.5, 0, 0);
+            this.rightKneePivot.rotation.set(0.3, 0, 0);
+
         } else if (this.isBlocking) {
             // Postura de guardia firme con katana cruzada
             this.modelGroup.rotation.z = 0;
@@ -761,27 +1107,50 @@ export class Player {
             this.attackTimer += delta * 8;
             if (this.attackTimer > Math.PI) {
                 this.isAttacking = false;
+                this.isAirAttacking = false;
                 this.attackTimer = 0;
             }
 
-            if (this.attackCombo === 1) {
-                // Tajo horizontal fluido
-                this.rightArmPivot.rotation.x = Math.PI / 2 + Math.sin(this.attackTimer) * 0.6;
-                this.rightArmPivot.rotation.y = -Math.PI / 3 + Math.sin(this.attackTimer) * 1.8;
-                this.rightElbowPivot.rotation.x = -0.3 + Math.sin(this.attackTimer) * 0.4;
-                this.torso.rotation.y = Math.sin(this.attackTimer) * 0.5;
-            } else if (this.attackCombo === 2) {
-                // Tajo descendente potente
-                this.rightArmPivot.rotation.x = Math.PI - Math.sin(this.attackTimer) * 2.2;
-                this.rightArmPivot.rotation.y = 0;
-                this.rightElbowPivot.rotation.x = -0.6;
-                this.torso.rotation.x = Math.sin(this.attackTimer) * 0.3;
+            if (this.isAirAttacking) {
+                // Combos Aéreos 1-2-3 con rotación dinámica y tajos acrobáticos
+                if (this.airCombo === 1) {
+                    // Tajo aéreo horizontal
+                    this.rightArmPivot.rotation.x = Math.PI / 2 + Math.sin(this.attackTimer) * 0.8;
+                    this.rightArmPivot.rotation.y = -Math.PI / 3 + Math.sin(this.attackTimer) * 1.6;
+                    this.rightElbowPivot.rotation.x = -0.3;
+                    this.torso.rotation.y = Math.sin(this.attackTimer) * 0.4;
+                } else if (this.airCombo === 2) {
+                    // Voltereta ascendente en el aire (Flip Slash)
+                    this.modelGroup.rotation.z = this.facing * Math.sin(this.attackTimer) * 1.6;
+                    this.rightArmPivot.rotation.x = Math.PI - Math.sin(this.attackTimer) * 2.0;
+                    this.rightArmPivot.rotation.y = 0;
+                } else {
+                    // Remate descendente aéreo (Aerial Spike Finisher)
+                    this.rightArmPivot.rotation.x = Math.PI * 0.95 - Math.sin(this.attackTimer) * 1.5;
+                    this.rightArmPivot.rotation.y = 0;
+                    this.torso.rotation.x = 0.35;
+                }
             } else {
-                // Estocada frontal con torsión de torso
-                this.rightArmPivot.rotation.x = Math.PI * 0.5;
-                this.rightArmPivot.rotation.y = Math.sin(this.attackTimer) * 0.8;
-                this.rightElbowPivot.rotation.x = -0.2;
-                this.torso.rotation.y = -Math.sin(this.attackTimer) * 0.3;
+                // Combos Terrestres 1-2-3
+                if (this.attackCombo === 1) {
+                    // Tajo horizontal fluido
+                    this.rightArmPivot.rotation.x = Math.PI / 2 + Math.sin(this.attackTimer) * 0.6;
+                    this.rightArmPivot.rotation.y = -Math.PI / 3 + Math.sin(this.attackTimer) * 1.8;
+                    this.rightElbowPivot.rotation.x = -0.3 + Math.sin(this.attackTimer) * 0.4;
+                    this.torso.rotation.y = Math.sin(this.attackTimer) * 0.5;
+                } else if (this.attackCombo === 2) {
+                    // Tajo descendente potente
+                    this.rightArmPivot.rotation.x = Math.PI - Math.sin(this.attackTimer) * 2.2;
+                    this.rightArmPivot.rotation.y = 0;
+                    this.rightElbowPivot.rotation.x = -0.6;
+                    this.torso.rotation.x = Math.sin(this.attackTimer) * 0.3;
+                } else {
+                    // Estocada frontal con torsión de torso
+                    this.rightArmPivot.rotation.x = Math.PI * 0.5;
+                    this.rightArmPivot.rotation.y = Math.sin(this.attackTimer) * 0.8;
+                    this.rightElbowPivot.rotation.x = -0.2;
+                    this.torso.rotation.y = -Math.sin(this.attackTimer) * 0.3;
+                }
             }
 
         } else {
