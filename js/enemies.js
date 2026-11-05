@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { sounds } from './sound.js?v=20.0';
 import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
 import { resourceManager } from './core/resourceManager.js';
+import { BossAISystem } from './systems/bossAI.js?v=20.0';
+import { BOSS_CONFIGS } from './config/bossConfig.js?v=20.0';
 
 export class EnemyManager {
     constructor(scene, particles) {
@@ -10,11 +12,13 @@ export class EnemyManager {
         this.particles = particles;
         this.enemies = [];
         this.groundCheckProvider = null;
+        this.bossAISystem = new BossAISystem(this.scene, this.particles, sounds);
 
         this.spawnInitialEnemies('forest');
     }
 
     clearEnemies() {
+        if (this.bossAISystem) this.bossAISystem.hideBossHUD();
         while (this.enemies.length > 0) {
             const e = this.enemies.pop();
             if (e.mesh) {
@@ -651,6 +655,9 @@ export class EnemyManager {
     }
 
     defeatEnemy(enemy, onEnemyDefeated) {
+        if (enemy.isCampaignBoss && this.bossAISystem) {
+            this.bossAISystem.hideBossHUD();
+        }
         this.particles.createEnemyDefeatBurst(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.0, 0)));
 
         const coinCount = Math.min(10, Math.ceil(enemy.coinsDrop / 5));
@@ -708,6 +715,21 @@ export class EnemyManager {
             }
 
             if (enemy.type === 'dummy') return;
+
+            // Control Especializado de Jefes Regionales de Colombia
+            if (enemy.isCampaignBoss && this.bossAISystem) {
+                this.bossAISystem.update(
+                    enemy,
+                    player,
+                    delta,
+                    (dmg, attacker) => player.takeDamage(dmg, attacker),
+                    (def) => this.defeatEnemy(def),
+                    (intensity, duration) => {
+                        if (player.onScreenShake) player.onScreenShake(intensity, duration);
+                    }
+                );
+                return;
+            }
 
             const groundY = enemy.groundY !== undefined ? enemy.groundY : (this.groundCheckProvider ? this.groundCheckProvider(enemy.mesh.position.x, enemy.mesh.position.y, enemy.mesh.position.z) : 0);
             if (enemy.mesh.position.y <= groundY) {
@@ -1366,6 +1388,9 @@ export class EnemyManager {
 
         this.enemies.push(enemy);
         this.scene.add(group);
+        if (this.bossAISystem) {
+            this.bossAISystem.initBoss(enemy, worldNum);
+        }
         return enemy;
     }
 
