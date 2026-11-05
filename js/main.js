@@ -13,6 +13,7 @@ import { CHARACTERS_DATA } from './characters.js?v=20.0';
 import { CAMPAIGN_WORLDS } from './campaign.js?v=20.0';
 import { LevelManager } from './core/levelManager.js?v=20.0';
 import { resourceManager } from './core/resourceManager.js?v=20.0';
+import { PerformanceMonitor, GRAPHIC_PROFILES } from './systems/performanceMonitor.js?v=20.0';
 
 // Limpieza automática de cookies al iniciar el juego
 clearAllCookies();
@@ -42,9 +43,11 @@ class Game {
         // 1. Inicializar Three.js con antialiasing y nitidez HD
         this.setupRenderer();
         this.setupSceneAndLights();
+        this.perfMonitor = new PerformanceMonitor(this.renderer, this.scene, this.isMobile);
 
         // 2. Inicializar subsistemas
         this.particles = new ParticleSystem(this.scene);
+        this.particles.perfMonitor = this.perfMonitor;
         this.world = new World(this.scene);
         this.player = new Player(this.scene, this.camera, this.renderer.domElement);
         this.enemyManager = new EnemyManager(this.scene, this.particles);
@@ -1967,6 +1970,7 @@ class Game {
         if (this.isContextLost) return;
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
+        if (this.perfMonitor) this.perfMonitor.update(delta);
 
         // Si está en el Menú Principal, posicionar y animar cámara y héroe 3D
         if (this.state === 'MENU') {

@@ -1,6 +1,7 @@
 // js/particles.js - Sistema de Partículas, Estelas y Monedas Recolectables
 import * as THREE from 'three';
 import { sounds } from './sound.js?v=20.0';
+import { ObjectPool, vectorPool } from './core/objectPool.js?v=20.0';
 
 export class ParticleSystem {
     constructor(scene) {
@@ -9,6 +10,7 @@ export class ParticleSystem {
         this.coins = [];
         this.projectiles = []; // Shurikens arrojados
         this.floatingTexts = [];
+        this.perfMonitor = null;
 
         // Geometría y materiales reutilizables (evita GC y sobrecalentamiento móvil)
         this.sparkGeom = new THREE.BoxGeometry(0.08, 0.08, 0.08);
@@ -43,11 +45,137 @@ export class ParticleSystem {
             hitSpark: new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 1 }),
             smoke: new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.65 })
         };
+
+        // Pools de objetos para cero Garbage Collection en combate y plataformas
+        this._initPools();
+    }
+
+    _initPools() {
+        // Pool de Chispas estándar
+        this.sparkPool = new ObjectPool(() => {
+            const mesh = new THREE.Mesh(this.sparkGeom, this.materials.hitSpark);
+            mesh.visible = false;
+            this.scene.add(mesh);
+            return {
+                mesh,
+                velocity: new THREE.Vector3(),
+                life: 0,
+                maxLife: 0.35,
+                gravity: -9.8,
+                shrink: true,
+                isPooled: true,
+                onAcquire() {
+                    this.mesh.visible = true;
+                    this.mesh.scale.set(1, 1, 1);
+                },
+                onRelease() {
+                    this.mesh.visible = false;
+                },
+                dispose() {
+                    if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
+                }
+            };
+        }, 30, 90);
+
+        // Pool de Humo y Polvo
+        this.smokePool = new ObjectPool(() => {
+            const mesh = new THREE.Mesh(this.smokeGeom, this.materials.smoke);
+            mesh.visible = false;
+            this.scene.add(mesh);
+            return {
+                mesh,
+                velocity: new THREE.Vector3(),
+                life: 0,
+                maxLife: 0.3,
+                gravity: 0,
+                grow: false,
+                fade: true,
+                isPooled: true,
+                onAcquire() {
+                    this.mesh.visible = true;
+                    this.mesh.scale.set(0.6, 0.6, 0.6);
+                },
+                onRelease() {
+                    this.mesh.visible = false;
+                },
+                dispose() {
+                    if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
+                }
+            };
+        }, 15, 45);
+
+        // Pool de Shurikens (Proyectiles)
+        this.shurikenPool = new ObjectPool(() => {
+            const mesh = new THREE.Mesh(this.shurikenGeom, this.shurikenMat);
+            mesh.visible = false;
+            this.scene.add(mesh);
+            return {
+                mesh,
+                velocity: new THREE.Vector3(),
+                damage: 0,
+                element: 'wood',
+                life: 0,
+                active: false,
+                isPooled: true,
+                onAcquire() {
+                    this.mesh.visible = true;
+                    this.active = true;
+                },
+                onRelease() {
+                    this.mesh.visible = false;
+                    this.active = false;
+                },
+                dispose() {
+                    if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
+                }
+            };
+        }, 8, 25);
+
+        // Pool de Monedas
+        this.coinPool = new ObjectPool(() => {
+            const mesh = new THREE.Mesh(this.coinGeom, this.coinMat);
+            mesh.visible = false;
+            mesh.castShadow = true;
+            this.scene.add(mesh);
+            return {
+                mesh,
+                velocity: new THREE.Vector3(),
+                value: 10,
+                magnetized: false,
+                timeAlive: 0,
+                groundY: 0.3,
+                isPooled: true,
+                onAcquire() {
+                    this.mesh.visible = true;
+                    this.magnetized = false;
+                    this.timeAlive = 0;
+                },
+                onRelease() {
+                    this.mesh.visible = false;
+                },
+                dispose() {
+                    if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
+                }
+            };
+        }, 12, 40);
+    }
+
+    getParticleMultiplier() {
+        if (this.perfMonitor && this.perfMonitor.config) {
+            return this.perfMonitor.config.particleMultiplier || 1.0;
+        }
+        return 1.0;
     }
 
     clear() {
+        if (this.sparkPool) this.sparkPool.releaseAll();
+        if (this.smokePool) this.smokePool.releaseAll();
+        if (this.shurikenPool) this.shurikenPool.releaseAll();
+        if (this.coinPool) this.coinPool.releaseAll();
+
         while (this.particles.length > 0) {
             const p = this.particles.pop();
+            if (p.isPooled) continue;
             if (p.isSlash && p.group) {
                 this.scene.remove(p.group);
                 if (p.arcMat) p.arcMat.dispose();
@@ -62,11 +190,11 @@ export class ParticleSystem {
         }
         while (this.coins.length > 0) {
             const c = this.coins.pop();
-            if (c.mesh) this.scene.remove(c.mesh);
+            if (!c.isPooled && c.mesh) this.scene.remove(c.mesh);
         }
         while (this.projectiles.length > 0) {
             const pr = this.projectiles.pop();
-            if (pr.mesh) this.scene.remove(pr.mesh);
+            if (!pr.isPooled && pr.mesh) this.scene.remove(pr.mesh);
         }
     }
 
@@ -159,28 +287,24 @@ export class ParticleSystem {
     }
 
     createHitSparks(position, isCrit = false) {
-        const count = isCrit ? 10 : 6;
+        const rawCount = isCrit ? 10 : 6;
+        const count = Math.max(2, Math.round(rawCount * this.getParticleMultiplier()));
         const mat = isCrit ? this.materials.critSpark : this.materials.hitSpark;
 
         for (let i = 0; i < count; i++) {
-            const mesh = new THREE.Mesh(this.sparkGeom, mat);
-            mesh.position.copy(position);
-
-            const vel = new THREE.Vector3(
+            const p = this.sparkPool.acquire();
+            p.mesh.material = mat;
+            p.mesh.position.copy(position);
+            p.velocity.set(
                 (Math.random() - 0.5) * 4.5,
                 Math.random() * 3.5 + 1.2,
                 (Math.random() - 0.5) * 4.5
             );
-
-            this.particles.push({
-                mesh: mesh,
-                velocity: vel,
-                life: 0.3 + Math.random() * 0.15,
-                maxLife: 0.45,
-                gravity: -9.8,
-                shrink: true
-            });
-            this.scene.add(mesh);
+            p.life = 0.3 + Math.random() * 0.15;
+            p.maxLife = 0.45;
+            p.gravity = -9.8;
+            p.shrink = true;
+            this.particles.push(p);
         }
     }
 
@@ -219,55 +343,45 @@ export class ParticleSystem {
     }
 
     createDodgeDust(position) {
-        const count = 3;
+        const count = Math.max(1, Math.round(3 * this.getParticleMultiplier()));
         for (let i = 0; i < count; i++) {
-            const mesh = new THREE.Mesh(this.smokeGeom, this.materials.smoke);
-            mesh.position.set(
+            const p = this.smokePool.acquire();
+            p.mesh.position.set(
                 position.x + (Math.random() - 0.5) * 0.4,
                 position.y + 0.15,
                 position.z + (Math.random() - 0.5) * 0.2
             );
-            mesh.scale.set(0.6, 0.6, 0.6);
-
-            this.particles.push({
-                mesh: mesh,
-                velocity: new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 0.4, 0),
-                life: 0.25,
-                maxLife: 0.25,
-                gravity: 0,
-                scaleSpeed: 1.8,
-                fade: true
-            });
-            this.scene.add(mesh);
+            p.mesh.scale.set(0.6, 0.6, 0.6);
+            p.velocity.set((Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 0.4, 0);
+            p.life = 0.25;
+            p.maxLife = 0.25;
+            p.gravity = 0;
+            p.grow = false;
+            p.fade = true;
+            this.particles.push(p);
         }
     }
 
     createSmokePoof(position, scale = 1.0) {
-        const count = 5;
-        const mat = this.materials.smoke;
-
+        const count = Math.max(2, Math.round(5 * this.getParticleMultiplier()));
         for (let i = 0; i < count; i++) {
-            const mesh = new THREE.Mesh(this.smokeGeom, mat);
-            mesh.position.copy(position);
-            mesh.scale.setScalar(scale * (0.6 + Math.random() * 0.6));
+            const p = this.smokePool.acquire();
+            p.mesh.position.copy(position);
+            p.mesh.scale.setScalar(scale * (0.6 + Math.random() * 0.6));
 
             const angle = Math.random() * Math.PI * 2;
             const horizontalSpeed = Math.random() * 2.2 * scale;
-            const vel = new THREE.Vector3(
+            p.velocity.set(
                 Math.cos(angle) * horizontalSpeed,
                 Math.random() * 1.8 * scale + 0.4,
                 Math.sin(angle) * horizontalSpeed
             );
-
-            this.particles.push({
-                mesh: mesh,
-                velocity: vel,
-                life: 0.4 + Math.random() * 0.25,
-                maxLife: 0.65,
-                gravity: 0.5,
-                grow: true
-            });
-            this.scene.add(mesh);
+            p.life = 0.4 + Math.random() * 0.25;
+            p.maxLife = 0.65;
+            p.gravity = 0.5;
+            p.grow = true;
+            p.fade = false;
+            this.particles.push(p);
         }
     }
 
@@ -350,47 +464,35 @@ export class ParticleSystem {
     }
 
     spawnCoin(position, value = 5) {
-        const coinMesh = new THREE.Mesh(this.coinGeom, this.coinMat);
-        coinMesh.position.copy(position);
-        coinMesh.rotation.x = Math.PI / 2;
-        coinMesh.castShadow = true;
-
-        const vel = new THREE.Vector3(
+        const coin = this.coinPool.acquire();
+        coin.mesh.position.copy(position);
+        coin.mesh.rotation.x = Math.PI / 2;
+        coin.velocity.set(
             (Math.random() - 0.5) * 3,
             Math.random() * 3.5 + 2.5,
             (Math.random() - 0.5) * 3
         );
-
-        const coinObj = {
-            mesh: coinMesh,
-            velocity: vel,
-            value: value,
-            magnetized: false,
-            timeAlive: 0,
-            groundY: 0.3
-        };
-
-        this.coins.push(coinObj);
-        this.scene.add(coinMesh);
+        coin.value = value;
+        coin.groundY = 0.3;
+        coin.timeAlive = 0;
+        coin.magnetized = false;
+        this.coins.push(coin);
     }
 
     spawnShurikenProjectile(startPos, direction, damage, element) {
-        const mesh = new THREE.Mesh(this.shurikenGeom, this.shurikenMat);
-        mesh.position.copy(startPos);
-        mesh.rotation.x = Math.PI / 2;
+        const p = this.shurikenPool.acquire();
+        p.mesh.position.copy(startPos);
+        p.mesh.rotation.x = Math.PI / 2;
+        p.mesh.rotation.z = 0;
 
         const speed = 26.0;
-        const vel = direction.clone().normalize().multiplyScalar(speed);
+        p.velocity.copy(direction).normalize().multiplyScalar(speed);
+        p.damage = damage;
+        p.element = element;
+        p.life = 1.8;
+        p.active = true;
 
-        this.projectiles.push({
-            mesh: mesh,
-            velocity: vel,
-            damage: damage,
-            element: element,
-            life: 1.8,
-            active: true
-        });
-        this.scene.add(mesh);
+        this.projectiles.push(p);
         sounds.playShurikenThrow();
     }
 
@@ -415,7 +517,11 @@ export class ParticleSystem {
             p.life -= delta;
 
             if (p.life <= 0) {
-                if (p.mesh) {
+                if (p.isPooled) {
+                    if (p.shrink && p.mesh) p.mesh.scale.setScalar(1);
+                    if (this.sparkPool && this.sparkPool.active.has(p)) this.sparkPool.release(p);
+                    else if (this.smokePool && this.smokePool.active.has(p)) this.smokePool.release(p);
+                } else if (p.mesh) {
                     this.scene.remove(p.mesh);
                     if (p.isCustomMat && p.mesh.material) {
                         if (Array.isArray(p.mesh.material)) p.mesh.material.forEach(m => m.dispose());
@@ -436,7 +542,7 @@ export class ParticleSystem {
             if (p.grow) {
                 p.mesh.scale.setScalar(Math.max(0.1, (1 - progress) * 1.5));
             }
-            if (p.mesh.material.transparent) {
+            if (p.mesh.material && p.mesh.material.transparent) {
                 p.mesh.material.opacity = Math.max(0, progress);
             }
         }
@@ -458,7 +564,11 @@ export class ParticleSystem {
                 // Moneda recogida
                 sounds.playCoin();
                 if (onCoinCollect) onCoinCollect(coin.value, coin.mesh.position);
-                this.scene.remove(coin.mesh);
+                if (coin.isPooled) {
+                    this.coinPool.release(coin);
+                } else {
+                    this.scene.remove(coin.mesh);
+                }
                 this.coins.splice(i, 1);
                 continue;
             }
@@ -466,9 +576,10 @@ export class ParticleSystem {
             if (distToPlayer < magnetRadius || coin.magnetized) {
                 // Atraer magnéticamente hacia el jugador
                 coin.magnetized = true;
-                const dirToPlayer = new THREE.Vector3().subVectors(playerPos, coin.mesh.position).normalize();
+                const dirToPlayer = vectorPool.get(playerPos.x - coin.mesh.position.x, playerPos.y - coin.mesh.position.y, playerPos.z - coin.mesh.position.z).normalize();
                 const magnetSpeed = Math.min(22, 6.0 + (magnetRadius - distToPlayer) * 3.5);
                 coin.mesh.position.addScaledVector(dirToPlayer, magnetSpeed * delta);
+                vectorPool.release(dirToPlayer);
             } else {
                 // Física normal de salto y gravedad en el suelo
                 if (coin.mesh.position.y > coin.groundY) {
@@ -490,7 +601,11 @@ export class ParticleSystem {
             proj.life -= delta;
 
             if (proj.life <= 0 || !proj.active) {
-                this.scene.remove(proj.mesh);
+                if (proj.isPooled) {
+                    this.shurikenPool.release(proj);
+                } else {
+                    this.scene.remove(proj.mesh);
+                }
                 this.projectiles.splice(i, 1);
                 continue;
             }
