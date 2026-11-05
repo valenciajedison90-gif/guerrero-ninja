@@ -1130,6 +1130,18 @@ class Game {
             this.openCampaignLevelsModal(this.campaignCurrentWorld);
         });
 
+        // Botones de Forzar Actualización y Limpieza de Caché v20.0
+        const onForceUpdateClick = () => {
+            if (typeof window.forcePurgeCache === 'function') {
+                window.forcePurgeCache();
+            } else {
+                localStorage.setItem('ninja_build_ver', 'v20.0');
+                window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&t=' + Date.now());
+            }
+        };
+        safeListener('btn-force-update', 'click', onForceUpdateClick);
+        safeListener('btn-force-clean-cache', 'click', onForceUpdateClick);
+
         // Botón Invocación de Jefe en Batalla
         safeListener('btn-spawn-boss', 'click', () => {
             if (this.enemyManager && this.player) {
@@ -1717,7 +1729,7 @@ class Game {
     setupPWAInstall() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=18.0')
+                navigator.serviceWorker.register('./sw.js?v=20.0.2')
                     .then(reg => {
                         console.log('PWA ServiceWorker activo:', reg.scope);
                         reg.update();

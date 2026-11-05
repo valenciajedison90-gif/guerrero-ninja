@@ -1,14 +1,14 @@
 // sw.js - Service Worker para Ninja Colombia Arena (Soporte Offline e Instalación PWA)
-const CACHE_NAME = 'ninja-colombia-v20.0';
+const CACHE_NAME = 'ninja-colombia-v20.0.2';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css?v=20.0',
+  './css/style.css?v=20.0.2',
   './lib/three.module.js',
   './lib/peerjs.min.js',
-  './js/main.js?v=20.0',
+  './js/main.js?v=20.0.2',
   './js/core/levelManager.js',
   './js/core/resourceManager.js',
   './js/core/gameLoop.js',
@@ -64,19 +64,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Para peticiones de navegación (HTML principal), consultar red primero siempre para no quedar atrapado en caché obsoleta
+  if (event.request.mode === 'navigate' || event.request.url.endsWith('index.html') || event.request.url.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' })
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request, { ignoreSearch: true }))
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        return caches.match(event.request, { ignoreSearch: true });
-      })
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
+    })
   );
 });

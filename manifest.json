@@ -1,7 +1,7 @@
 {
-  "name": "Ninja Colombia Arena - Aventura & Battle Royale",
+  "name": "Guerrero Ninja Colombia - Aventura 2.5D Oficial",
   "short_name": "Ninja Colombia",
-  "description": "Videojuego infantil 3D de aventura, plataformas y Battle Royale con héroes de la fauna colombiana.",
+  "description": "Videojuego de plataformas 2.5D y combate técnico ninja con héroes de la fauna colombiana v20.0.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "landscape",

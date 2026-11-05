@@ -7,25 +7,39 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <script>
-        // Purgar caché obsoleta y forzar actualización inmediata en celulares
-        const APP_BUILD_VER = 'v18.0';
+        // Purgar caché obsoleta y forzar actualización inmediata a v20.0 en celulares
+        const APP_BUILD_VER = 'v20.0';
         const prevVer = localStorage.getItem('ninja_build_ver');
         if (prevVer !== APP_BUILD_VER) {
             localStorage.setItem('ninja_build_ver', APP_BUILD_VER);
             if ('caches' in window) {
-                caches.keys().then(names => {
-                    for (let n of names) caches.delete(n);
-                });
+                caches.keys().then(names => Promise.all(names.map(n => caches.delete(n))));
             }
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.getRegistrations().then(regs => {
                     for (let r of regs) r.unregister();
                 });
             }
+            // Si venía de una versión antigua (v18, v19 o inexistente), forzar recarga limpia con query
             if (prevVer) {
-                window.location.reload(true);
+                window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&t=' + Date.now());
             }
         }
+        window.forcePurgeCache = function() {
+            if ('caches' in window) {
+                caches.keys().then(names => Promise.all(names.map(n => caches.delete(n)))).then(() => {
+                    if ('serviceWorker' in navigator) {
+                        return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
+                    }
+                }).then(() => {
+                    localStorage.setItem('ninja_build_ver', 'v20.0');
+                    window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&nocache=' + Date.now());
+                });
+            } else {
+                localStorage.setItem('ninja_build_ver', 'v20.0');
+                window.location.replace(window.location.origin + window.location.pathname + '?v=20.0&nocache=' + Date.now());
+            }
+        };
         window.addEventListener('error', function(e) {
             console.error('NINJA_ERROR:', e);
             const errDiv = document.getElementById('fatal-error-badge');
@@ -46,7 +60,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&family=Luckiest+Guy&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20.0">
+    <link rel="stylesheet" href="css/style.css?v=20.0.2">
     
     <!-- Soporte WebRTC para salas multijugador en GitHub Pages -->
     <script src="lib/peerjs.min.js"></script>
@@ -86,7 +100,7 @@
 
             <!-- Título Central / Logo de Alto Impacto Estilo Referencia -->
             <div class="menu-logo-banner">
-                <div class="logo-top-tag"><span class="flag-icon">🇨🇴</span> BIODIVERSIDAD COLOMBIANA • v1.8.0 (2.5D Cinemático Oficial)</div>
+                <div class="logo-top-tag" id="app-version-badge"><span class="flag-icon">🇨🇴</span> BIODIVERSIDAD COLOMBIANA • v20.0 (Aventura 2.5D Oficial)</div>
                 <h1 class="game-logo-title">
                     <span class="logo-title-row">
                         <span class="logo-text-ninja">NINJA</span>
@@ -112,7 +126,11 @@
                     <span class="currency-value" id="menu-gem-count">150</span>
                     <button class="btn-gem-plus" id="btn-add-gems" title="Recargar Gemas">+</button>
                 </div>
-                <button class="btn-menu-icon" id="btn-quick-sound" title="Alternar Sonido">🔊</button>
+                <button class="btn-menu-icon" id="btn-force-update" title="Limpiar caché y forzar v20.0" style="background: rgba(234, 179, 8, 0.25); border: 2px solid #facc15; color: #facc15; font-size: 14px; padding: 0 10px; width: auto; border-radius: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                        <span>🔄</span>
+                        <span style="font-size: 11px;">v20.0</span>
+                    </button>
+                    <button class="btn-menu-icon" id="btn-quick-sound" title="Alternar Sonido">🔊</button>
             </div>
         </header>
 
@@ -747,6 +765,10 @@
                     <button class="btn-toggle-setting" id="btn-toggle-high-contrast">DESACTIVADO</button>
                 </div>
                 <div class="setting-row">
+                    <span>Forzar Actualización v20.0</span>
+                    <button class="btn-toggle-setting active" id="btn-force-clean-cache" style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:700; cursor:pointer;">🔄 LIMPIAR CACHÉ</button>
+                </div>
+                <div class="setting-row">
                     <span>Control Parental & Seguridad</span>
                     <span class="setting-badge-safe">✓ 100% SEGURO PARA NIÑOS</span>
                 </div>
@@ -1050,6 +1072,6 @@
     </div>
 
     <!-- Script principal de inicio -->
-    <script type="module" src="js/main.js?v=20.0"></script>
+    <script type="module" src="js/main.js?v=20.0.2"></script>
 </body>
 </html>
